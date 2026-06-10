@@ -68,24 +68,13 @@ def _mistral_analysis(query: str, mode: str) -> dict[str, Any]:
         raise AnalysisError(503, "Missing Mistral API key", "Set MISTRAL_API_KEY in Render")
 
     model_name = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
-    prompt = f"""
-Return only valid JSON with the following keys:
-query, mode, title, summary, literalMeaning, actualMeaning, parts, relatedWords, notes
-
-User input:
-- query: {query}
-- mode: infer it yourself from the exact query
-
-Rules:
-- parts must be an array of objects with label, type, meaning, and optional source.
-- relatedWords must be an array of objects with word and meaning.
-- relatedWords should include up to 10 relevant words, no more.
-- notes must be an array of short strings.
-- Keep the response concise and educational.
-- Use the user's exact input. Do not substitute another word.
-- If the word is unfamiliar or ambiguous, infer the most likely morphology from the exact input.
-- Infer mode as one of: word, root, prefix, suffix.
-- Never return an answer about a different query.
+    prompt = f"""Return JSON only with keys: query, mode, title, summary, literalMeaning, actualMeaning, parts, relatedWords, notes.
+Query: {query}
+Infer mode from the query. Use the exact input. Keep text short.
+parts: array of objects with label, type, meaning, optional source.
+relatedWords: up to 10 objects with word and meaning.
+notes: up to 2 short strings.
+No markdown. No extra text. Never answer about a different query.
 """
 
     payload = {
@@ -93,7 +82,7 @@ Rules:
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.2,
         "top_p": 0.95,
-        "max_tokens": 900,
+        "max_tokens": 450,
     }
     http_request = request.Request(
         "https://api.mistral.ai/v1/chat/completions",
