@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { getApiBaseUrl } from './api-base';
 
 type SearchMode = 'word' | 'root' | 'prefix' | 'suffix';
 
@@ -151,7 +152,7 @@ export class App {
     this.error.set('');
 
     try {
-      const response = await fetch('/api/analyze', {
+      const response = await fetch(`${getApiBaseUrl()}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
