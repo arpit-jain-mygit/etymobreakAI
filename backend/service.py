@@ -53,53 +53,6 @@ DEFAULT_ANALYSES: dict[tuple[str, str], dict[str, Any]] = {
     },
 }
 
-FALLBACKS: dict[str, dict[str, Any]] = {
-    "word": {
-        "query": "cardiology",
-        "mode": "word",
-        "title": "CARDIOLOGY",
-        "summary": "A word breakdown view for a full term.",
-        "literalMeaning": "root + suffix",
-        "actualMeaning": "Shows how the word is built from smaller parts.",
-        "parts": [{"label": "cardio", "type": "root", "meaning": "heart", "source": "Greek kardia"}],
-        "relatedWords": [{"word": "Cardiac", "meaning": "relating to the heart"}],
-        "notes": ["Fallback preview for word analysis."],
-    },
-    "root": {
-        "query": "arch",
-        "mode": "root",
-        "title": "ARCH",
-        "summary": "A root preview for related words.",
-        "literalMeaning": "chief, ruler",
-        "actualMeaning": "Useful for exploring a root family.",
-        "parts": [{"label": "arch", "type": "root", "meaning": "chief; ruler", "source": "Greek archon"}],
-        "relatedWords": [{"word": "Monarch", "meaning": "one ruler"}],
-        "notes": ["Fallback preview for root analysis."],
-    },
-    "prefix": {
-        "query": "bio",
-        "mode": "prefix",
-        "title": "BIO-",
-        "summary": "A prefix associated with life and living systems.",
-        "literalMeaning": "life",
-        "actualMeaning": "Used in words related to life or living organisms.",
-        "parts": [{"label": "bio", "type": "prefix", "meaning": "life", "source": "Greek bios"}],
-        "relatedWords": [{"word": "Biology", "meaning": "study of life"}],
-        "notes": ["Fallback preview for prefix analysis."],
-    },
-    "suffix": {
-        "query": "logy",
-        "mode": "suffix",
-        "title": "-LOGY",
-        "summary": "A suffix that often means study of or science of.",
-        "literalMeaning": "study of",
-        "actualMeaning": "Used in academic and scientific terms.",
-        "parts": [{"label": "logy", "type": "suffix", "meaning": "study of", "source": "Greek logia"}],
-        "relatedWords": [{"word": "Biology", "meaning": "study of life"}],
-        "notes": ["Fallback preview for suffix analysis."],
-    },
-}
-
 
 def normalize_mode(value: str | None) -> str:
     if value in {"word", "root", "prefix", "suffix"}:
@@ -126,6 +79,31 @@ def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, 
         "parts": data.get("parts", []),
         "relatedWords": data.get("relatedWords", []),
         "notes": data.get("notes", []),
+    }
+
+
+def _generic_fallback(query: str, mode: str) -> dict[str, Any]:
+    mode_label = mode.capitalize()
+    return {
+        "query": query,
+        "mode": mode,
+        "title": query.upper(),
+        "summary": f"Waiting for live {mode_label.lower()} analysis from the backend.",
+        "literalMeaning": "Pending live analysis",
+        "actualMeaning": f"This placeholder will be replaced when the API returns a {mode_label.lower()} result.",
+        "parts": [
+            {
+                "label": query,
+                "type": mode,
+                "meaning": "Live analysis unavailable right now",
+                "source": "Local fallback",
+            }
+        ],
+        "relatedWords": [],
+        "notes": [
+            "The backend call failed or Gemini was unavailable.",
+            "Once the API is available, this section will show live output.",
+        ],
     }
 
 
@@ -168,17 +146,7 @@ def analyze(query: str, mode: str = "word") -> dict[str, Any]:
     normalized_mode = normalize_mode(mode)
 
     if not normalized_query:
-        return {
-            "query": "",
-            "mode": normalized_mode,
-            "title": "",
-            "summary": "",
-            "literalMeaning": "",
-            "actualMeaning": "",
-            "parts": [],
-            "relatedWords": [],
-            "notes": ["Enter a word, root, prefix, or suffix to continue."],
-        }
+        return _generic_fallback("", normalized_mode)
 
     demo_key = (normalized_query, normalized_mode)
     if demo_key in DEFAULT_ANALYSES:
@@ -191,4 +159,4 @@ def analyze(query: str, mode: str = "word") -> dict[str, Any]:
     except Exception:
         pass
 
-    return _normalize_output(FALLBACKS[normalized_mode], normalized_query, normalized_mode)
+    return _generic_fallback(normalized_query, normalized_mode)
