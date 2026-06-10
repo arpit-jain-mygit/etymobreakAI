@@ -148,10 +148,13 @@ input::placeholder {
   gap: 6px;
   padding: 10px;
   border-radius: 16px;
-  border: 1px solid rgba(143, 164, 212, 0.18);
-  background: rgba(10, 13, 24, 0.98);
+  border: 1px solid rgba(125, 150, 196, 0.18);
+  background:
+    linear-gradient(180deg, rgba(19, 25, 41, 0.98), rgba(15, 20, 34, 0.98));
   backdrop-filter: blur(18px);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
   max-height: min(320px, 40vh);
   overflow: auto;
 }
@@ -165,15 +168,15 @@ input::placeholder {
   padding: 11px 12px;
   border: 1px solid transparent;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #ecf2ff;
+  background: rgba(255, 255, 255, 0.025);
+  color: #eef4ff;
   text-align: left;
 }
 
 .autocomplete-item:hover,
 .autocomplete-item:focus-visible {
-  border-color: rgba(122, 141, 255, 0.5);
-  background: rgba(122, 141, 255, 0.12);
+  border-color: rgba(126, 172, 221, 0.4);
+  background: rgba(126, 172, 221, 0.12);
   outline: none;
 }
 
@@ -184,7 +187,7 @@ input::placeholder {
 }
 
 .autocomplete-item small {
-  color: #98a6ca;
+  color: #a6b6d3;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-size: 0.66rem;
