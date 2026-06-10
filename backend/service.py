@@ -5,53 +5,18 @@ import os
 import re
 from typing import Any
 
-DEFAULT_ANALYSES: dict[tuple[str, str], dict[str, Any]] = {
-    (
-        "cardiology",
-        "word",
-    ): {
-        "query": "cardiology",
-        "mode": "word",
-        "title": "CARDIOLOGY",
-        "summary": "A medical term built from the root cardio and the suffix -logy.",
-        "literalMeaning": "cardio + logy",
-        "actualMeaning": "The branch of medicine that deals with the heart and blood vessels.",
-        "parts": [
-            {"label": "cardio", "type": "root", "meaning": "heart", "source": "Greek kardia"},
-            {"label": "-logy", "type": "suffix", "meaning": "study of, science of", "source": "Greek logia"},
-        ],
-        "relatedWords": [
-            {"word": "Cardiology", "meaning": "study of the heart"},
-            {"word": "Cardiologist", "meaning": "heart specialist"},
-            {"word": "Cardiac", "meaning": "relating to the heart"},
-            {"word": "Cardiovascular", "meaning": "heart and blood vessels"},
-            {"word": "Electrocardiogram", "meaning": "recording of heart activity"},
-        ],
-        "notes": ["This is a demo analysis that can be replaced by Gemini output."],
-    },
-    (
-        "arch",
-        "root",
-    ): {
-        "query": "arch",
-        "mode": "root",
-        "title": "ARCH",
-        "summary": "A root tied to leadership, rule, and chief authority.",
-        "literalMeaning": "chief, ruler",
-        "actualMeaning": "A root that appears in words meaning leader, first, or principal.",
-        "parts": [
-            {"label": "arch", "type": "root", "meaning": "chief; ruler", "source": "Greek archon"}
-        ],
-        "relatedWords": [
-            {"word": "Monarch", "meaning": "one ruler"},
-            {"word": "Patriarch", "meaning": "father ruler"},
-            {"word": "Matriarch", "meaning": "mother ruler"},
-            {"word": "Archangel", "meaning": "chief angel"},
-            {"word": "Architect", "meaning": "chief builder"},
-        ],
-        "notes": ["Search by a root to discover a full word family."],
-    },
-}
+
+class AnalysisError(Exception):
+    def __init__(self, status_code: int, message: str, details: str | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.message = message
+        self.details = details
+
+    def __str__(self) -> str:
+        if self.details:
+            return f"{self.message}: {self.details}"
+        return self.message
 
 
 def normalize_mode(value: str | None) -> str:
@@ -68,6 +33,19 @@ def _strip_json_wrappers(text: str) -> str:
     return cleaned
 
 
+def _extract_json_block(text: str) -> str:
+    cleaned = _strip_json_wrappers(text)
+    if cleaned.startswith("{") and cleaned.endswith("}"):
+        return cleaned
+
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start >= 0 and end > start:
+        return cleaned[start : end + 1]
+
+    raise AnalysisError(502, "Gemini returned non-JSON output", cleaned[:400])
+
+
 def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, Any]:
     return {
         "query": data.get("query", query),
@@ -82,40 +60,15 @@ def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, 
     }
 
 
-def _generic_fallback(query: str, mode: str) -> dict[str, Any]:
-    mode_label = mode.capitalize()
-    return {
-        "query": query,
-        "mode": mode,
-        "title": query.upper(),
-        "summary": f"Waiting for live {mode_label.lower()} analysis from the backend.",
-        "literalMeaning": "Pending live analysis",
-        "actualMeaning": f"This placeholder will be replaced when the API returns a {mode_label.lower()} result.",
-        "parts": [
-            {
-                "label": query,
-                "type": mode,
-                "meaning": "Live analysis unavailable right now",
-                "source": "Local fallback",
-            }
-        ],
-        "relatedWords": [],
-        "notes": [
-            "The backend call failed or Gemini was unavailable.",
-            "Once the API is available, this section will show live output.",
-        ],
-    }
-
-
-def _gemini_analysis(query: str, mode: str) -> dict[str, Any] | None:
+def _gemini_analysis(query: str, mode: str) -> dict[str, Any]:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        return None
+        raise AnalysisError(503, "Missing Gemini API key", "Set GEMINI_API_KEY in Render")
 
     try:
         import google.generativeai as genai
-    except Exception:
-        return None
+    except Exception as exc:
+        raise AnalysisError(500, "Gemini SDK import failed", str(exc)) from exc
 
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     prompt = f"""
@@ -131,14 +84,38 @@ Rules:
 - relatedWords must be an array of objects with word and meaning.
 - notes must be an array of short strings.
 - Keep the response concise and educational.
+- Use the user's exact input. Do not substitute another word.
+- If the word is unfamiliar or ambiguous, infer the most likely morphology from the exact input.
+- Never return an answer about a different query.
 """
 
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(model_name)
-    response = model.generate_content(prompt)
+    try:
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.2,
+                "top_p": 0.95,
+                "max_output_tokens": 900,
+            },
+        )
+    except Exception as exc:
+        raise AnalysisError(502, "Gemini request failed", str(exc)) from exc
+
     text = getattr(response, "text", "") or ""
-    parsed = json.loads(_strip_json_wrappers(text))
-    return _normalize_output(parsed, query, mode)
+    if not text.strip():
+        raise AnalysisError(502, "Gemini returned an empty response")
+
+    try:
+        parsed = json.loads(_extract_json_block(text))
+    except json.JSONDecodeError as exc:
+        raise AnalysisError(502, "Gemini returned invalid JSON", text[:400]) from exc
+
+    output = _normalize_output(parsed, query, mode)
+    if not output["summary"] or not output["parts"]:
+        raise AnalysisError(502, "Gemini response missing required fields", text[:400])
+    return output
 
 
 def analyze(query: str, mode: str = "word") -> dict[str, Any]:
@@ -146,17 +123,6 @@ def analyze(query: str, mode: str = "word") -> dict[str, Any]:
     normalized_mode = normalize_mode(mode)
 
     if not normalized_query:
-        return _generic_fallback("", normalized_mode)
+        raise AnalysisError(400, "Query is required")
 
-    demo_key = (normalized_query, normalized_mode)
-    if demo_key in DEFAULT_ANALYSES:
-        return DEFAULT_ANALYSES[demo_key]
-
-    try:
-        gemini_result = _gemini_analysis(normalized_query, normalized_mode)
-        if gemini_result:
-            return gemini_result
-    except Exception:
-        pass
-
-    return _generic_fallback(normalized_query, normalized_mode)
+    return _gemini_analysis(normalized_query, normalized_mode)

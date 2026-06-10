@@ -31,7 +31,7 @@
             name="query"
             [ngModel]="query()"
             (ngModelChange)="query.set($event)"
-            [placeholder]="'Try ' + activeModeLabel().toLowerCase() + ' analysis'"
+            [placeholder]="'Type a ' + activeModeLabel().toLowerCase() + ' to analyze'"
             autocomplete="off"
             spellcheck="false"
           />
@@ -56,14 +56,6 @@
           }
           <span>{{ loading() ? 'Analyzing' : 'Analyze' }}</span>
         </button>
-
-        <div class="quick-examples">
-          @for (example of examplePills; track example.label) {
-            <button type="button" class="example-pill" (click)="selectExample(example.label, example.mode)">
-              {{ example.label }}
-            </button>
-          }
-        </div>
       </div>
     </form>
   </section>

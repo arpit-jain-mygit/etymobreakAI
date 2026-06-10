@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from http.server import BaseHTTPRequestHandler
 
-from backend.service import analyze
+from backend.service import AnalysisError, analyze
 
 
 class handler(BaseHTTPRequestHandler):
@@ -34,4 +34,7 @@ class handler(BaseHTTPRequestHandler):
 
         query = str(payload.get("query", ""))
         mode = str(payload.get("mode", "word"))
-        self._send_json(200, analyze(query, mode))
+        try:
+            self._send_json(200, analyze(query, mode))
+        except AnalysisError as exc:
+            self._send_json(exc.status_code, {"error": exc.message, "details": exc.details})
