@@ -18,6 +18,7 @@
             [ngModel]="query()"
             (ngModelChange)="query.set($event)"
             placeholder="Type any word to analyze"
+            [attr.list]="autocompleteId"
             autocomplete="off"
             spellcheck="false"
           />
@@ -30,6 +31,12 @@
           }
         </div>
       </label>
+
+      <datalist [id]="autocompleteId">
+        @for (item of autocompleteOptions(); track item) {
+          <option [value]="item"></option>
+        }
+      </datalist>
 
       <div class="actions">
         <button class="primary" type="submit" [disabled]="loading()">
