@@ -1,9 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { getApiBaseUrl } from './api-base';
-
-type SearchMode = 'word' | 'root' | 'prefix' | 'suffix';
 
 interface AnalysisPart {
   label: string;
@@ -19,7 +17,7 @@ interface RelatedWord {
 
 interface AnalysisResult {
   query: string;
-  mode: SearchMode;
+  mode: string;
   title: string;
   summary: string;
   literalMeaning: string;
@@ -29,13 +27,6 @@ interface AnalysisResult {
   notes: string[];
 }
 
-const SEARCH_MODES: Array<{ value: SearchMode; label: string; helper: string }> = [
-  { value: 'word', label: 'Word', helper: 'Break down a full word' },
-  { value: 'root', label: 'Root', helper: 'Find the family of a root' },
-  { value: 'prefix', label: 'Prefix', helper: 'Explore the front of words' },
-  { value: 'suffix', label: 'Suffix', helper: 'Explore the ending of words' },
-];
-
 @Component({
   selector: 'app-root',
   imports: [CommonModule, FormsModule],
@@ -44,21 +35,15 @@ const SEARCH_MODES: Array<{ value: SearchMode; label: string; helper: string }> 
 })
 export class App {
   protected readonly query = signal('');
-  protected readonly searchMode = signal<SearchMode>('word');
   protected readonly loading = signal(false);
   protected readonly error = signal('');
   protected readonly result = signal<AnalysisResult | null>(null);
-
-  protected readonly modes = SEARCH_MODES;
-  protected readonly activeModeLabel = computed(
-    () => this.modes.find((mode) => mode.value === this.searchMode())?.label ?? 'Word'
-  );
 
   protected async analyze(): Promise<void> {
     const normalized = this.query().trim().toLowerCase();
 
     if (!normalized) {
-      this.error.set('Enter a word, root, prefix, or suffix to continue.');
+      this.error.set('Enter a word or root to continue.');
       this.result.set(null);
       return;
     }
@@ -72,7 +57,6 @@ export class App {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: normalized,
-          mode: this.searchMode(),
         }),
       });
 

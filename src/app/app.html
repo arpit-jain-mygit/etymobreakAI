@@ -4,26 +4,12 @@
       <p class="eyebrow">EtymoBreak AI</p>
       <h1>Break words into roots, suffixes, and meaning.</h1>
       <p class="lead">
-        Type a word, root, prefix, or suffix and get a clean breakdown with related words in one
-        swipe-friendly screen.
+        Type any word and let the system figure out the root, prefix, suffix, and related word
+        family on its own.
       </p>
     </div>
 
     <form class="search-panel" (submit)="$event.preventDefault(); analyze()">
-      <div class="mode-row" role="tablist" aria-label="Search mode">
-        @for (mode of modes; track mode.value) {
-          <button
-            type="button"
-            class="mode-chip"
-            [class.active]="searchMode() === mode.value"
-            (click)="searchMode.set(mode.value)"
-          >
-            <span>{{ mode.label }}</span>
-            <small>{{ mode.helper }}</small>
-          </button>
-        }
-      </div>
-
       <label class="field">
         <span>Search term</span>
         <div class="input-wrap">
@@ -31,7 +17,7 @@
             name="query"
             [ngModel]="query()"
             (ngModelChange)="query.set($event)"
-            [placeholder]="'Type a ' + activeModeLabel().toLowerCase() + ' to analyze'"
+            placeholder="Type any word to analyze"
             autocomplete="off"
             spellcheck="false"
           />
@@ -112,7 +98,7 @@
         <section class="panel">
           <div class="panel-head">
             <p class="section-label">Related words</p>
-            <span>{{ analysis.relatedWords.length }} examples</span>
+            <span>{{ analysis.relatedWords.length }} words</span>
           </div>
 
           <div class="word-list">

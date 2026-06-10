@@ -33,8 +33,7 @@ class handler(BaseHTTPRequestHandler):
             return
 
         query = str(payload.get("query", ""))
-        mode = str(payload.get("mode", "word"))
         try:
-            self._send_json(200, analyze(query, mode))
+            self._send_json(200, analyze(query))
         except AnalysisError as exc:
             self._send_json(exc.status_code, {"error": exc.message, "details": exc.details})

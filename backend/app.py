@@ -20,7 +20,6 @@ app.add_middleware(
 
 class AnalyzeRequest(BaseModel):
     query: str = Field(min_length=1)
-    mode: str = Field(default="word")
 
 
 @app.get("/health")
@@ -31,7 +30,7 @@ def health() -> dict[str, str]:
 @app.post("/analyze")
 def analyze_word(payload: AnalyzeRequest) -> dict:
     try:
-        return analyze(payload.query, payload.mode)
+        return analyze(payload.query)
     except AnalysisError as exc:
         return JSONResponse(
             status_code=exc.status_code,

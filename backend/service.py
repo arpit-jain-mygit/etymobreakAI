@@ -48,6 +48,7 @@ def _extract_json_block(text: str) -> str:
 
 
 def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, Any]:
+    related_words = data.get("relatedWords", [])
     return {
         "query": data.get("query", query),
         "mode": normalize_mode(data.get("mode", mode)),
@@ -56,7 +57,7 @@ def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, 
         "literalMeaning": data.get("literalMeaning", ""),
         "actualMeaning": data.get("actualMeaning", ""),
         "parts": data.get("parts", []),
-        "relatedWords": data.get("relatedWords", []),
+        "relatedWords": related_words[:10] if isinstance(related_words, list) else [],
         "notes": data.get("notes", []),
     }
 
@@ -73,15 +74,17 @@ query, mode, title, summary, literalMeaning, actualMeaning, parts, relatedWords,
 
 User input:
 - query: {query}
-- mode: {mode}
+- mode: infer it yourself from the exact query
 
 Rules:
 - parts must be an array of objects with label, type, meaning, and optional source.
 - relatedWords must be an array of objects with word and meaning.
+- relatedWords should include up to 10 relevant words, no more.
 - notes must be an array of short strings.
 - Keep the response concise and educational.
 - Use the user's exact input. Do not substitute another word.
 - If the word is unfamiliar or ambiguous, infer the most likely morphology from the exact input.
+- Infer mode as one of: word, root, prefix, suffix.
 - Never return an answer about a different query.
 """
 
