@@ -18,7 +18,6 @@
             [ngModel]="query()"
             (ngModelChange)="query.set($event)"
             placeholder="Type any word to analyze"
-            [attr.list]="autocompleteId"
             autocomplete="off"
             spellcheck="false"
           />
@@ -30,13 +29,22 @@
             </button>
           }
         </div>
-      </label>
-
-      <datalist [id]="autocompleteId">
-        @for (item of autocompleteOptions(); track item) {
-          <option [value]="item"></option>
+        @if (showAutocomplete()) {
+          <div class="autocomplete-panel" role="listbox" aria-label="Autocomplete suggestions">
+            @for (item of autocompleteOptions(); track item) {
+              <button
+                type="button"
+                class="autocomplete-item"
+                (mousedown)="$event.preventDefault()"
+                (click)="chooseAutocomplete(item)"
+              >
+                <span>{{ item }}</span>
+                <small>root</small>
+              </button>
+            }
+          </div>
         }
-      </datalist>
+      </label>
 
       <div class="actions">
         <button class="primary" type="submit" [disabled]="loading()">

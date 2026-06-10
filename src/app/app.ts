@@ -43,17 +43,24 @@ export class App implements OnInit {
   protected readonly rootAutocomplete = signal<string[]>([]);
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
-    const unique = [...new Set(this.rootAutocomplete().map((item) => item.trim().toLowerCase()).filter(Boolean))];
+    const unique = [
+      ...new Set(
+        this.rootAutocomplete()
+          .map((item) => item.trim().toLowerCase())
+          .filter(Boolean)
+      ),
+    ];
 
     if (!current) {
-      return unique;
+      return [];
     }
 
     const filtered = unique.filter((item) => item.includes(current));
-    return filtered.length ? filtered : unique;
+    return filtered.slice(0, 8);
   });
-
-  protected readonly autocompleteId = 'query-autocomplete';
+  protected readonly showAutocomplete = computed(
+    () => this.query().trim().length > 0 && this.autocompleteOptions().length > 0
+  );
 
   public ngOnInit(): void {
     void this.loadRootAutocomplete();
@@ -122,5 +129,9 @@ export class App implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  protected chooseAutocomplete(value: string): void {
+    this.query.set(value);
   }
 }
