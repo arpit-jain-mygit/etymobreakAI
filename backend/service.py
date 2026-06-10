@@ -34,15 +34,44 @@ def _strip_json_wrappers(text: str) -> str:
     return cleaned
 
 
+def _find_json_object(text: str) -> str | None:
+    start = text.find("{")
+    if start < 0:
+        return None
+
+    depth = 0
+    in_string = False
+    escape = False
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : index + 1]
+    return None
+
+
 def _extract_json_block(text: str) -> str:
     cleaned = _strip_json_wrappers(text)
     if cleaned.startswith("{") and cleaned.endswith("}"):
         return cleaned
 
-    start = cleaned.find("{")
-    end = cleaned.rfind("}")
-    if start >= 0 and end > start:
-        return cleaned[start : end + 1]
+    block = _find_json_object(cleaned)
+    if block:
+        return block
 
     raise AnalysisError(502, "Mistral returned non-JSON output", cleaned[:400])
 
@@ -119,6 +148,7 @@ parts: [{{
 }}]
 relatedWords: up to 10 word-family items tied to the query root/prefix/suffix or extracted parts. No synonyms.
 Each relatedWords item must include: word, meaning, explanation, exampleSentence.
+Keep each related word item very short: meaning 2-4 words, explanation one short clause, exampleSentence one short sentence.
 notes: up to 2 short strings.
 No markdown. Never answer about a different query.
 """
@@ -128,7 +158,7 @@ No markdown. Never answer about a different query.
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.2,
         "top_p": 0.95,
-        "max_tokens": 450,
+        "max_tokens": 650,
     }
     http_request = request.Request(
         "https://api.mistral.ai/v1/chat/completions",
