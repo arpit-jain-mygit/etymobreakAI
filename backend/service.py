@@ -62,6 +62,36 @@ def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, 
     }
 
 
+def _extract_match_terms(query: str, parts: list[Any]) -> list[str]:
+    terms = [query.strip().lower()]
+    for part in parts:
+        if not isinstance(part, dict):
+            continue
+        label = str(part.get("label", "")).strip().lower()
+        cleaned = re.sub(r"^[^a-z0-9]+|[^a-z0-9]+$", "", label)
+        if len(cleaned) >= 3:
+            terms.append(cleaned)
+    return list(dict.fromkeys(term for term in terms if term))
+
+
+def _filter_related_words(related_words: Any, query: str, parts: list[Any]) -> list[dict[str, Any]]:
+    if not isinstance(related_words, list):
+        return []
+
+    match_terms = _extract_match_terms(query, parts)
+    filtered: list[dict[str, Any]] = []
+    for item in related_words:
+        if not isinstance(item, dict):
+            continue
+        word = str(item.get("word", "")).strip()
+        normalized_word = word.lower()
+        if any(term in normalized_word for term in match_terms):
+            filtered.append(item)
+
+    source = filtered if filtered else [item for item in related_words if isinstance(item, dict)]
+    return source[:10]
+
+
 def _mistral_analysis(query: str, mode: str) -> dict[str, Any]:
     api_key = os.getenv("MISTRAL_API_KEY")
     if not api_key:
@@ -72,7 +102,7 @@ def _mistral_analysis(query: str, mode: str) -> dict[str, Any]:
 Query: {query}
 Infer mode from the query. Use the exact input. Keep text short.
 parts: array of objects with label, type, meaning, optional source.
-relatedWords: up to 10 objects with word and meaning.
+relatedWords: up to 10 word-family objects that reuse the query root/prefix/suffix or one of the extracted parts. Avoid synonyms and semantic neighbors.
 notes: up to 2 short strings.
 No markdown. No extra text. Never answer about a different query.
 """
@@ -121,6 +151,7 @@ No markdown. No extra text. Never answer about a different query.
         raise AnalysisError(502, "Mistral returned invalid JSON", text[:400]) from exc
 
     output = _normalize_output(parsed, query, mode)
+    output["relatedWords"] = _filter_related_words(output["relatedWords"], query, output["parts"])
     if not output["summary"] or not output["parts"]:
         raise AnalysisError(502, "Mistral response missing required fields", text[:400])
     return output
