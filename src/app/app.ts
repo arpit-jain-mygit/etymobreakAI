@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { getApiBaseUrl } from './api-base';
 
@@ -35,7 +35,7 @@ interface AnalysisResult {
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
-export class App {
+export class App implements OnInit {
   private static readonly autocompleteStorageKey = 'etymobreak.recentQueries';
   private static readonly autocompleteLimit = 8;
 
@@ -43,20 +43,54 @@ export class App {
   protected readonly loading = signal(false);
   protected readonly error = signal('');
   protected readonly result = signal<AnalysisResult | null>(null);
+  protected readonly rootAutocomplete = signal<string[]>([]);
   protected readonly recentQueries = signal<string[]>(this.loadRecentQueries());
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
-    const recent = this.recentQueries();
-
-    if (!current) {
-      return recent;
+    const merged = [...this.rootAutocomplete(), ...this.recentQueries()];
+    const unique: string[] = [];
+    for (const item of merged) {
+      const value = item.trim().toLowerCase();
+      if (value && !unique.includes(value)) {
+        unique.push(value);
+      }
     }
 
-    const filtered = recent.filter((item) => item.toLowerCase().includes(current));
-    return filtered.length ? filtered : recent;
+    if (!current) {
+      return unique;
+    }
+
+    const filtered = unique.filter((item) => item.includes(current));
+    return filtered.length ? filtered : unique;
   });
 
   protected readonly autocompleteId = 'query-autocomplete';
+
+  public ngOnInit(): void {
+    void this.loadRootAutocomplete();
+  }
+
+  private async loadRootAutocomplete(): Promise<void> {
+    try {
+      const response = await fetch('/root-autocomplete.json');
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json().catch(() => null)) as unknown;
+      if (!Array.isArray(payload)) {
+        return;
+      }
+
+      const roots = payload
+        .map((item) => String(item).trim().toLowerCase())
+        .filter(Boolean);
+
+      this.rootAutocomplete.set(roots);
+    } catch {
+      return;
+    }
+  }
 
   private loadRecentQueries(): string[] {
     if (typeof window === 'undefined') {
