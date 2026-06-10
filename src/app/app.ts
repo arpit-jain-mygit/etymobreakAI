@@ -77,43 +77,6 @@ const DEMO_ANALYSES: Record<string, AnalysisResult> = {
   },
 };
 
-const FALLBACK_ANALYSES: Record<SearchMode, AnalysisResult> = {
-  word: DEMO_ANALYSES['cardiology|word'],
-  root: DEMO_ANALYSES['arch|root'],
-  prefix: {
-    query: 'bio',
-    mode: 'prefix',
-    title: 'BIO-',
-    summary: 'A prefix associated with life and living systems.',
-    literalMeaning: 'life',
-    actualMeaning: 'Used in words related to life or living organisms.',
-    parts: [{ label: 'bio', type: 'prefix', meaning: 'life', source: 'Greek bios' }],
-    relatedWords: [
-      { word: 'Biology', meaning: 'study of life' },
-      { word: 'Biography', meaning: 'life story' },
-      { word: 'Biome', meaning: 'life zone' },
-      { word: 'Biodiversity', meaning: 'variety of living organisms' },
-    ],
-    notes: ['Prefix exploration is ready for Gemini-backed expansion.'],
-  },
-  suffix: {
-    query: 'logy',
-    mode: 'suffix',
-    title: '-LOGY',
-    summary: 'A suffix that often means study of or science of.',
-    literalMeaning: 'study of',
-    actualMeaning: 'Used in academic and scientific terms.',
-    parts: [{ label: 'logy', type: 'suffix', meaning: 'study of', source: 'Greek logia' }],
-    relatedWords: [
-      { word: 'Biology', meaning: 'study of life' },
-      { word: 'Geology', meaning: 'study of Earth' },
-      { word: 'Psychology', meaning: 'study of mind' },
-      { word: 'Neurology', meaning: 'study of nerves' },
-    ],
-    notes: ['Suffix exploration will use the same result layout.'],
-  },
-};
-
 @Component({
   selector: 'app-root',
   imports: [CommonModule, FormsModule],
@@ -170,7 +133,9 @@ export class App {
       return;
     } catch {
       this.result.set(this.localFallback(normalized, this.searchMode()));
-      this.error.set('Using local demo data until the Gemini-backed API is available.');
+      this.error.set(
+        `Live API unavailable for "${normalized}". Showing a local fallback instead.`
+      );
     } finally {
       this.loading.set(false);
     }
@@ -189,12 +154,29 @@ export class App {
       return demo;
     }
 
+    const fallbackTitle = query.toUpperCase();
+    const modeLabel = this.modes.find((item) => item.value === mode)?.label ?? 'Word';
+
     return {
-      ...FALLBACK_ANALYSES[mode],
       query,
-      title: query.toUpperCase(),
-      summary: `A Gemini-backed explanation for ${query} will appear here.`,
-      notes: ['This is a fallback preview for the first feature.'],
+      mode,
+      title: fallbackTitle,
+      summary: `Waiting for live ${modeLabel.toLowerCase()} analysis from the backend.`,
+      literalMeaning: 'Pending live analysis',
+      actualMeaning: `This placeholder will be replaced when the API returns a ${modeLabel.toLowerCase()} result.`,
+      parts: [
+        {
+          label: query,
+          type: mode,
+          meaning: 'Live analysis unavailable right now',
+          source: 'Local fallback',
+        },
+      ],
+      relatedWords: [],
+      notes: [
+        'The backend call failed or was unreachable.',
+        'Once the API is available, this section will show Gemini output.',
+      ],
     };
   }
 }
