@@ -16,10 +16,13 @@
           <input
             name="query"
             [ngModel]="query()"
-            (ngModelChange)="query.set($event)"
+            (ngModelChange)="query.set($event); openAutocomplete()"
+            (focus)="openAutocomplete()"
+            (blur)="closeAutocomplete()"
             placeholder="Type any word to analyze"
             autocomplete="off"
             spellcheck="false"
+            aria-autocomplete="list"
           />
           @if (query()) {
             <button type="button" class="icon-button" aria-label="Clear search" (click)="query.set('')">

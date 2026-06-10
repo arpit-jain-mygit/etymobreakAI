@@ -41,6 +41,7 @@ export class App implements OnInit {
   protected readonly error = signal('');
   protected readonly result = signal<AnalysisResult | null>(null);
   protected readonly rootAutocomplete = signal<string[]>([]);
+  protected readonly autocompleteOpen = signal(false);
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
     const unique = [
@@ -59,7 +60,10 @@ export class App implements OnInit {
     return filtered.slice(0, 8);
   });
   protected readonly showAutocomplete = computed(
-    () => this.query().trim().length > 0 && this.autocompleteOptions().length > 0
+    () =>
+      this.autocompleteOpen() &&
+      this.query().trim().length > 0 &&
+      this.autocompleteOptions().length > 0
   );
 
   public ngOnInit(): void {
@@ -133,5 +137,14 @@ export class App implements OnInit {
 
   protected chooseAutocomplete(value: string): void {
     this.query.set(value);
+    this.autocompleteOpen.set(false);
+  }
+
+  protected openAutocomplete(): void {
+    this.autocompleteOpen.set(true);
+  }
+
+  protected closeAutocomplete(): void {
+    this.autocompleteOpen.set(false);
   }
 }
