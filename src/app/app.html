@@ -1,0 +1,149 @@
+<main class="shell">
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">EtymoBreak AI</p>
+      <h1>Break words into roots, suffixes, and meaning.</h1>
+      <p class="lead">
+        Type a word, root, prefix, or suffix and get a clean breakdown with related words in one
+        swipe-friendly screen.
+      </p>
+    </div>
+
+    <form class="search-panel" (submit)="$event.preventDefault(); analyze()">
+      <div class="mode-row" role="tablist" aria-label="Search mode">
+        @for (mode of modes; track mode.value) {
+          <button
+            type="button"
+            class="mode-chip"
+            [class.active]="searchMode() === mode.value"
+            (click)="searchMode.set(mode.value)"
+          >
+            <span>{{ mode.label }}</span>
+            <small>{{ mode.helper }}</small>
+          </button>
+        }
+      </div>
+
+      <label class="field">
+        <span>Search term</span>
+        <div class="input-wrap">
+          <input
+            name="query"
+            [ngModel]="query()"
+            (ngModelChange)="query.set($event)"
+            [placeholder]="'Try ' + activeModeLabel().toLowerCase() + ' analysis'"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          @if (query()) {
+            <button type="button" class="icon-button" aria-label="Clear search" (click)="query.set('')">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          }
+        </div>
+      </label>
+
+      <div class="actions">
+        <button class="primary" type="submit" [disabled]="loading()">
+          @if (loading()) {
+            <span class="spinner" aria-hidden="true"></span>
+          } @else {
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M10 4a6 6 0 1 0 3.87 10.61l4.26 4.26 1.41-1.41-4.26-4.26A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z" />
+            </svg>
+          }
+          <span>{{ loading() ? 'Analyzing' : 'Analyze' }}</span>
+        </button>
+
+        <div class="quick-examples">
+          @for (example of examplePills; track example.label) {
+            <button type="button" class="example-pill" (click)="selectExample(example.label, example.mode)">
+              {{ example.label }}
+            </button>
+          }
+        </div>
+      </div>
+    </form>
+  </section>
+
+  @if (error()) {
+    <section class="notice">{{ error() }}</section>
+  }
+
+  @if (result(); as analysis) {
+    <section class="result">
+      <div class="result-header">
+        <div>
+          <p class="section-label">Result</p>
+          <h2>{{ analysis.title }}</h2>
+          <p class="summary">{{ analysis.summary }}</p>
+        </div>
+        <div class="badge">{{ analysis.mode }}</div>
+      </div>
+
+      <div class="meaning-grid">
+        <article class="info-card">
+          <p class="card-label">Literal meaning</p>
+          <p class="card-value">{{ analysis.literalMeaning }}</p>
+        </article>
+        <article class="info-card">
+          <p class="card-label">Actual meaning</p>
+          <p class="card-value">{{ analysis.actualMeaning }}</p>
+        </article>
+      </div>
+
+      <div class="columns">
+        <section class="panel">
+          <div class="panel-head">
+            <p class="section-label">Breakdown</p>
+            <span>{{ analysis.parts.length }} parts</span>
+          </div>
+
+          <div class="part-list">
+            @for (part of analysis.parts; track part.label) {
+              <article class="part-item">
+                <div class="part-top">
+                  <strong>{{ part.label }}</strong>
+                  <span>{{ part.type }}</span>
+                </div>
+                <p>{{ part.meaning }}</p>
+                @if (part.source) {
+                  <small>{{ part.source }}</small>
+                }
+              </article>
+            }
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <p class="section-label">Related words</p>
+            <span>{{ analysis.relatedWords.length }} examples</span>
+          </div>
+
+          <div class="word-list">
+            @for (word of analysis.relatedWords; track word.word) {
+              <article class="word-item">
+                <strong>{{ word.word }}</strong>
+                <p>{{ word.meaning }}</p>
+              </article>
+            }
+          </div>
+        </section>
+      </div>
+
+      <section class="panel notes">
+        <div class="panel-head">
+          <p class="section-label">Notes</p>
+        </div>
+        <ul>
+          @for (note of analysis.notes; track note) {
+            <li>{{ note }}</li>
+          }
+        </ul>
+      </section>
+    </section>
+  }
+</main>
