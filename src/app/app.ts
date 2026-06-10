@@ -36,25 +36,14 @@ interface AnalysisResult {
   styleUrl: './app.scss',
 })
 export class App implements OnInit {
-  private static readonly autocompleteStorageKey = 'etymobreak.recentQueries';
-  private static readonly autocompleteLimit = 8;
-
   protected readonly query = signal('');
   protected readonly loading = signal(false);
   protected readonly error = signal('');
   protected readonly result = signal<AnalysisResult | null>(null);
   protected readonly rootAutocomplete = signal<string[]>([]);
-  protected readonly recentQueries = signal<string[]>(this.loadRecentQueries());
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
-    const merged = [...this.rootAutocomplete(), ...this.recentQueries()];
-    const unique: string[] = [];
-    for (const item of merged) {
-      const value = item.trim().toLowerCase();
-      if (value && !unique.includes(value)) {
-        unique.push(value);
-      }
-    }
+    const unique = [...new Set(this.rootAutocomplete().map((item) => item.trim().toLowerCase()).filter(Boolean))];
 
     if (!current) {
       return unique;
@@ -92,57 +81,6 @@ export class App implements OnInit {
     }
   }
 
-  private loadRecentQueries(): string[] {
-    if (typeof window === 'undefined') {
-      return [];
-    }
-
-    try {
-      const raw = window.localStorage.getItem(App.autocompleteStorageKey);
-      if (!raw) {
-        return [];
-      }
-
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
-
-      return parsed
-        .map((item) => String(item).trim())
-        .filter(Boolean)
-        .slice(0, App.autocompleteLimit);
-    } catch {
-      return [];
-    }
-  }
-
-  private saveRecentQueries(values: string[]): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    try {
-      window.localStorage.setItem(App.autocompleteStorageKey, JSON.stringify(values));
-    } catch {
-      return;
-    }
-  }
-
-  private rememberQuery(query: string): void {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) {
-      return;
-    }
-
-    const next = [normalized, ...this.recentQueries().filter((item) => item !== normalized)].slice(
-      0,
-      App.autocompleteLimit
-    );
-    this.recentQueries.set(next);
-    this.saveRecentQueries(next);
-  }
-
   protected async analyze(): Promise<void> {
     const normalized = this.query().trim().toLowerCase();
 
@@ -175,7 +113,6 @@ export class App implements OnInit {
 
       const data = (await response.json()) as AnalysisResult;
       this.result.set(data);
-      this.rememberQuery(normalized);
       return;
     } catch (error) {
       const message =
