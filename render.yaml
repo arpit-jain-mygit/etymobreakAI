@@ -7,7 +7,7 @@ services:
     startCommand: uvicorn backend.app:app --host 0.0.0.0 --port $PORT
     autoDeploy: true
     envVars:
-      - key: GEMINI_API_KEY
+      - key: MISTRAL_API_KEY
         sync: false
-      - key: GEMINI_MODEL
-        value: gemini-2.0-flash
+      - key: MISTRAL_MODEL
+        value: mistral-small-latest

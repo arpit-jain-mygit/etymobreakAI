@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from urllib import error, request
 from typing import Any
 
 
@@ -43,7 +44,7 @@ def _extract_json_block(text: str) -> str:
     if start >= 0 and end > start:
         return cleaned[start : end + 1]
 
-    raise AnalysisError(502, "Gemini returned non-JSON output", cleaned[:400])
+    raise AnalysisError(502, "Mistral returned non-JSON output", cleaned[:400])
 
 
 def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, Any]:
@@ -60,17 +61,12 @@ def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, 
     }
 
 
-def _gemini_analysis(query: str, mode: str) -> dict[str, Any]:
-    api_key = os.getenv("GEMINI_API_KEY")
+def _mistral_analysis(query: str, mode: str) -> dict[str, Any]:
+    api_key = os.getenv("MISTRAL_API_KEY")
     if not api_key:
-        raise AnalysisError(503, "Missing Gemini API key", "Set GEMINI_API_KEY in Render")
+        raise AnalysisError(503, "Missing Mistral API key", "Set MISTRAL_API_KEY in Render")
 
-    try:
-        import google.generativeai as genai
-    except Exception as exc:
-        raise AnalysisError(500, "Gemini SDK import failed", str(exc)) from exc
-
-    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    model_name = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
     prompt = f"""
 Return only valid JSON with the following keys:
 query, mode, title, summary, literalMeaning, actualMeaning, parts, relatedWords, notes
@@ -89,32 +85,52 @@ Rules:
 - Never return an answer about a different query.
 """
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(model_name)
-    try:
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 0.2,
-                "top_p": 0.95,
-                "max_output_tokens": 900,
-            },
-        )
-    except Exception as exc:
-        raise AnalysisError(502, "Gemini request failed", str(exc)) from exc
+    payload = {
+        "model": model_name,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.2,
+        "top_p": 0.95,
+        "max_tokens": 900,
+    }
+    http_request = request.Request(
+        "https://api.mistral.ai/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
 
-    text = getattr(response, "text", "") or ""
+    try:
+        with request.urlopen(http_request, timeout=45) as response:
+            response_data = json.loads(response.read().decode("utf-8"))
+    except error.HTTPError as exc:
+        details = exc.read().decode("utf-8", errors="replace") if exc.fp else str(exc)
+        raise AnalysisError(exc.code, "Mistral request failed", details[:400]) from exc
+    except Exception as exc:
+        raise AnalysisError(502, "Mistral request failed", str(exc)) from exc
+
+    choices = response_data.get("choices") or []
+    first_choice = choices[0] if choices else {}
+    message = first_choice.get("message") or {}
+    content = message.get("content", "")
+    if isinstance(content, list):
+        text = "".join(part.get("text", "") if isinstance(part, dict) else str(part) for part in content)
+    else:
+        text = str(content or "")
+
     if not text.strip():
-        raise AnalysisError(502, "Gemini returned an empty response")
+        raise AnalysisError(502, "Mistral returned an empty response")
 
     try:
         parsed = json.loads(_extract_json_block(text))
     except json.JSONDecodeError as exc:
-        raise AnalysisError(502, "Gemini returned invalid JSON", text[:400]) from exc
+        raise AnalysisError(502, "Mistral returned invalid JSON", text[:400]) from exc
 
     output = _normalize_output(parsed, query, mode)
     if not output["summary"] or not output["parts"]:
-        raise AnalysisError(502, "Gemini response missing required fields", text[:400])
+        raise AnalysisError(502, "Mistral response missing required fields", text[:400])
     return output
 
 
@@ -125,4 +141,4 @@ def analyze(query: str, mode: str = "word") -> dict[str, Any]:
     if not normalized_query:
         raise AnalysisError(400, "Query is required")
 
-    return _gemini_analysis(normalized_query, normalized_mode)
+    return _mistral_analysis(normalized_query, normalized_mode)
