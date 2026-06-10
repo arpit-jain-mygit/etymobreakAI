@@ -180,9 +180,9 @@ def analyze(query: str, mode: str = "word") -> dict[str, Any]:
             "notes": ["Enter a word, root, prefix, or suffix to continue."],
         }
 
-    for key in ((normalized_query, normalized_mode), ("cardiology", "word"), ("arch", "root")):
-        if key in DEFAULT_ANALYSES:
-            return DEFAULT_ANALYSES[key]
+    demo_key = (normalized_query, normalized_mode)
+    if demo_key in DEFAULT_ANALYSES:
+        return DEFAULT_ANALYSES[demo_key]
 
     try:
         gemini_result = _gemini_analysis(normalized_query, normalized_mode)
