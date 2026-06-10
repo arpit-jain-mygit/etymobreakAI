@@ -345,6 +345,28 @@ input::placeholder {
   line-height: 1.55;
 }
 
+.word-item small {
+  display: block;
+  color: #9fb0d9;
+}
+
+.example-label {
+  display: inline-block;
+  margin-top: 10px;
+  color: #8ea1cb;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.68rem;
+}
+
+.word-item em {
+  display: block;
+  margin-top: 6px;
+  color: #edf2ff;
+  font-style: normal;
+  line-height: 1.6;
+}
+
 .notes ul {
   margin: 0;
   padding-left: 18px;

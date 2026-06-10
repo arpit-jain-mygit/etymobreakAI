@@ -106,6 +106,13 @@
               <article class="word-item">
                 <strong>{{ word.word }}</strong>
                 <p>{{ word.meaning }}</p>
+                @if (word.explanation) {
+                  <small>{{ word.explanation }}</small>
+                }
+                @if (word.exampleSentence) {
+                  <span class="example-label">Example</span>
+                  <em>{{ word.exampleSentence }}</em>
+                }
               </article>
             }
           </div>

@@ -13,6 +13,8 @@ interface AnalysisPart {
 interface RelatedWord {
   word: string;
   meaning: string;
+  explanation?: string;
+  exampleSentence?: string;
 }
 
 interface AnalysisResult {

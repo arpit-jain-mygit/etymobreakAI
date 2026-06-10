@@ -89,7 +89,20 @@ def _filter_related_words(related_words: Any, query: str, parts: list[Any]) -> l
             filtered.append(item)
 
     source = filtered if filtered else [item for item in related_words if isinstance(item, dict)]
-    return source[:10]
+    normalized: list[dict[str, Any]] = []
+    for item in source[:10]:
+        word = str(item.get("word", "")).strip()
+        if not word:
+            continue
+        normalized.append(
+            {
+                "word": word,
+                "meaning": str(item.get("meaning", "")).strip(),
+                "explanation": str(item.get("explanation", "")).strip(),
+                "exampleSentence": str(item.get("exampleSentence", "")).strip(),
+            }
+        )
+    return normalized
 
 
 def _mistral_analysis(query: str, mode: str) -> dict[str, Any]:
@@ -98,13 +111,16 @@ def _mistral_analysis(query: str, mode: str) -> dict[str, Any]:
         raise AnalysisError(503, "Missing Mistral API key", "Set MISTRAL_API_KEY in Render")
 
     model_name = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
-    prompt = f"""Return JSON only with keys: query, mode, title, summary, literalMeaning, actualMeaning, parts, relatedWords, notes.
+    prompt = f"""JSON only. Keys: query, mode, title, summary, literalMeaning, actualMeaning, parts, relatedWords, notes.
 Query: {query}
-Infer mode from the query. Use the exact input. Keep text short.
-parts: array of objects with label, type, meaning, optional source.
-relatedWords: up to 10 word-family objects that reuse the query root/prefix/suffix or one of the extracted parts. Avoid synonyms and semantic neighbors.
+Infer mode from the query and keep text short.
+parts: [{{
+  label, type, meaning, optional source
+}}]
+relatedWords: up to 10 word-family items tied to the query root/prefix/suffix or extracted parts. No synonyms.
+Each relatedWords item must include: word, meaning, explanation, exampleSentence.
 notes: up to 2 short strings.
-No markdown. No extra text. Never answer about a different query.
+No markdown. Never answer about a different query.
 """
 
     payload = {
