@@ -539,23 +539,48 @@ input::placeholder {
   background: rgba(247, 252, 249, 0.96);
 }
 
-.family-panel .family-item {
-  background: rgba(249, 245, 252, 0.96);
-}
-
-.family-sections {
+.family-grid {
   display: grid;
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.family-section {
+.family-card {
   display: grid;
   gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(158, 177, 184, 0.18);
 }
 
-.family-section + .family-section {
-  padding-top: 12px;
-  border-top: 1px solid rgba(158, 177, 184, 0.14);
+.family-card-root {
+  background: linear-gradient(180deg, rgba(240, 248, 255, 0.98), rgba(231, 241, 255, 0.96));
+}
+
+.family-card-suffix {
+  background: linear-gradient(180deg, rgba(248, 242, 255, 0.98), rgba(241, 233, 255, 0.96));
+}
+
+.family-card .family-item {
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.family-card-root .section-label {
+  background: rgba(93, 130, 184, 0.1);
+  color: #5270a3;
+}
+
+.family-card-suffix .section-label {
+  background: rgba(152, 109, 189, 0.1);
+  color: #8561b0;
+}
+
+.family-card-root .family-item strong {
+  color: #264a74;
+}
+
+.family-card-suffix .family-item strong {
+  color: #5a3d86;
 }
 
 .family-section-head {
@@ -688,6 +713,10 @@ input::placeholder {
   .content-grid {
     grid-template-columns: 1fr;
   }
+
+  .family-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -713,6 +742,10 @@ input::placeholder {
   }
 
   .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .family-grid {
     grid-template-columns: 1fr;
   }
 

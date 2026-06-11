@@ -156,9 +156,9 @@
               <p class="section-label">Family Words</p>
             </div>
 
-            <div class="family-sections">
-              @for (section of familySections(); track section.label) {
-                <section class="family-section">
+            <div class="family-grid">
+              @for (section of familyCards(); track section.label) {
+                <section class="family-card family-card-{{ section.tone }}">
                   <div class="panel-head family-section-head">
                     <p class="section-label">{{ section.title }}</p>
                     <span>{{ section.items.length }} words</span>

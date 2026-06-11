@@ -46,6 +46,7 @@ interface FamilySection {
   label: string;
   title: string;
   items: FamilyMemoryItem[];
+  tone: string;
 }
 
 interface RootFamily {
@@ -139,9 +140,14 @@ export class App implements OnInit {
     return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
 
+  private familyKey(label: string): string {
+    const primary = label.trim().toLowerCase().split('/')[0].replace(/^-+/, '');
+    return this.normalizeForMatch(primary);
+  }
+
   private matchesFamilySection(term: string, label: string): boolean {
     const cleanedTerm = this.normalizeForMatch(term);
-    const cleanedLabel = this.normalizeForMatch(label);
+    const cleanedLabel = this.familyKey(label);
     if (!cleanedTerm || !cleanedLabel) {
       return false;
     }
@@ -153,56 +159,42 @@ export class App implements OnInit {
     return cleanedTerm.includes(cleanedLabel);
   }
 
-  protected readonly familySections = computed(() => {
+  protected readonly familyCards = computed(() => {
     const analysis = this.result();
     if (!analysis) {
       return [];
     }
 
-    const sections: FamilySection[] = analysis.breakdown.map((part) => ({
-      label: part.label,
-      title: `Family words for ${part.label}`,
-      items: [],
-    }));
-
-    const leftovers: FamilyMemoryItem[] = [];
+    const rootPart = analysis.breakdown.find((part) => part.type === 'root') ?? analysis.breakdown[0];
+    const suffixPart = analysis.breakdown.find((part) => part.type === 'suffix') ?? analysis.breakdown[1];
 
     const sortedItems = [...analysis.familyMemory].sort((a, b) =>
       a.term.localeCompare(b.term, undefined, { sensitivity: 'base' })
     );
 
-    sortedItems.forEach((item) => {
-      const match = sections.find((section) =>
-        this.matchesFamilySection(item.term, section.label)
-      );
-
-      if (match) {
-        match.items.push(item);
-      } else {
-        leftovers.push(item);
+    const makeSection = (part: AnalysisPart | undefined, tone: string): FamilySection | null => {
+      if (!part) {
+        return null;
       }
-    });
 
-    const orderedSections = sections
-      .filter((section) => section.items.length > 0)
-      .map((section) => ({
-        ...section,
-        items: [...section.items].sort((a, b) =>
+      const items = sortedItems.filter((item) => this.matchesFamilySection(item.term, part.label));
+      if (!items.length) {
+        return null;
+      }
+
+      return {
+        label: part.label,
+        title: `Family words for ${part.label}`,
+        tone,
+        items: [...items].sort((a, b) =>
           a.term.localeCompare(b.term, undefined, { sensitivity: 'base' })
         ),
-      }));
+      };
+    };
 
-    if (leftovers.length) {
-      orderedSections.push({
-        label: 'other',
-        title: 'Other family words',
-        items: leftovers.sort((a, b) =>
-          a.term.localeCompare(b.term, undefined, { sensitivity: 'base' })
-        ),
-      });
-    }
-
-    return orderedSections;
+    return [makeSection(rootPart, 'root'), makeSection(suffixPart, 'suffix')].filter(
+      (section): section is FamilySection => section !== null
+    );
   });
 
   public ngOnInit(): void {
