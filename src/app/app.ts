@@ -127,42 +127,64 @@ export class App implements OnInit {
       this.query().trim().length > 0 &&
       this.autocompleteOptions().length > 0
   );
+  private rankFamilyTerm(term: string, analysis: AnalysisResult): [number, number, number] {
+    const root = analysis.rootFamily.root.trim().toLowerCase();
+    const cleaned = term.trim().toLowerCase();
+    const wordFamily = analysis.wordFamily.find(
+      (item) => item.word.trim().toLowerCase() === cleaned
+    );
+
+    const isRoot = root && cleaned === root;
+    const startsWithRoot = root && cleaned.startsWith(root);
+    const breakdownLength = wordFamily?.breakdown?.length ?? 0;
+    const hasStructuralBreakdown = breakdownLength > 0;
+    const extraLength = root && startsWithRoot ? Math.max(cleaned.length - root.length, 0) : cleaned.length;
+
+    const primaryRank = isRoot ? 0 : startsWithRoot ? 1 : 3;
+    const secondaryRank = hasStructuralBreakdown ? 0 : 1;
+
+    return [primaryRank, secondaryRank, extraLength];
+  }
+
   protected readonly sortedFamilyMemory = computed(() => {
     const analysis = this.result();
     if (!analysis) {
       return [];
     }
 
-    const root = analysis.rootFamily.root.trim().toLowerCase();
-    const score = (term: string): number => {
-      const cleaned = term.trim().toLowerCase();
-      if (!cleaned) {
-        return Number.MAX_SAFE_INTEGER;
-      }
-
-      if (root && cleaned === root) {
-        return 0;
-      }
-
-      if (root && cleaned.startsWith(root)) {
-        return 1;
-      }
-
-      return 2;
-    };
-
     return [...analysis.familyMemory].sort((a, b) => {
-      const rankDiff = score(a.term) - score(b.term);
-      if (rankDiff !== 0) {
-        return rankDiff;
-      }
+      const left = this.rankFamilyTerm(a.term, analysis);
+      const right = this.rankFamilyTerm(b.term, analysis);
 
-      const lengthDiff = a.term.length - b.term.length;
-      if (lengthDiff !== 0) {
-        return lengthDiff;
+      for (let index = 0; index < left.length; index += 1) {
+        const diff = left[index] - right[index];
+        if (diff !== 0) {
+          return diff;
+        }
       }
 
       return a.term.localeCompare(b.term);
+    });
+  });
+
+  protected readonly sortedWordFamily = computed(() => {
+    const analysis = this.result();
+    if (!analysis) {
+      return [];
+    }
+
+    return [...analysis.wordFamily].sort((a, b) => {
+      const left = this.rankFamilyTerm(a.word, analysis);
+      const right = this.rankFamilyTerm(b.word, analysis);
+
+      for (let index = 0; index < left.length; index += 1) {
+        const diff = left[index] - right[index];
+        if (diff !== 0) {
+          return diff;
+        }
+      }
+
+      return a.word.localeCompare(b.word);
     });
   });
 

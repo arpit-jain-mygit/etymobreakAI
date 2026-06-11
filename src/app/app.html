@@ -168,9 +168,9 @@
               }
             </div>
 
-            @if (analysis.wordFamily.length) {
+            @if (sortedWordFamily().length) {
               <div class="family-list nested-family-list">
-                @for (item of analysis.wordFamily; track item.word) {
+                @for (item of sortedWordFamily(); track item.word) {
                   <article class="family-item nested-family-item">
                     <strong>{{ item.word }}</strong>
                     <p>{{ item.meaning }}</p>
