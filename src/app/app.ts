@@ -377,6 +377,16 @@ export class App implements OnInit {
     this.quizIndex.set(Math.min(total - 1, this.quizIndex() + 1));
   }
 
+  protected skipCurrentQuizQuestion(): void {
+    const total = this.quizQuestionCount();
+    if (!total) {
+      return;
+    }
+
+    this.quizNotice.set('Question skipped. Come back to it anytime before finishing.');
+    this.quizIndex.set(Math.min(total - 1, this.quizIndex() + 1));
+  }
+
   protected selectQuizOption(index: number): void {
     if (this.quizCurrentQuestionSubmitted()) {
       return;
