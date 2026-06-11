@@ -133,6 +133,13 @@
                   @if (part.source) {
                     <small>{{ part.source }}</small>
                   }
+                  @if (part.otherExamples?.length) {
+                    <div class="examples-row" aria-label="Other examples">
+                      @for (example of part.otherExamples; track example) {
+                        <span class="example-pill">{{ example }}</span>
+                      }
+                    </div>
+                  }
                 </article>
               }
             </div>

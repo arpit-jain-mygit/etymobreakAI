@@ -82,6 +82,7 @@ def _coerce_breakdown(value: Any) -> list[dict[str, Any]]:
                 "type": _text(item.get("type", "")),
                 "meaning": _text(item.get("meaning", "")),
                 "source": _text(item.get("source", "")),
+                "otherExamples": _text_list(item.get("otherExamples", [])),
             }
         )
     return output

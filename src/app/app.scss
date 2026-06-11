@@ -489,6 +489,13 @@ input::placeholder {
   line-height: 1.45;
 }
 
+.examples-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
 .word-item small {
   display: block;
   color: #7a8d9c;

@@ -9,6 +9,7 @@ interface AnalysisPart {
   type: string;
   meaning: string;
   source?: string;
+  otherExamples?: string[];
 }
 
 interface WordFamilyGroup {
@@ -196,6 +197,7 @@ export class App implements OnInit {
         type: text(entry.type),
         meaning,
         source: text(entry.source),
+        otherExamples: list(entry.otherExamples, (example) => text(example)).filter(Boolean),
       };
     });
 
