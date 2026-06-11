@@ -72,6 +72,7 @@ interface CreatedProfileResponse {
   country: string;
   google: GoogleIdentity;
   createdAt: string;
+  updatedAt?: string;
 }
 
 type BreakdownRow = AnalysisPart[];
@@ -679,6 +680,55 @@ export class App implements OnInit, AfterViewInit {
       this.profileFirstName.set(identity.given_name || identity.name.split(/\s+/)[0] || '');
       this.profileLastName.set(identity.family_name || identity.name.split(/\s+/).slice(1).join(' ') || '');
       this.authMessage.set('Google account connected. Finish your profile and continue.');
+      void this.loadProfileFromServer(identity);
+    } catch {
+      return;
+    }
+  }
+
+  private async loadProfileFromServer(identity: GoogleIdentity): Promise<void> {
+    if (!identity.sub && !identity.email) {
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams();
+      if (identity.sub) {
+        params.set('sub', identity.sub);
+      }
+      if (identity.email) {
+        params.set('email', identity.email);
+      }
+
+      const response = await fetch(`${getApiBaseUrl()}/profile?${params.toString()}`);
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json().catch(() => null)) as Partial<CreatedProfileResponse> | null;
+      const firstName = String(payload?.firstName || '').trim();
+      const lastName = String(payload?.lastName || '').trim();
+      const country = String(payload?.country || '').trim();
+      const google = payload?.google || identity;
+      if (!firstName || !lastName || !country) {
+        return;
+      }
+
+      const normalizedProfile: StoredProfile = {
+        firstName,
+        lastName,
+        country,
+        google,
+      };
+
+      this.profile.set(normalizedProfile);
+      this.profileFirstName.set(firstName);
+      this.profileLastName.set(lastName);
+      this.profileCountry.set(country);
+      localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
+      sessionStorage.removeItem(this.pendingGoogleStorageKey);
+      this.authMessage.set('Welcome back. Your profile is ready.');
+      this.authError.set('');
     } catch {
       return;
     }

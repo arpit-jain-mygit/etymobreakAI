@@ -145,4 +145,5 @@ The app now gates the main experience behind Google sign-in and a basic profile 
 - Frontend reads the Google client ID from `GET /config` on the FastAPI backend.
 - Set `GOOGLE_CLIENT_ID` in Render for `etymobreak-ai-api`.
 - The profile fields saved by the app are `firstName`, `lastName`, and `country`.
-- Profile data is stored locally in the browser for now, so the user stays signed in on the same device.
+- Profile data is stored in Postgres through the FastAPI backend, and the browser keeps a local cache for a faster return experience.
+- Set `DATABASE_URL` in Render for `etymobreak-ai-api`, ideally by attaching a Render Postgres instance to the service.

@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import os
 
-from datetime import datetime, timezone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from .service import AnalysisError, analyze
+from .profile_store import (
+    ProfileStoreError,
+    ensure_schema,
+    get_profile_by_google_identity,
+    upsert_profile,
+)
 
 app = FastAPI(title="EtymoBreak AI API")
 
@@ -37,6 +42,14 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.on_event("startup")
+def initialize_profile_store() -> None:
+    try:
+        ensure_schema()
+    except ProfileStoreError:
+        return
+
+
 @app.get("/config")
 def config() -> dict[str, str]:
     return {
@@ -60,25 +73,38 @@ def analyze_word(payload: AnalyzeRequest) -> dict:
 
 @app.post("/profile")
 def create_profile(payload: ProfileRequest) -> dict:
-    first_name = payload.firstName.strip()
-    last_name = payload.lastName.strip()
-    country = payload.country.strip()
-    google = payload.google if isinstance(payload.google, dict) else {}
-
-    if not first_name or not last_name or not country:
+    try:
+        return upsert_profile(payload.model_dump())
+    except ProfileStoreError as exc:
         return JSONResponse(
-            status_code=422,
+            status_code=503,
             content={
-                "error": "Profile fields are required.",
-                "details": "First name, last name, and country must be provided.",
+                "error": "Profile storage is unavailable.",
+                "details": str(exc),
             },
         )
 
-    return {
-        "id": f"profile-{google.get('sub', '') or google.get('email', '') or 'local'}",
-        "firstName": first_name,
-        "lastName": last_name,
-        "country": country,
-        "google": google,
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-    }
+
+@app.get("/profile")
+def get_profile(sub: str | None = None, email: str | None = None) -> dict:
+    try:
+        profile = get_profile_by_google_identity(sub, email)
+    except ProfileStoreError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Profile storage is unavailable.",
+                "details": str(exc),
+            },
+        )
+
+    if not profile:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": "Profile not found.",
+                "details": "No saved profile exists for this Google account.",
+            },
+        )
+
+    return profile
