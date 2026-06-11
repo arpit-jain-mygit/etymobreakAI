@@ -50,7 +50,19 @@ interface FamilySection {
 }
 
 type BreakdownRow = AnalysisPart[];
-type AppTab = 'search' | 'experiment';
+type AppTab = 'search' | 'experiment' | 'quiz';
+type QuizQuestionType = 'meaning' | 'root' | 'family' | 'literal';
+
+interface QuizQuestion {
+  id: string;
+  type: QuizQuestionType;
+  prompt: string;
+  options: string[];
+  correctIndex: number;
+  selectedIndex: number | null;
+  sourceTitle: string;
+  explanation: string;
+}
 
 interface RootFamily {
   root: string;
@@ -117,6 +129,11 @@ export class App implements OnInit {
   protected readonly autocompleteOpen = signal(false);
   protected readonly experimentLetter = signal('');
   protected readonly experimentIndex = signal(0);
+  protected readonly quizLetter = signal('');
+  protected readonly quizIndex = signal(0);
+  protected readonly quizQuestions = signal<QuizQuestion[]>([]);
+  protected readonly quizSubmitted = signal(false);
+  protected readonly quizScore = signal<number | null>(null);
   protected readonly inventoryEntries = signal<unknown[]>([]);
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
@@ -186,6 +203,53 @@ export class App implements OnInit {
     }
 
     return Math.min(Math.max(this.experimentIndex(), 0), total - 1) + 1;
+  });
+  protected readonly quizSlides = computed(() => {
+    const letter = this.quizLetter().trim().toLowerCase();
+    const slides = this.getInventoryAnalyses(letter);
+    return slides.length ? slides.slice(0, 10) : [];
+  });
+  protected readonly quizQuestion = computed(() => {
+    const questions = this.quizQuestions();
+    if (!questions.length) {
+      return null;
+    }
+
+    const index = Math.min(Math.max(this.quizIndex(), 0), questions.length - 1);
+    return questions[index] ?? null;
+  });
+  protected readonly quizQuestionCount = computed(() => this.quizQuestions().length);
+  protected readonly quizQuestionPosition = computed(() => {
+    const total = this.quizQuestionCount();
+    if (!total) {
+      return 0;
+    }
+
+    return Math.min(Math.max(this.quizIndex(), 0), total - 1) + 1;
+  });
+  protected readonly quizAnsweredCount = computed(
+    () => this.quizQuestions().filter((question) => question.selectedIndex !== null).length
+  );
+  protected readonly quizCanSubmit = computed(
+    () => this.quizQuestionCount() > 0 && this.quizAnsweredCount() === this.quizQuestionCount()
+  );
+  protected readonly quizCorrectCount = computed(() =>
+    this.quizSubmitted()
+      ? this.quizQuestions().filter(
+          (question) => question.selectedIndex !== null && question.selectedIndex === question.correctIndex
+        ).length
+      : 0
+  );
+  protected readonly quizWrongCount = computed(() =>
+    this.quizSubmitted() ? this.quizQuestionCount() - this.quizCorrectCount() : 0
+  );
+  protected readonly quizTotalMarks = computed(() => {
+    const score = this.quizScore();
+    if (score === null) {
+      return 0;
+    }
+
+    return score;
   });
   private normalizeForMatch(value: string): string {
     return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -265,12 +329,21 @@ export class App implements OnInit {
 
   protected setActiveTab(tab: AppTab): void {
     this.activeTab.set(tab);
+    if (tab === 'quiz') {
+      void this.ensureQuizDeck();
+    }
   }
 
   protected chooseExperimentLetter(letter: string): void {
     this.experimentLetter.set(letter);
     this.experimentIndex.set(0);
     this.activeTab.set('experiment');
+  }
+
+  protected chooseQuizLetter(letter: string): void {
+    this.quizLetter.set(letter);
+    this.activeTab.set('quiz');
+    void this.ensureQuizDeck(letter);
   }
 
   protected previousExperimentSlide(): void {
@@ -289,6 +362,66 @@ export class App implements OnInit {
     }
 
     this.experimentIndex.set(Math.min(total - 1, this.experimentIndex() + 1));
+  }
+
+  protected previousQuizQuestion(): void {
+    if (!this.quizQuestionCount()) {
+      return;
+    }
+
+    this.quizIndex.set(Math.max(0, this.quizIndex() - 1));
+  }
+
+  protected nextQuizQuestion(): void {
+    const total = this.quizQuestionCount();
+    if (!total) {
+      return;
+    }
+
+    this.quizIndex.set(Math.min(total - 1, this.quizIndex() + 1));
+  }
+
+  protected selectQuizOption(index: number): void {
+    if (this.quizSubmitted()) {
+      return;
+    }
+
+    const questions = this.quizQuestions();
+    const currentIndex = this.quizIndex();
+    const question = questions[currentIndex];
+    if (!question) {
+      return;
+    }
+
+    const updated = [...questions];
+    updated[currentIndex] = {
+      ...question,
+      selectedIndex: index,
+    };
+    this.quizQuestions.set(updated);
+  }
+
+  protected submitQuiz(): void {
+    if (!this.quizCanSubmit()) {
+      return;
+    }
+
+    let score = 0;
+    for (const question of this.quizQuestions()) {
+      if (question.selectedIndex === question.correctIndex) {
+        score += 3;
+      } else {
+        score -= 1;
+      }
+    }
+
+    this.quizScore.set(score);
+    this.quizSubmitted.set(true);
+  }
+
+  protected resetQuiz(): void {
+    const letter = this.quizLetter();
+    this.buildQuizDeck(letter);
   }
 
   private async loadRootAutocomplete(): Promise<void> {
@@ -324,6 +457,193 @@ export class App implements OnInit {
     } catch {
       return;
     }
+  }
+
+  private getInventoryAnalyses(letter = ''): AnalysisResult[] {
+    const normalizedLetter = letter.trim().toLowerCase();
+    return this.inventoryEntries()
+      .filter((item) => {
+        if (!item || typeof item !== 'object') {
+          return false;
+        }
+
+        const entry: any = item;
+        const query = String(entry.query || '').trim().toLowerCase();
+        if (!query) {
+          return false;
+        }
+
+        return !normalizedLetter || query.startsWith(normalizedLetter);
+      })
+      .map((item) => {
+        const entry: any = item;
+        const query = String(entry.query || '').trim().toLowerCase();
+        return this.normalizeAnalysisResult(item, query);
+      })
+      .filter((item) => !this.isEmptyAnalysis(item))
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  }
+
+  private shuffle<T>(items: T[]): T[] {
+    const values = [...items];
+    for (let index = values.length - 1; index > 0; index -= 1) {
+      const swap = Math.floor(Math.random() * (index + 1));
+      [values[index], values[swap]] = [values[swap], values[index]];
+    }
+    return values;
+  }
+
+  private uniqueStrings(values: string[]): string[] {
+    return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+  }
+
+  private getQuizAnswerPool(entries: AnalysisResult[], type: QuizQuestionType): string[] {
+    const answers = entries.flatMap((entry) => {
+      switch (type) {
+        case 'meaning':
+          return [entry.actualMeaning, entry.summary, entry.literalMeaning]
+            .map((value) => value.trim())
+            .filter(Boolean);
+        case 'root':
+          return [
+            entry.rootFamily.meaning,
+            ...(entry.breakdown ?? []).filter((part) => part.type === 'root').map((part) => part.meaning),
+          ]
+            .map((value) => value.trim())
+            .filter(Boolean);
+        case 'family':
+          return [
+            ...(entry.familyMemory ?? []).map((item) => item.term),
+            ...(entry.wordFamily ?? []).map((item) => item.word),
+          ]
+            .map((value) => value.trim())
+            .filter(Boolean);
+        case 'literal':
+          return [entry.literalMeaningArrow, entry.literalMeaningFormula, entry.literalMeaning]
+            .map((value) => value.trim())
+            .filter(Boolean);
+        default:
+          return [];
+      }
+    });
+
+    return this.uniqueStrings(answers);
+  }
+
+  private createQuizQuestion(
+    entry: AnalysisResult,
+    index: number,
+    type: QuizQuestionType,
+    pool: AnalysisResult[]
+  ): QuizQuestion | null {
+    const meaningFallback = entry.actualMeaning || entry.summary || entry.literalMeaning;
+    const rootPart = entry.breakdown.find((part) => part.type === 'root') ?? entry.breakdown[0];
+    const rootLabel = entry.rootFamily.root || rootPart?.label || entry.query;
+    const rootMeaning = entry.rootFamily.meaning || rootPart?.meaning || meaningFallback;
+    const familyWord =
+      entry.familyMemory[0]?.term || entry.wordFamily[0]?.word || entry.title || entry.query;
+    const literalAnswer =
+      entry.literalMeaningArrow || entry.literalMeaningFormula || entry.literalMeaning || meaningFallback;
+
+    let prompt = '';
+    let correctAnswer = '';
+    let explanation = '';
+
+    switch (type) {
+      case 'meaning':
+        prompt = `What is the best meaning of "${entry.title}"?`;
+        correctAnswer = meaningFallback;
+        explanation = entry.summary || entry.actualMeaning || meaningFallback;
+        break;
+      case 'root':
+        prompt = `What does the root "${rootLabel}" mean?`;
+        correctAnswer = rootMeaning;
+        explanation = `${rootLabel} means ${rootMeaning}.`;
+        break;
+      case 'family':
+        prompt = `Which word belongs to the "${rootLabel}" family?`;
+        correctAnswer = familyWord;
+        explanation = `${familyWord} belongs to the ${rootLabel} family.`;
+        break;
+      case 'literal':
+        prompt = `What is the literal breakdown of "${entry.title}"?`;
+        correctAnswer = literalAnswer;
+        explanation = entry.literalMeaningFormula || entry.literalMeaningArrow || entry.literalMeaning || meaningFallback;
+        break;
+    }
+
+    if (!prompt || !correctAnswer) {
+      return null;
+    }
+
+    const distractors = this.shuffle(
+      this.getQuizAnswerPool(pool, type).filter(
+        (option) => option.toLowerCase() !== correctAnswer.trim().toLowerCase()
+      )
+    ).slice(0, 3);
+
+    const options = this.shuffle(this.uniqueStrings([correctAnswer, ...distractors]));
+    while (options.length < 4) {
+      const filler = this.uniqueStrings(pool.map((item) => item.title).filter(Boolean)).find(
+        (option) => !options.includes(option)
+      );
+      if (!filler) {
+        break;
+      }
+      options.push(filler);
+    }
+
+    const correctIndex = options.findIndex(
+      (option) => option.trim().toLowerCase() === correctAnswer.trim().toLowerCase()
+    );
+
+    if (correctIndex < 0 || options.length < 4) {
+      return null;
+    }
+
+    return {
+      id: `${entry.query}-${index}-${type}`,
+      type,
+      prompt,
+      options: options.slice(0, 4),
+      correctIndex,
+      selectedIndex: null,
+      sourceTitle: entry.title,
+      explanation,
+    };
+  }
+
+  private async ensureQuizDeck(letter = this.quizLetter()): Promise<void> {
+    if (this.inventoryLoadPromise) {
+      await this.inventoryLoadPromise;
+    }
+
+    if (!this.inventoryEntries().length) {
+      this.quizQuestions.set([]);
+      this.quizScore.set(null);
+      this.quizSubmitted.set(false);
+      return;
+    }
+
+    this.buildQuizDeck(letter);
+  }
+
+  private buildQuizDeck(letter = ''): void {
+    const allEntries = this.getInventoryAnalyses();
+    const filteredEntries = letter.trim() ? this.getInventoryAnalyses(letter) : allEntries;
+    const sourceEntries = filteredEntries.length >= 10 ? filteredEntries : allEntries;
+    const selectedEntries = sourceEntries.slice(0, 10);
+
+    const types: QuizQuestionType[] = ['meaning', 'root', 'family', 'literal'];
+    const questions = selectedEntries
+      .map((entry, index) => this.createQuizQuestion(entry, index, types[index % types.length], sourceEntries))
+      .filter((question): question is QuizQuestion => question !== null)
+      .slice(0, 10);
+
+    this.quizQuestions.set(questions);
+    this.quizIndex.set(0);
+    this.quizSubmitted.set(false);
+    this.quizScore.set(null);
   }
 
   private normalizeAnalysisResult(payload: unknown, query: string): AnalysisResult {

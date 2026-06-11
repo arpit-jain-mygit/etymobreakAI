@@ -20,6 +20,14 @@
         >
           Experiment
         </button>
+        <button
+          type="button"
+          class="tab-chip"
+          [class.active]="activeTab() === 'quiz'"
+          (click)="setActiveTab('quiz')"
+        >
+          Quiz
+        </button>
       </div>
     </div>
 
@@ -309,6 +317,107 @@
         </div>
       } @else if (experimentLetter()) {
         <section class="notice calm-notice">No slides yet.</section>
+      }
+    </section>
+  }
+
+  @if (activeTab() === 'quiz') {
+    <section class="experiment-panel quiz-panel">
+      <div class="experiment-toolbar">
+        <div class="alphabet-row" aria-label="Select quiz letter">
+          <button
+            type="button"
+            class="alpha-chip"
+            [class.active]="!quizLetter()"
+            (click)="chooseQuizLetter('')"
+          >
+            All
+          </button>
+          @for (letter of alphabet(); track letter) {
+            <button
+              type="button"
+              class="alpha-chip"
+              [class.active]="quizLetter() === letter"
+              (click)="chooseQuizLetter(letter)"
+            >
+              {{ letter.toUpperCase() }}
+            </button>
+          }
+        </div>
+
+        <div class="slide-nav">
+          <button
+            type="button"
+            class="nav-button"
+            aria-label="Previous question"
+            (click)="previousQuizQuestion()"
+            [disabled]="!quizQuestionCount() || quizQuestionPosition() <= 1"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+
+          <span>{{ quizQuestionPosition() || 0 }} / {{ quizQuestionCount() }}</span>
+
+          <button
+            type="button"
+            class="nav-button"
+            aria-label="Next question"
+            (click)="nextQuizQuestion()"
+            [disabled]="!quizQuestionCount() || quizQuestionPosition() >= quizQuestionCount()"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 6 6 6-6 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      @if (quizQuestion(); as question) {
+        <div class="quiz-card">
+          <div class="panel-head">
+            <p class="section-label">Question</p>
+            <span>{{ quizAnsweredCount() }}/{{ quizQuestionCount() }} answered</span>
+          </div>
+
+          <h2>{{ question.sourceTitle }}</h2>
+          <p class="quiz-prompt">{{ question.prompt }}</p>
+
+          <div class="quiz-options" role="list" aria-label="Quiz answers">
+            @for (option of question.options; track option; let optionIndex = $index) {
+              <button
+                type="button"
+                class="quiz-option"
+                [class.selected]="question.selectedIndex === optionIndex"
+                [class.correct]="quizSubmitted() && optionIndex === question.correctIndex"
+                [class.wrong]="quizSubmitted() && question.selectedIndex === optionIndex && optionIndex !== question.correctIndex"
+                [disabled]="quizSubmitted()"
+                (click)="selectQuizOption(optionIndex)"
+              >
+                <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>
+                <span class="quiz-option-text">{{ option }}</span>
+              </button>
+            }
+          </div>
+
+          @if (quizSubmitted()) {
+            <section class="notice calm-notice quiz-result">
+              <strong>Your score: {{ quizTotalMarks() }} / 30</strong>
+              <span>{{ quizCorrectCount() }} right × 3 - {{ quizWrongCount() }} wrong × 1</span>
+            </section>
+            <p class="quiz-explanation">{{ question.explanation }}</p>
+          }
+
+          <div class="quiz-actions">
+            <button type="button" class="primary" (click)="resetQuiz()">Reset Quiz</button>
+            <button type="button" class="primary" [disabled]="!quizCanSubmit()" (click)="submitQuiz()">
+              Submit Quiz
+            </button>
+          </div>
+        </div>
+      } @else {
+        <section class="notice calm-notice">Pick a letter or use All to generate a 10-question quiz.</section>
       }
     </section>
   }
