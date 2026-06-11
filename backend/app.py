@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 
+from datetime import datetime, timezone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -22,6 +23,13 @@ app.add_middleware(
 
 class AnalyzeRequest(BaseModel):
     query: str = Field(min_length=1)
+
+
+class ProfileRequest(BaseModel):
+    firstName: str = Field(min_length=1)
+    lastName: str = Field(min_length=1)
+    country: str = Field(min_length=1)
+    google: dict
 
 
 @app.get("/health")
@@ -48,3 +56,29 @@ def analyze_word(payload: AnalyzeRequest) -> dict:
                 "details": exc.details,
             },
         )
+
+
+@app.post("/profile")
+def create_profile(payload: ProfileRequest) -> dict:
+    first_name = payload.firstName.strip()
+    last_name = payload.lastName.strip()
+    country = payload.country.strip()
+    google = payload.google if isinstance(payload.google, dict) else {}
+
+    if not first_name or not last_name or not country:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": "Profile fields are required.",
+                "details": "First name, last name, and country must be provided.",
+            },
+        )
+
+    return {
+        "id": f"profile-{google.get('sub', '') or google.get('email', '') or 'local'}",
+        "firstName": first_name,
+        "lastName": last_name,
+        "country": country,
+        "google": google,
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+    }

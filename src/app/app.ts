@@ -65,6 +65,15 @@ interface StoredProfile {
   google: GoogleIdentity;
 }
 
+interface CreatedProfileResponse {
+  id: string;
+  firstName: string;
+  lastName: string;
+  country: string;
+  google: GoogleIdentity;
+  createdAt: string;
+}
+
 type BreakdownRow = AnalysisPart[];
 type AppTab = 'search' | 'experiment' | 'quiz';
 type AuthStage = 'home' | 'profile' | 'app';
@@ -410,16 +419,11 @@ export class App implements OnInit, AfterViewInit {
       google: this.googleIdentity()!,
     };
 
-    this.profile.set(profile);
-    this.authMessage.set('Profile saved. Welcome to EtymoBreak.');
+    this.loading.set(true);
     this.authError.set('');
+    this.authMessage.set('Creating your profile...');
 
-    try {
-      localStorage.setItem(this.profileStorageKey, JSON.stringify(profile));
-      sessionStorage.removeItem(this.pendingGoogleStorageKey);
-    } catch {
-      this.authError.set('Your profile could not be saved locally.');
-    }
+    void this.saveProfile(profile);
   }
 
   protected signOutProfile(): void {
@@ -677,6 +681,50 @@ export class App implements OnInit, AfterViewInit {
       this.authMessage.set('Google account connected. Finish your profile and continue.');
     } catch {
       return;
+    }
+  }
+
+  private async saveProfile(profile: StoredProfile): Promise<void> {
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/profile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profile),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+          details?: string;
+        } | null;
+        const message = payload?.error || 'Your profile could not be created right now.';
+        const details = payload?.details ? ` ${payload.details}` : '';
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      const created = (await response.json()) as CreatedProfileResponse;
+      const normalizedProfile: StoredProfile = {
+        firstName: String(created.firstName || profile.firstName).trim(),
+        lastName: String(created.lastName || profile.lastName).trim(),
+        country: String(created.country || profile.country).trim(),
+        google: created.google || profile.google,
+      };
+
+      this.profile.set(normalizedProfile);
+      this.authMessage.set('Profile created. Welcome to EtymoBreak.');
+      this.authError.set('');
+
+      localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
+      sessionStorage.removeItem(this.pendingGoogleStorageKey);
+    } catch (error) {
+      this.profile.set(null);
+      this.authError.set(error instanceof Error ? error.message : 'Your profile could not be created.');
+      this.authMessage.set('Google is connected. Please try again to create your profile.');
+      return;
+    } finally {
+      this.loading.set(false);
     }
   }
 
