@@ -324,27 +324,6 @@
   @if (activeTab() === 'quiz') {
     <section class="experiment-panel quiz-panel">
       <div class="experiment-toolbar">
-        <div class="alphabet-row" aria-label="Select quiz letter">
-          <button
-            type="button"
-            class="alpha-chip"
-            [class.active]="!quizLetter()"
-            (click)="chooseQuizLetter('')"
-          >
-            All
-          </button>
-          @for (letter of alphabet(); track letter) {
-            <button
-              type="button"
-              class="alpha-chip"
-              [class.active]="quizLetter() === letter"
-              (click)="chooseQuizLetter(letter)"
-            >
-              {{ letter.toUpperCase() }}
-            </button>
-          }
-        </div>
-
         <div class="slide-nav">
           <button
             type="button"
