@@ -44,12 +44,8 @@ def _blank_output(query: str, mode: str) -> dict[str, Any]:
         "breakdown": [],
         "otherWords": [],
         "relatedWords": [],
-        "memoryHacks": [],
-        "quickRecallTable": [],
-        "finalShortcut": {},
         "familyMemory": [],
         "notes": [],
-        "conclusion": "",
     }
 
 
@@ -134,43 +130,6 @@ def _coerce_related_words(value: Any) -> list[dict[str, Any]]:
             }
         )
     return words
-
-
-def _coerce_memory_hacks(value: Any) -> list[dict[str, Any]]:
-    if not isinstance(value, list):
-        return []
-
-    groups: list[dict[str, Any]] = []
-    for item in value:
-        if not isinstance(item, dict):
-            continue
-        lines = item.get("lines", [])
-        if not isinstance(lines, list):
-            lines = []
-        groups.append(
-            {
-                "title": _text(item.get("title", "")),
-                "lines": _text_list(lines),
-            }
-        )
-    return groups
-
-
-def _coerce_table_rows(value: Any) -> list[dict[str, Any]]:
-    if not isinstance(value, list):
-        return []
-
-    rows: list[dict[str, Any]] = []
-    for item in value:
-        if not isinstance(item, dict):
-            continue
-        rows.append(
-            {
-                "part": _text(item.get("part", "")),
-                "meaning": _text(item.get("meaning", "")),
-            }
-        )
-    return rows
 
 
 def _coerce_family_memory(value: Any) -> list[dict[str, Any]]:
@@ -277,12 +236,7 @@ def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, 
     breakdown = _coerce_breakdown(data.get("breakdown", data.get("parts", [])))
     other_words = _coerce_other_words(data.get("otherWords", []))
     related_words = _coerce_related_words(data.get("relatedWords", []))
-    memory_hacks = _coerce_memory_hacks(data.get("memoryHacks", []))
-    quick_recall = _coerce_table_rows(data.get("quickRecallTable", []))
     family_memory = _coerce_family_memory(data.get("familyMemory", []))
-    final_shortcut = data.get("finalShortcut", {})
-    if not isinstance(final_shortcut, dict):
-        final_shortcut = {}
     return {
         "query": _text(data.get("query", query)) or query,
         "mode": normalize_mode(_text(data.get("mode", mode)) or mode),
@@ -295,15 +249,8 @@ def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, 
         "breakdown": breakdown,
         "otherWords": other_words,
         "relatedWords": related_words,
-        "memoryHacks": memory_hacks,
-        "quickRecallTable": quick_recall,
-        "finalShortcut": {
-            "title": _text(final_shortcut.get("title", "")),
-            "text": _text(final_shortcut.get("text", "")),
-        },
         "familyMemory": family_memory,
         "notes": _text_list(data.get("notes", [])),
-        "conclusion": _text(data.get("conclusion", "")),
     }
 
 
@@ -372,7 +319,7 @@ def _mistral_analysis(query: str, mode: str) -> dict[str, Any]:
         raise AnalysisError(503, "Missing Mistral API key", "Set MISTRAL_API_KEY in Render")
 
     model_name = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
-    prompt = f"""JSON only. Keys: query, mode, title, summary, breakdown, literalMeaningFormula, literalMeaningArrow, literalMeaning, actualMeaning, otherWords, relatedWords, memoryHacks, quickRecallTable, finalShortcut, familyMemory, conclusion, notes.
+    prompt = f"""JSON only. Keys: query, mode, title, summary, breakdown, literalMeaningFormula, literalMeaningArrow, literalMeaning, actualMeaning, otherWords, relatedWords, familyMemory, notes.
 Query: {query}
 Infer mode from the query and keep text short.
 breakdown: up to 4 items. Each item must include: index, label, type, meaning, source.
@@ -383,11 +330,7 @@ actualMeaning: one short paragraph.
 otherWords: up to 2 groups. Each group must include: title, focus, words. Each words item must include: word, meaning.
 relatedWords: up to 5 word-family items tied to the query root/prefix/suffix or extracted parts. No synonyms.
 Each relatedWords item must include: word, breakdown, meaning, exampleSentence.
-memoryHacks: up to 2 groups. Each group must include: title, lines. Make the lines short, friendly memory tips.
-quickRecallTable: 2 to 4 rows with part and meaning.
-finalShortcut: object with title and text.
 familyMemory: 3 to 6 short rows with term and meaning.
-conclusion: one short closing line that starts with the final answer, like "➡️ ..."
 notes: up to 2 short strings.
 No markdown. Never answer about a different query.
 """

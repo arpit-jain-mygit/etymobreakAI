@@ -434,16 +434,12 @@ input::placeholder {
 }
 
 .group-list,
-.memory-list,
-.table-list,
 .family-list {
   display: grid;
   gap: 12px;
 }
 
 .group-card,
-.memory-card,
-.shortcut-card,
 .family-item {
   padding: 14px;
   border-radius: 14px;
@@ -500,28 +496,10 @@ input::placeholder {
 }
 
 .group-row p,
-.table-row p,
-.family-item p,
-.shortcut-card p,
-.memory-card li,
-.conclusion {
+.family-item p {
   margin: 0;
   color: #516576;
   line-height: 1.55;
-}
-
-.memory-card ul {
-  margin: 10px 0 0;
-  padding-left: 18px;
-}
-
-.memory-card li + li {
-  margin-top: 6px;
-}
-
-.shortcut-card {
-  display: grid;
-  gap: 10px;
 }
 
 .family-item {
@@ -549,10 +527,6 @@ input::placeholder {
 .notes ul {
   margin: 0;
   padding-left: 18px;
-}
-
-.notes .conclusion {
-  margin-bottom: 12px;
 }
 
 @keyframes spin {

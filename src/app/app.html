@@ -174,54 +174,6 @@
             }
           </div>
         </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <p class="section-label">UPSC Memory Hacks</p>
-            <span>{{ analysis.memoryHacks.length }} blocks</span>
-          </div>
-
-          <div class="memory-list">
-            @for (memory of analysis.memoryHacks; track memory.title) {
-              <article class="memory-card">
-                <strong>{{ memory.title }}</strong>
-                <ul>
-                  @for (line of memory.lines; track line) {
-                    <li>{{ line }}</li>
-                  }
-                </ul>
-              </article>
-            }
-          </div>
-        </section>
-      </div>
-
-      <div class="columns">
-        <section class="panel">
-          <div class="panel-head">
-            <p class="section-label">Quick Recall Table</p>
-          </div>
-
-          <div class="table-list">
-            @for (row of analysis.quickRecallTable; track row.part) {
-              <div class="table-row">
-                <strong>{{ row.part }}</strong>
-                <p>{{ row.meaning }}</p>
-              </div>
-            }
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <p class="section-label">Final Shortcut</p>
-          </div>
-
-          <article class="shortcut-card">
-            <strong>{{ analysis.finalShortcut?.title }}</strong>
-            <p>{{ analysis.finalShortcut?.text }}</p>
-          </article>
-        </section>
       </div>
 
       <div class="columns">
@@ -242,9 +194,8 @@
 
         <section class="panel notes">
           <div class="panel-head">
-            <p class="section-label">Conclusion</p>
+            <p class="section-label">Notes</p>
           </div>
-          <p class="conclusion">{{ analysis.conclusion }}</p>
           @if (analysis.notes.length) {
             <ul>
               @for (note of analysis.notes; track note) {

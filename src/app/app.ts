@@ -28,21 +28,6 @@ interface RelatedWord {
   exampleSentence?: string;
 }
 
-interface MemoryHackGroup {
-  title: string;
-  lines: string[];
-}
-
-interface RecallRow {
-  part: string;
-  meaning: string;
-}
-
-interface FinalShortcut {
-  title: string;
-  text: string;
-}
-
 interface AnalysisResult {
   query: string;
   mode: string;
@@ -55,15 +40,11 @@ interface AnalysisResult {
   breakdown: AnalysisPart[];
   otherWords: WordFamilyGroup[];
   relatedWords: RelatedWord[];
-  memoryHacks: MemoryHackGroup[];
-  quickRecallTable: RecallRow[];
-  finalShortcut: FinalShortcut;
   familyMemory: Array<{
     term: string;
     meaning: string;
   }>;
   notes: string[];
-  conclusion: string;
 }
 
 @Component({
