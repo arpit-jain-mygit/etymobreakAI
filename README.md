@@ -127,9 +127,7 @@ Required shape:
     "meaning": "break",
     "origin": "Latin",
     "source": "From Latin frangere/fractus = to break."
-  },
-  "otherWords": [],
-  "relatedWords": []
+  }
 }
 ```
 
@@ -138,3 +136,4 @@ Contract notes:
 - Keep `wordFamily[].breakdown[]` when you want suffix/root family details to survive render.
 - Keep `breakdown[].otherExamples[]` for part-level example words.
 - If a field is not known, leave it blank or empty rather than omitting the key.
+- `otherWords` and `relatedWords` are no longer part of the inventory contract.

@@ -434,7 +434,7 @@ def _mistral_analysis(query: str, mode: str) -> dict[str, Any]:
         raise AnalysisError(503, "Missing Mistral API key", "Set MISTRAL_API_KEY in Render")
 
     model_name = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
-    prompt = f"""JSON only. Keys: query, mode, title, summary, breakdown, literalMeaningFormula, literalMeaningArrow, literalMeaning, actualMeaning, wordFamily, otherWords, relatedWords, familyMemory, notes, slideNumber, rootFamily.
+    prompt = f"""JSON only. Keys: query, mode, title, summary, breakdown, literalMeaningFormula, literalMeaningArrow, literalMeaning, actualMeaning, wordFamily, familyMemory, notes, slideNumber, rootFamily.
 Query: {query}
 Infer mode from the query and keep text short.
 breakdown: up to 4 items. Each item must include: index, label, type, meaning, source.
@@ -443,9 +443,6 @@ literalMeaningArrow: a short arrow line like "➡️ study of the heart".
 literalMeaning: a one-line label or heading for the literal meaning block.
 actualMeaning: one short paragraph.
 wordFamily: 3 to 6 short rows with word and meaning.
-otherWords: up to 2 groups. Each group must include: title, focus, words. Each words item must include: word, meaning.
-relatedWords: up to 5 word-family items tied to the query root/prefix/suffix or extracted parts. No synonyms.
-Each relatedWords item must include: word, breakdown, meaning, exampleSentence.
 familyMemory: 3 to 6 short rows with term and meaning.
 notes: up to 2 short strings.
 slideNumber: a number.
