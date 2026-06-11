@@ -543,6 +543,25 @@ input::placeholder {
   background: rgba(249, 245, 252, 0.96);
 }
 
+.family-sections {
+  display: grid;
+  gap: 14px;
+}
+
+.family-section {
+  display: grid;
+  gap: 10px;
+}
+
+.family-section + .family-section {
+  padding-top: 12px;
+  border-top: 1px solid rgba(158, 177, 184, 0.14);
+}
+
+.family-section-head {
+  margin-bottom: 0;
+}
+
 .group-head {
   display: flex;
   justify-content: space-between;

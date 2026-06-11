@@ -153,56 +153,31 @@
         <div class="column-stack">
           <section class="panel family-panel">
             <div class="panel-head">
-              <p class="section-label">Family Memory</p>
+              <p class="section-label">Family Words</p>
             </div>
 
-            <div class="family-list">
-              @for (item of sortedFamilyMemory(); track item.term) {
-                <article class="family-item">
-                  <strong>{{ item.term }}</strong>
-                  <p>{{ item.meaning }}</p>
-                  @if (item.exampleSentence) {
-                    <em>{{ item.exampleSentence }}</em>
-                  }
-                </article>
+            <div class="family-sections">
+              @for (section of familySections(); track section.label) {
+                <section class="family-section">
+                  <div class="panel-head family-section-head">
+                    <p class="section-label">{{ section.title }}</p>
+                    <span>{{ section.items.length }} words</span>
+                  </div>
+
+                  <div class="family-list">
+                    @for (item of section.items; track item.term) {
+                      <article class="family-item">
+                        <strong>{{ item.term }}</strong>
+                        <p>{{ item.meaning }}</p>
+                        @if (item.exampleSentence) {
+                          <em>{{ item.exampleSentence }}</em>
+                        }
+                      </article>
+                    }
+                  </div>
+                </section>
               }
             </div>
-
-            @if (sortedWordFamily().length) {
-              <div class="family-list nested-family-list">
-                @for (item of sortedWordFamily(); track item.word) {
-                  <article class="family-item nested-family-item">
-                    <strong>{{ item.word }}</strong>
-                    <p>{{ item.meaning }}</p>
-                    @if (item.breakdown?.length) {
-                      <div class="nested-parts">
-                        @for (part of item.breakdown; track part.label) {
-                          <div class="nested-part">
-                            <div class="nested-part-head">
-                              <span>{{ part.label }}</span>
-                              @if (part.type) {
-                                <small>{{ part.type }}</small>
-                              }
-                            </div>
-                            <p>{{ part.meaning }}</p>
-                            @if (part.otherExamples?.length) {
-                              <div class="examples-row">
-                                @for (example of part.otherExamples; track example) {
-                                  <span class="example-pill">{{ example }}</span>
-                                }
-                              </div>
-                            }
-                          </div>
-                        }
-                      </div>
-                    }
-                    @if (item.exampleSentence) {
-                      <em>{{ item.exampleSentence }}</em>
-                    }
-                  </article>
-                }
-              </div>
-            }
           </section>
         </div>
       </div>
