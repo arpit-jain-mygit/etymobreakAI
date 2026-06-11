@@ -44,6 +44,8 @@ def _blank_output(query: str, mode: str) -> dict[str, Any]:
         "breakdown": [],
         "otherWords": [],
         "relatedWords": [],
+        "slideNumber": None,
+        "rootFamily": {},
         "familyMemory": [],
         "notes": [],
     }
@@ -152,6 +154,17 @@ def _coerce_family_memory(value: Any) -> list[dict[str, Any]]:
     return rows
 
 
+def _coerce_root_family(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+
+    return {
+        "root": _text(value.get("root", "")),
+        "meaning": _text(value.get("meaning", "")),
+        "origin": _text(value.get("origin", "")),
+    }
+
+
 @lru_cache(maxsize=1)
 def _load_inventory() -> dict[str, dict[str, Any]]:
     if not ROOT_INVENTORY_PATH.exists():
@@ -237,6 +250,13 @@ def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, 
     other_words = _coerce_other_words(data.get("otherWords", []))
     related_words = _coerce_related_words(data.get("relatedWords", []))
     family_memory = _coerce_family_memory(data.get("familyMemory", []))
+    slide_number = data.get("slideNumber", None)
+    if isinstance(slide_number, bool):
+        slide_number = None
+    elif isinstance(slide_number, int):
+        pass
+    else:
+        slide_number = None
     return {
         "query": _text(data.get("query", query)) or query,
         "mode": normalize_mode(_text(data.get("mode", mode)) or mode),
@@ -249,6 +269,8 @@ def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, 
         "breakdown": breakdown,
         "otherWords": other_words,
         "relatedWords": related_words,
+        "slideNumber": slide_number,
+        "rootFamily": _coerce_root_family(data.get("rootFamily", {})),
         "familyMemory": family_memory,
         "notes": _text_list(data.get("notes", [])),
     }
@@ -319,7 +341,7 @@ def _mistral_analysis(query: str, mode: str) -> dict[str, Any]:
         raise AnalysisError(503, "Missing Mistral API key", "Set MISTRAL_API_KEY in Render")
 
     model_name = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
-    prompt = f"""JSON only. Keys: query, mode, title, summary, breakdown, literalMeaningFormula, literalMeaningArrow, literalMeaning, actualMeaning, otherWords, relatedWords, familyMemory, notes.
+    prompt = f"""JSON only. Keys: query, mode, title, summary, breakdown, literalMeaningFormula, literalMeaningArrow, literalMeaning, actualMeaning, otherWords, relatedWords, familyMemory, notes, slideNumber, rootFamily.
 Query: {query}
 Infer mode from the query and keep text short.
 breakdown: up to 4 items. Each item must include: index, label, type, meaning, source.
@@ -332,6 +354,8 @@ relatedWords: up to 5 word-family items tied to the query root/prefix/suffix or 
 Each relatedWords item must include: word, breakdown, meaning, exampleSentence.
 familyMemory: 3 to 6 short rows with term and meaning.
 notes: up to 2 short strings.
+slideNumber: a number.
+rootFamily: object with root, meaning, origin.
 No markdown. Never answer about a different query.
 """
 

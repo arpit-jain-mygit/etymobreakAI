@@ -304,6 +304,25 @@ input::placeholder {
   max-width: 68ch;
 }
 
+.meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 10px 0 0;
+  color: #6a7f8e;
+  font-size: 0.9rem;
+}
+
+.meta-line span {
+  padding-right: 14px;
+  border-right: 1px solid rgba(158, 177, 184, 0.18);
+}
+
+.meta-line span:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
 .badge {
   padding: 10px 14px;
   border-radius: 999px;
@@ -527,6 +546,11 @@ input::placeholder {
 .notes ul {
   margin: 0;
   padding-left: 18px;
+}
+
+.empty-state {
+  margin: 0;
+  color: #7a8d9c;
 }
 
 @keyframes spin {

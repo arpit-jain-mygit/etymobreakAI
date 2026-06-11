@@ -75,6 +75,22 @@
           <p class="section-label">Result</p>
           <h2>{{ analysis.title }}</h2>
           <p class="summary">{{ analysis.summary }}</p>
+          @if (analysis.slideNumber || analysis.rootFamily.root) {
+            <p class="meta-line">
+              @if (analysis.slideNumber) {
+                <span>Slide {{ analysis.slideNumber }}</span>
+              }
+              @if (analysis.rootFamily.root) {
+                <span>Root: {{ analysis.rootFamily.root }}</span>
+              }
+              @if (analysis.rootFamily.meaning) {
+                <span>{{ analysis.rootFamily.meaning }}</span>
+              }
+              @if (analysis.rootFamily.origin) {
+                <span>{{ analysis.rootFamily.origin }}</span>
+              }
+            </p>
+          }
         </div>
         <div class="badge">Study Guide</div>
       </div>
@@ -200,8 +216,10 @@
             <ul>
               @for (note of analysis.notes; track note) {
                 <li>{{ note }}</li>
-              }
-            </ul>
+            }
+          </ul>
+          } @else {
+            <p class="empty-state">No notes for this entry.</p>
           }
         </section>
       </div>

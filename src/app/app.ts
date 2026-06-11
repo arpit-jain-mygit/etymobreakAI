@@ -28,6 +28,12 @@ interface RelatedWord {
   exampleSentence?: string;
 }
 
+interface RootFamily {
+  root: string;
+  meaning: string;
+  origin: string;
+}
+
 interface AnalysisResult {
   query: string;
   mode: string;
@@ -40,6 +46,8 @@ interface AnalysisResult {
   breakdown: AnalysisPart[];
   otherWords: WordFamilyGroup[];
   relatedWords: RelatedWord[];
+  slideNumber: number | null;
+  rootFamily: RootFamily;
   familyMemory: Array<{
     term: string;
     meaning: string;
