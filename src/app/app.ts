@@ -67,6 +67,7 @@ interface StoredProfile {
 
 type BreakdownRow = AnalysisPart[];
 type AppTab = 'search' | 'experiment' | 'quiz';
+type AuthStage = 'home' | 'profile' | 'app';
 type QuizQuestionType = 'meaning' | 'root' | 'family' | 'literal';
 
 interface QuizQuestion {
@@ -166,6 +167,7 @@ export class App implements OnInit, AfterViewInit {
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
   private readonly profileStorageKey = 'etymobreak-profile';
+  private readonly pendingGoogleStorageKey = 'etymobreak-google-identity';
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
     const unique = [
@@ -278,6 +280,17 @@ export class App implements OnInit, AfterViewInit {
   protected readonly profileComplete = computed(() => {
     const profile = this.profile();
     return !!profile?.firstName && !!profile?.lastName && !!profile?.country;
+  });
+  protected readonly authStage = computed<AuthStage>(() => {
+    if (this.profileComplete()) {
+      return 'app';
+    }
+
+    if (this.googleIdentity()) {
+      return 'profile';
+    }
+
+    return 'home';
   });
   protected readonly canCompleteProfile = computed(
     () =>
@@ -403,6 +416,7 @@ export class App implements OnInit, AfterViewInit {
 
     try {
       localStorage.setItem(this.profileStorageKey, JSON.stringify(profile));
+      sessionStorage.removeItem(this.pendingGoogleStorageKey);
     } catch {
       this.authError.set('Your profile could not be saved locally.');
     }
@@ -419,6 +433,7 @@ export class App implements OnInit, AfterViewInit {
     this.googleButtonRendered.set(false);
     try {
       localStorage.removeItem(this.profileStorageKey);
+      sessionStorage.removeItem(this.pendingGoogleStorageKey);
     } catch {
       return;
     }
@@ -600,6 +615,7 @@ export class App implements OnInit, AfterViewInit {
     try {
       const raw = localStorage.getItem(this.profileStorageKey);
       if (!raw) {
+        this.loadPendingGoogleIdentity();
         return;
       }
 
@@ -624,6 +640,41 @@ export class App implements OnInit, AfterViewInit {
       this.profileFirstName.set(firstName);
       this.profileLastName.set(lastName);
       this.profileCountry.set(country);
+      return;
+    } catch {
+      this.loadPendingGoogleIdentity();
+    }
+  }
+
+  private loadPendingGoogleIdentity(): void {
+    try {
+      const raw = sessionStorage.getItem(this.pendingGoogleStorageKey);
+      if (!raw) {
+        return;
+      }
+
+      const pending = JSON.parse(raw) as Partial<GoogleIdentity> | null;
+      if (!pending) {
+        return;
+      }
+
+      const identity: GoogleIdentity = {
+        sub: String(pending.sub || '').trim(),
+        email: String(pending.email || '').trim(),
+        name: String(pending.name || '').trim(),
+        given_name: String(pending.given_name || '').trim(),
+        family_name: String(pending.family_name || '').trim(),
+        picture: String(pending.picture || '').trim(),
+      };
+
+      if (!identity.sub && !identity.email) {
+        return;
+      }
+
+      this.googleIdentity.set(identity);
+      this.profileFirstName.set(identity.given_name || identity.name.split(/\s+/)[0] || '');
+      this.profileLastName.set(identity.family_name || identity.name.split(/\s+/).slice(1).join(' ') || '');
+      this.authMessage.set('Google account connected. Finish your profile and continue.');
     } catch {
       return;
     }
@@ -684,6 +735,15 @@ export class App implements OnInit, AfterViewInit {
       family_name: familyName,
       picture: String(payload.picture || '').trim(),
     });
+
+    try {
+      sessionStorage.setItem(
+        this.pendingGoogleStorageKey,
+        JSON.stringify(this.googleIdentity())
+      );
+    } catch {
+      this.authError.set('Could not save Google sign-in temporarily.');
+    }
 
     if (!this.profileFirstName().trim()) {
       this.profileFirstName.set(givenName || fallbackParts[0] || '');

@@ -1,15 +1,35 @@
 <main class="shell">
-  @if (!profileComplete()) {
+  @if (authStage() === 'home') {
     <section class="auth-panel">
       <div class="hero-copy">
         <p class="eyebrow">EtymoBreak AI</p>
         <h1>Join EtymoBreak.</h1>
-        <p class="lead">Sign in with Google and finish your profile to unlock the app.</p>
+        <p class="lead">Sign in with Google to continue to profile setup.</p>
       </div>
 
       <div class="auth-card">
         <div #googleButtonHost class="google-button-host" aria-label="Google sign in"></div>
 
+        @if (authMessage()) {
+          <section class="notice calm-notice auth-note">{{ authMessage() }}</section>
+        }
+
+        @if (authError()) {
+          <section class="notice auth-error">{{ authError() }}</section>
+        }
+
+        <p class="auth-hint">After sign-in, you’ll be taken to the profile page automatically.</p>
+      </div>
+    </section>
+  } @else if (authStage() === 'profile') {
+    <section class="auth-panel">
+      <div class="hero-copy">
+        <p class="eyebrow">EtymoBreak AI</p>
+        <h1>Create your profile.</h1>
+        <p class="lead">Google is connected. Add your name and country to unlock the app.</p>
+      </div>
+
+      <div class="auth-card">
         @if (authMessage()) {
           <section class="notice calm-notice auth-note">{{ authMessage() }}</section>
         }
@@ -54,6 +74,7 @@
           <button class="primary" type="button" [disabled]="!canCompleteProfile()" (click)="completeProfile()">
             Create profile
           </button>
+          <button type="button" class="tab-chip" (click)="signOutProfile()">Use another account</button>
         </div>
       </div>
     </section>

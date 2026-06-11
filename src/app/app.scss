@@ -129,6 +129,14 @@ h1 {
 .auth-actions {
   display: flex;
   justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.auth-hint {
+  margin: 0;
+  color: #60748d;
+  font-size: 0.9rem;
 }
 
 .auth-note,
