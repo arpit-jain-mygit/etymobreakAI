@@ -114,6 +114,28 @@ def _coerce_other_words(value: Any) -> list[dict[str, Any]]:
     return groups
 
 
+def _coerce_word_family(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+
+    words: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+
+        word = _text(item.get("word", ""))
+        if not word:
+            continue
+
+        words.append(
+            {
+                "word": word,
+                "meaning": _text(item.get("meaning", "")),
+            }
+        )
+    return words
+
+
 def _coerce_related_words(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
@@ -279,6 +301,7 @@ def _parse_json_payload(text: str) -> dict[str, Any] | None:
 
 def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, Any]:
     breakdown = _coerce_breakdown(data.get("breakdown", data.get("parts", [])))
+    word_family = _coerce_word_family(data.get("wordFamily", []))
     other_words = _coerce_other_words(data.get("otherWords", []))
     related_words = _coerce_related_words(data.get("relatedWords", []))
     family_memory = _coerce_family_memory(data.get("familyMemory", []))
@@ -299,8 +322,31 @@ def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, 
         "literalMeaning": _text(data.get("literalMeaning", "")),
         "actualMeaning": _text(data.get("actualMeaning", "")),
         "breakdown": breakdown,
-        "otherWords": other_words,
-        "relatedWords": related_words,
+        "otherWords": other_words
+        if other_words
+        else (
+            [
+                {
+                    "title": "Word Family",
+                    "focus": _text(data.get("rootFamily", {}).get("root", "")),
+                    "words": word_family,
+                }
+            ]
+            if word_family
+            else []
+        ),
+        "relatedWords": related_words
+        if related_words
+        else [
+            {
+                "word": item["word"],
+                "breakdown": "",
+                "meaning": item["meaning"],
+                "explanation": "",
+                "exampleSentence": "",
+            }
+            for item in word_family
+        ],
         "slideNumber": slide_number,
         "rootFamily": _coerce_root_family(data.get("rootFamily", {})),
         "familyMemory": family_memory,
