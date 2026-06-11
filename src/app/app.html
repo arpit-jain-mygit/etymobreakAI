@@ -1,37 +1,105 @@
 <main class="shell">
-  <section class="hero">
-    <div class="hero-copy">
-      <p class="eyebrow">EtymoBreak AI</p>
-      <h1>Break words.</h1>
-      <div class="tab-row" role="tablist" aria-label="App tabs">
-        <button
-          type="button"
-          class="tab-chip"
-          [class.active]="activeTab() === 'search'"
-          (click)="setActiveTab('search')"
-        >
-          Search
-        </button>
-        <button
-          type="button"
-          class="tab-chip"
-          [class.active]="activeTab() === 'experiment'"
-          (click)="setActiveTab('experiment')"
-        >
-          Experiment
-        </button>
-        <button
-          type="button"
-          class="tab-chip"
-          [class.active]="activeTab() === 'quiz'"
-          (click)="setActiveTab('quiz')"
-        >
-          Quiz
-        </button>
+  @if (!profileComplete()) {
+    <section class="auth-panel">
+      <div class="hero-copy">
+        <p class="eyebrow">EtymoBreak AI</p>
+        <h1>Join EtymoBreak.</h1>
+        <p class="lead">Sign in with Google and finish your profile to unlock the app.</p>
       </div>
-    </div>
 
-    @if (activeTab() === 'search') {
+      <div class="auth-card">
+        <div #googleButtonHost class="google-button-host" aria-label="Google sign in"></div>
+
+        @if (authMessage()) {
+          <section class="notice calm-notice auth-note">{{ authMessage() }}</section>
+        }
+
+        @if (authError()) {
+          <section class="notice auth-error">{{ authError() }}</section>
+        }
+
+        <div class="auth-grid">
+          <label class="auth-field">
+            <span>First name</span>
+            <input
+              [ngModel]="profileFirstName()"
+              (ngModelChange)="profileFirstName.set($event)"
+              placeholder="First name"
+              autocomplete="given-name"
+            />
+          </label>
+
+          <label class="auth-field">
+            <span>Last name</span>
+            <input
+              [ngModel]="profileLastName()"
+              (ngModelChange)="profileLastName.set($event)"
+              placeholder="Last name"
+              autocomplete="family-name"
+            />
+          </label>
+
+          <label class="auth-field auth-field-wide">
+            <span>Country</span>
+            <input
+              [ngModel]="profileCountry()"
+              (ngModelChange)="profileCountry.set($event)"
+              placeholder="Country"
+              autocomplete="country-name"
+            />
+          </label>
+        </div>
+
+        <div class="auth-actions">
+          <button class="primary" type="button" [disabled]="!canCompleteProfile()" (click)="completeProfile()">
+            Create profile
+          </button>
+        </div>
+      </div>
+    </section>
+  } @else {
+    <section class="profile-strip">
+      <div class="profile-summary">
+        <p class="eyebrow">Signed in</p>
+        <strong>{{ profile()?.firstName }} {{ profile()?.lastName }}</strong>
+        <span>{{ profile()?.country }}</span>
+      </div>
+      <button type="button" class="tab-chip" (click)="signOutProfile()">Sign out</button>
+    </section>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">EtymoBreak AI</p>
+        <h1>Break words.</h1>
+        <div class="tab-row" role="tablist" aria-label="App tabs">
+          <button
+            type="button"
+            class="tab-chip"
+            [class.active]="activeTab() === 'search'"
+            (click)="setActiveTab('search')"
+          >
+            Search
+          </button>
+          <button
+            type="button"
+            class="tab-chip"
+            [class.active]="activeTab() === 'experiment'"
+            (click)="setActiveTab('experiment')"
+          >
+            Experiment
+          </button>
+          <button
+            type="button"
+            class="tab-chip"
+            [class.active]="activeTab() === 'quiz'"
+            (click)="setActiveTab('quiz')"
+          >
+            Quiz
+          </button>
+        </div>
+      </div>
+
+      @if (activeTab() === 'search') {
       <form class="search-panel" (submit)="$event.preventDefault(); analyze()">
         <label class="field">
           <div class="input-wrap">
@@ -85,20 +153,20 @@
           </button>
         </div>
       </form>
+      }
+    </section>
+
+    @if (error()) {
+      <section class="notice">{{ error() }}</section>
     }
-  </section>
 
-  @if (error()) {
-    <section class="notice">{{ error() }}</section>
-  }
+    @if (notice()) {
+      <section class="notice calm-notice">{{ notice() }}</section>
+    }
 
-  @if (notice()) {
-    <section class="notice calm-notice">{{ notice() }}</section>
-  }
-
-  @if (activeTab() === 'search') {
-    @if (result(); as analysis) {
-      <section class="result">
+    @if (activeTab() === 'search') {
+      @if (result(); as analysis) {
+        <section class="result">
         <div class="result-header">
           <h2>{{ analysis.title }}</h2>
         </div>
@@ -181,12 +249,12 @@
             </section>
           }
         </div>
-      </section>
+        </section>
+      }
     }
-  }
 
-  @if (activeTab() === 'experiment') {
-    <section class="experiment-panel">
+    @if (activeTab() === 'experiment') {
+      <section class="experiment-panel">
       <div class="experiment-toolbar">
         <div class="alphabet-row" aria-label="Select letter">
           @for (letter of alphabet(); track letter) {
@@ -318,11 +386,11 @@
       } @else if (experimentLetter()) {
         <section class="notice calm-notice">No slides yet.</section>
       }
-    </section>
-  }
+      </section>
+    }
 
-  @if (activeTab() === 'quiz') {
-    <section class="experiment-panel quiz-panel">
+    @if (activeTab() === 'quiz') {
+      <section class="experiment-panel quiz-panel">
       <div class="experiment-toolbar">
         <div class="slide-nav">
           <button
@@ -417,6 +485,7 @@
       } @else {
         <section class="notice calm-notice">Pick a letter or use All to generate a 10-question quiz.</section>
       }
-    </section>
+      </section>
+    }
   }
 </main>

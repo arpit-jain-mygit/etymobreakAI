@@ -137,3 +137,12 @@ Contract notes:
 - Keep `breakdown[].otherExamples[]` for part-level example words.
 - If a field is not known, leave it blank or empty rather than omitting the key.
 - `otherWords` and `relatedWords` are no longer part of the inventory contract.
+
+## Google Registration
+
+The app now gates the main experience behind Google sign-in and a basic profile form.
+
+- Frontend reads the Google client ID from `GET /config` on the FastAPI backend.
+- Set `GOOGLE_CLIENT_ID` in Render for `etymobreak-ai-api`.
+- The profile fields saved by the app are `firstName`, `lastName`, and `country`.
+- Profile data is stored locally in the browser for now, so the user stays signed in on the same device.

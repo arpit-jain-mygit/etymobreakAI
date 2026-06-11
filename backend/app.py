@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -25,6 +27,13 @@ class AnalyzeRequest(BaseModel):
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/config")
+def config() -> dict[str, str]:
+    return {
+        "googleClientId": os.getenv("GOOGLE_CLIENT_ID", ""),
+    }
 
 
 @app.post("/analyze")

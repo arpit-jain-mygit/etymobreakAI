@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, OnInit, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnInit, ViewChild, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { getApiBaseUrl } from './api-base';
 
@@ -47,6 +47,22 @@ interface FamilySection {
   title: string;
   items: FamilyMemoryItem[];
   tone: string;
+}
+
+interface GoogleIdentity {
+  sub: string;
+  email: string;
+  name: string;
+  given_name: string;
+  family_name: string;
+  picture: string;
+}
+
+interface StoredProfile {
+  firstName: string;
+  lastName: string;
+  country: string;
+  google: GoogleIdentity;
 }
 
 type BreakdownRow = AnalysisPart[];
@@ -120,7 +136,9 @@ const EMPTY_ANALYSIS: AnalysisResult = {
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
-export class App implements OnInit {
+export class App implements OnInit, AfterViewInit {
+  @ViewChild('googleButtonHost') private googleButtonHost?: ElementRef<HTMLDivElement>;
+
   protected readonly activeTab = signal<AppTab>('search');
   protected readonly query = signal('');
   protected readonly loading = signal(false);
@@ -135,9 +153,19 @@ export class App implements OnInit {
   protected readonly quizIndex = signal(0);
   protected readonly quizQuestions = signal<QuizQuestion[]>([]);
   protected readonly quizNotice = signal('');
+  protected readonly googleIdentity = signal<GoogleIdentity | null>(null);
+  protected readonly profile = signal<StoredProfile | null>(null);
+  protected readonly profileFirstName = signal('');
+  protected readonly profileLastName = signal('');
+  protected readonly profileCountry = signal('');
+  protected readonly authMessage = signal('');
+  protected readonly authError = signal('');
+  protected readonly googleClientId = signal('');
+  protected readonly googleButtonRendered = signal(false);
   protected readonly inventoryEntries = signal<unknown[]>([]);
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
+  private readonly profileStorageKey = 'etymobreak-profile';
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
     const unique = [
@@ -247,6 +275,17 @@ export class App implements OnInit {
     () => this.quizQuestions().length > 0 && this.quizQuestions().every((question) => question.submitted)
   );
   protected readonly quizCurrentQuestionSubmitted = computed(() => this.quizQuestion()?.submitted ?? false);
+  protected readonly profileComplete = computed(() => {
+    const profile = this.profile();
+    return !!profile?.firstName && !!profile?.lastName && !!profile?.country;
+  });
+  protected readonly canCompleteProfile = computed(
+    () =>
+      !!this.googleIdentity() &&
+      this.profileFirstName().trim().length > 0 &&
+      this.profileLastName().trim().length > 0 &&
+      this.profileCountry().trim().length > 0
+  );
   private normalizeForMatch(value: string): string {
     return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
@@ -321,6 +360,12 @@ export class App implements OnInit {
 
   public ngOnInit(): void {
     this.inventoryLoadPromise = this.loadRootAutocomplete();
+    void this.loadAuthConfig();
+    this.loadStoredProfile();
+  }
+
+  public ngAfterViewInit(): void {
+    this.tryRenderGoogleButton();
   }
 
   protected setActiveTab(tab: AppTab): void {
@@ -328,6 +373,56 @@ export class App implements OnInit {
     if (tab === 'quiz') {
       void this.ensureQuizDeck();
     }
+  }
+
+  protected completeProfile(): void {
+    if (!this.googleIdentity()) {
+      this.authError.set('Please sign in with Google first.');
+      return;
+    }
+
+    const firstName = this.profileFirstName().trim();
+    const lastName = this.profileLastName().trim();
+    const country = this.profileCountry().trim();
+
+    if (!firstName || !lastName || !country) {
+      this.authError.set('First name, last name, and country are required.');
+      return;
+    }
+
+    const profile: StoredProfile = {
+      firstName,
+      lastName,
+      country,
+      google: this.googleIdentity()!,
+    };
+
+    this.profile.set(profile);
+    this.authMessage.set('Profile saved. Welcome to EtymoBreak.');
+    this.authError.set('');
+
+    try {
+      localStorage.setItem(this.profileStorageKey, JSON.stringify(profile));
+    } catch {
+      this.authError.set('Your profile could not be saved locally.');
+    }
+  }
+
+  protected signOutProfile(): void {
+    this.profile.set(null);
+    this.googleIdentity.set(null);
+    this.profileFirstName.set('');
+    this.profileLastName.set('');
+    this.profileCountry.set('');
+    this.authMessage.set('Signed out.');
+    this.authError.set('');
+    this.googleButtonRendered.set(false);
+    try {
+      localStorage.removeItem(this.profileStorageKey);
+    } catch {
+      return;
+    }
+    setTimeout(() => this.tryRenderGoogleButton(), 0);
   }
 
   protected chooseExperimentLetter(letter: string): void {
@@ -475,6 +570,145 @@ export class App implements OnInit {
       this.rootAutocomplete.set([...new Set(inventoryTerms)]);
     } catch {
       return;
+    }
+  }
+
+  private async loadAuthConfig(): Promise<void> {
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/config`);
+      if (!response.ok) {
+        this.authMessage.set('Google sign-in is not ready yet.');
+        return;
+      }
+
+      const payload = (await response.json().catch(() => null)) as { googleClientId?: string } | null;
+      const clientId = String(payload?.googleClientId || '').trim();
+      this.googleClientId.set(clientId);
+      if (!clientId) {
+        this.authMessage.set('Google sign-in is not configured yet. Set GOOGLE_CLIENT_ID on Render.');
+        return;
+      }
+
+      this.authMessage.set('Connect your Google account to continue.');
+      this.tryRenderGoogleButton();
+    } catch {
+      this.authMessage.set('Google sign-in is not available right now.');
+    }
+  }
+
+  private loadStoredProfile(): void {
+    try {
+      const raw = localStorage.getItem(this.profileStorageKey);
+      if (!raw) {
+        return;
+      }
+
+      const stored = JSON.parse(raw) as Partial<StoredProfile> | null;
+      if (!stored || !stored.google) {
+        return;
+      }
+
+      const firstName = String(stored.firstName || '').trim();
+      const lastName = String(stored.lastName || '').trim();
+      const country = String(stored.country || '').trim();
+      if (!firstName || !lastName || !country) {
+        return;
+      }
+
+      this.profile.set({
+        firstName,
+        lastName,
+        country,
+        google: stored.google as GoogleIdentity,
+      });
+      this.profileFirstName.set(firstName);
+      this.profileLastName.set(lastName);
+      this.profileCountry.set(country);
+    } catch {
+      return;
+    }
+  }
+
+  private tryRenderGoogleButton(attempt = 0): void {
+    if (this.googleButtonRendered() || !this.googleClientId() || !this.googleButtonHost?.nativeElement) {
+      return;
+    }
+
+    const google = (window as Window & { google?: any }).google;
+    if (!google?.accounts?.id) {
+      if (attempt < 20) {
+        setTimeout(() => this.tryRenderGoogleButton(attempt + 1), 250);
+      }
+      return;
+    }
+
+    google.accounts.id.initialize({
+      client_id: this.googleClientId(),
+      callback: (response: { credential?: string }) => this.handleGoogleCredential(response),
+    });
+
+    google.accounts.id.renderButton(this.googleButtonHost.nativeElement, {
+      theme: 'outline',
+      size: 'large',
+      shape: 'pill',
+      text: 'continue_with',
+      width: 280,
+    });
+
+    this.googleButtonRendered.set(true);
+  }
+
+  private handleGoogleCredential(response: { credential?: string }): void {
+    const credential = String(response?.credential || '').trim();
+    if (!credential) {
+      this.authError.set('Google sign-in did not return a credential.');
+      return;
+    }
+
+    const payload = this.decodeJwtPayload(credential);
+    if (!payload) {
+      this.authError.set('Could not read the Google profile.');
+      return;
+    }
+
+    const givenName = String(payload.given_name || '').trim();
+    const familyName = String(payload.family_name || '').trim();
+    const fullName = String(payload.name || '').trim();
+    const fallbackParts = fullName.split(/\s+/).filter(Boolean);
+
+    this.googleIdentity.set({
+      sub: String(payload.sub || '').trim(),
+      email: String(payload.email || '').trim(),
+      name: fullName,
+      given_name: givenName,
+      family_name: familyName,
+      picture: String(payload.picture || '').trim(),
+    });
+
+    if (!this.profileFirstName().trim()) {
+      this.profileFirstName.set(givenName || fallbackParts[0] || '');
+    }
+    if (!this.profileLastName().trim()) {
+      this.profileLastName.set(familyName || fallbackParts.slice(1).join(' ') || '');
+    }
+    this.authError.set('');
+    this.authMessage.set('Google account connected. Finish your profile and continue.');
+  }
+
+  private decodeJwtPayload(token: string): GoogleIdentity | null {
+    try {
+      const segment = token.split('.')[1];
+      if (!segment) {
+        return null;
+      }
+
+      const normalized = segment.replace(/-/g, '+').replace(/_/g, '/');
+      const padding = '='.repeat((4 - (normalized.length % 4)) % 4);
+      const binary = atob(normalized + padding);
+      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+      return JSON.parse(new TextDecoder().decode(bytes)) as GoogleIdentity;
+    } catch {
+      return null;
     }
   }
 
