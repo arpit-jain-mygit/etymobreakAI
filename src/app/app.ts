@@ -28,6 +28,11 @@ interface RelatedWord {
   exampleSentence?: string;
 }
 
+interface WordFamilyItem {
+  word: string;
+  meaning: string;
+}
+
 interface RootFamily {
   root: string;
   meaning: string;
@@ -44,6 +49,7 @@ interface AnalysisResult {
   literalMeaning: string;
   actualMeaning: string;
   breakdown: AnalysisPart[];
+  wordFamily: WordFamilyItem[];
   otherWords: WordFamilyGroup[];
   relatedWords: RelatedWord[];
   slideNumber: number | null;
@@ -65,6 +71,7 @@ const EMPTY_ANALYSIS: AnalysisResult = {
   literalMeaning: '',
   actualMeaning: '',
   breakdown: [],
+  wordFamily: [],
   otherWords: [],
   relatedWords: [],
   slideNumber: null,
@@ -192,6 +199,24 @@ export class App implements OnInit {
       };
     });
 
+    const wordFamily = list(data.wordFamily ?? data.relatedWords, (item) => {
+      if (!item || typeof item !== 'object') {
+        return null;
+      }
+
+      const entry: any = item;
+      const word = text(entry.word);
+      const meaning = text(entry.meaning);
+      if (!word || !meaning) {
+        return null;
+      }
+
+      return {
+        word,
+        meaning,
+      };
+    });
+
     const otherWords = list(data.otherWords, (item) => {
       if (!item || typeof item !== 'object') {
         return null;
@@ -280,6 +305,7 @@ export class App implements OnInit {
       literalMeaning: text(data.literalMeaning),
       actualMeaning: text(data.actualMeaning),
       breakdown,
+      wordFamily,
       otherWords,
       relatedWords,
       slideNumber,
