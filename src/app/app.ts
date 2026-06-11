@@ -102,6 +102,7 @@ export class App implements OnInit {
   protected readonly rootAutocomplete = signal<string[]>([]);
   protected readonly autocompleteOpen = signal(false);
   private inventoryIndex = new Map<string, unknown>();
+  private inventoryLoadPromise: Promise<void> | null = null;
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
     const unique = [
@@ -127,7 +128,7 @@ export class App implements OnInit {
   );
 
   public ngOnInit(): void {
-    void this.loadRootAutocomplete();
+    this.inventoryLoadPromise = this.loadRootAutocomplete();
   }
 
   private async loadRootAutocomplete(): Promise<void> {
@@ -466,6 +467,23 @@ export class App implements OnInit {
     this.notice.set('');
 
     try {
+      if (this.inventoryLoadPromise) {
+        await this.inventoryLoadPromise;
+      }
+
+      const inventoryHit = this.inventoryIndex.get(normalized);
+      if (inventoryHit && typeof inventoryHit === 'object') {
+        const analysis = this.normalizeAnalysisResult(inventoryHit, normalized);
+        if (this.isEmptyAnalysis(analysis)) {
+          this.result.set(null);
+          this.notice.set(`I’m not aware of "${normalized}" yet. Try another word or root.`);
+          return;
+        }
+
+        this.result.set(analysis);
+        return;
+      }
+
       const response = await fetch(`${getApiBaseUrl()}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
