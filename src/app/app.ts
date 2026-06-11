@@ -120,32 +120,28 @@ export class App implements OnInit {
 
   private async loadRootAutocomplete(): Promise<void> {
     try {
-      const [rootsResponse, inventoryResponse] = await Promise.all([
-        fetch('/root-autocomplete.json'),
-        fetch('/root-inventory.json'),
-      ]);
+      const response = await fetch('/root-inventory.json');
+      if (!response.ok) {
+        return;
+      }
 
-      const rootsPayload = (await rootsResponse.json().catch(() => null)) as unknown;
-      const inventoryPayload = (await inventoryResponse.json().catch(() => null)) as unknown;
+      const payload = (await response.json().catch(() => null)) as unknown;
+      if (!Array.isArray(payload)) {
+        return;
+      }
 
-      const roots = Array.isArray(rootsPayload)
-        ? rootsPayload.map((item) => String(item).trim().toLowerCase()).filter(Boolean)
-        : [];
+      const inventoryTerms = payload
+        .map((item) => {
+          if (!item || typeof item !== 'object') {
+            return '';
+          }
 
-      const inventoryTerms = Array.isArray(inventoryPayload)
-        ? inventoryPayload
-            .map((item) => {
-              if (!item || typeof item !== 'object') {
-                return '';
-              }
+          const entry: any = item;
+          return String(entry.query || '').trim().toLowerCase();
+        })
+        .filter(Boolean);
 
-              const entry: any = item;
-              return String(entry.query || '').trim().toLowerCase();
-            })
-            .filter(Boolean)
-        : [];
-
-      this.rootAutocomplete.set([...roots, ...inventoryTerms]);
+      this.rootAutocomplete.set([...new Set(inventoryTerms)]);
     } catch {
       return;
     }
