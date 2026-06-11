@@ -68,6 +68,10 @@
     <section class="notice">{{ error() }}</section>
   }
 
+  @if (notice()) {
+    <section class="notice calm-notice">{{ notice() }}</section>
+  }
+
   @if (result(); as analysis) {
     <section class="result">
       <div class="result-header">

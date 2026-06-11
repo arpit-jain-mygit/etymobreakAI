@@ -97,9 +97,11 @@ export class App implements OnInit {
   protected readonly query = signal('');
   protected readonly loading = signal(false);
   protected readonly error = signal('');
+  protected readonly notice = signal('');
   protected readonly result = signal<AnalysisResult | null>(null);
   protected readonly rootAutocomplete = signal<string[]>([]);
   protected readonly autocompleteOpen = signal(false);
+  private inventoryIndex = new Map<string, unknown>();
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
     const unique = [
@@ -147,6 +149,10 @@ export class App implements OnInit {
           }
 
           const entry: any = item;
+          const key = String(entry.query || '').trim().toLowerCase();
+          if (key) {
+            this.inventoryIndex.set(key, item);
+          }
           return String(entry.query || '').trim().toLowerCase();
         })
         .filter(Boolean);
@@ -345,17 +351,119 @@ export class App implements OnInit {
     };
   }
 
+  private mergeAnalysisResult(primary: AnalysisResult, fallback: AnalysisResult): AnalysisResult {
+    const mergeStrings = (current: string, backup: string): string => current || backup;
+    const mergeObject = (
+      current: RootFamily,
+      backup: RootFamily
+    ): RootFamily => ({
+      root: mergeStrings(current.root, backup.root),
+      meaning: mergeStrings(current.meaning, backup.meaning),
+      origin: mergeStrings(current.origin, backup.origin),
+    });
+
+    const mergeLists = <T>(current: T[], backup: T[]): T[] => (current.length ? current : backup);
+    const mergeWordFamilies = (
+      current: WordFamilyItem[],
+      backup: WordFamilyItem[]
+    ): WordFamilyItem[] => {
+      if (!backup.length) {
+        return current;
+      }
+
+      const fallbackMap = new Map(
+        backup.map((item) => [item.word.trim().toLowerCase(), item] as const)
+      );
+
+      const mergedCurrent = current.map((item) => {
+        const fallback = fallbackMap.get(item.word.trim().toLowerCase());
+        if (!fallback) {
+          return item;
+        }
+
+        return {
+          word: mergeStrings(item.word, fallback.word),
+          meaning: mergeStrings(item.meaning, fallback.meaning),
+          breakdown: item.breakdown?.length ? item.breakdown : fallback.breakdown,
+          exampleSentence: mergeStrings(item.exampleSentence || '', fallback.exampleSentence || ''),
+        };
+      });
+
+      const currentKeys = new Set(mergedCurrent.map((item) => item.word.trim().toLowerCase()));
+      const extras = backup.filter(
+        (item) => !currentKeys.has(item.word.trim().toLowerCase())
+      );
+
+      return mergedCurrent.length ? [...mergedCurrent, ...extras] : backup;
+    };
+
+    return {
+      query: mergeStrings(primary.query, fallback.query),
+      mode: mergeStrings(primary.mode, fallback.mode),
+      title: mergeStrings(primary.title, fallback.title),
+      summary: mergeStrings(primary.summary, fallback.summary),
+      literalMeaningFormula: mergeStrings(primary.literalMeaningFormula, fallback.literalMeaningFormula),
+      literalMeaningArrow: mergeStrings(primary.literalMeaningArrow, fallback.literalMeaningArrow),
+      literalMeaning: mergeStrings(primary.literalMeaning, fallback.literalMeaning),
+      actualMeaning: mergeStrings(primary.actualMeaning, fallback.actualMeaning),
+      breakdown: mergeLists(primary.breakdown, fallback.breakdown),
+      wordFamily: mergeWordFamilies(primary.wordFamily, fallback.wordFamily),
+      otherWords: mergeLists(primary.otherWords, fallback.otherWords),
+      relatedWords: mergeLists(primary.relatedWords, fallback.relatedWords),
+      slideNumber: primary.slideNumber ?? fallback.slideNumber,
+      rootFamily: mergeObject(primary.rootFamily, fallback.rootFamily),
+      familyMemory: mergeLists(primary.familyMemory, fallback.familyMemory),
+      notes: mergeLists(primary.notes, fallback.notes),
+    };
+  }
+
+  private hydrateFromInventory(query: string, result: AnalysisResult): AnalysisResult {
+    const inventory = this.inventoryIndex.get(query.trim().toLowerCase());
+    if (!inventory || typeof inventory !== 'object') {
+      return result;
+    }
+
+    const fallback = this.normalizeAnalysisResult(inventory, query);
+    return this.mergeAnalysisResult(result, fallback);
+  }
+
+  private isEmptyAnalysis(result: AnalysisResult | null): boolean {
+    if (!result) {
+      return true;
+    }
+
+    return (
+      !result.title &&
+      !result.summary &&
+      !result.literalMeaning &&
+      !result.literalMeaningFormula &&
+      !result.literalMeaningArrow &&
+      !result.actualMeaning &&
+      !result.breakdown.length &&
+      !result.wordFamily.length &&
+      !result.otherWords.length &&
+      !result.relatedWords.length &&
+      !result.familyMemory.length &&
+      !result.notes.length &&
+      !result.rootFamily.root &&
+      !result.rootFamily.meaning &&
+      !result.rootFamily.origin
+    );
+  }
+
   protected async analyze(): Promise<void> {
     const normalized = this.query().trim().toLowerCase();
 
     if (!normalized) {
       this.error.set('Enter a word or root to continue.');
+      this.notice.set('');
       this.result.set(null);
       return;
     }
 
     this.loading.set(true);
     this.error.set('');
+    this.notice.set('');
 
     try {
       const response = await fetch(`${getApiBaseUrl()}/analyze`, {
@@ -376,12 +484,23 @@ export class App implements OnInit {
       }
 
       const payload = (await response.json().catch(() => null)) as unknown;
-      this.result.set(this.normalizeAnalysisResult(payload, normalized));
+      const analysis = this.hydrateFromInventory(
+        normalized,
+        this.normalizeAnalysisResult(payload, normalized)
+      );
+      if (this.isEmptyAnalysis(analysis)) {
+        this.result.set(null);
+        this.notice.set(`I’m not aware of "${normalized}" yet. Try another word or root.`);
+        return;
+      }
+
+      this.result.set(analysis);
       return;
     } catch (error) {
       const message =
         error instanceof Error && error.message ? error.message : 'Unable to reach the backend.';
       this.result.set(null);
+      this.notice.set('');
       this.error.set(message);
     } finally {
       this.loading.set(false);
