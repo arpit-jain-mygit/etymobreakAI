@@ -96,21 +96,21 @@
       </div>
 
       <div class="meaning-grid">
-        <article class="info-card">
+        <article class="info-card literal-card">
           <p class="card-label">Literal Meaning</p>
           <p class="card-value formula">{{ analysis.literalMeaningFormula || analysis.literalMeaning }}</p>
           @if (analysis.literalMeaningArrow) {
             <p class="card-arrow">{{ analysis.literalMeaningArrow }}</p>
           }
         </article>
-        <article class="info-card">
+        <article class="info-card actual-card">
           <p class="card-label">Actual Meaning</p>
           <p class="card-value">{{ analysis.actualMeaning }}</p>
         </article>
       </div>
 
       <div class="columns">
-        <section class="panel">
+        <section class="panel breakdown-panel">
           <div class="panel-head">
             <p class="section-label">Breakdown</p>
             <span>{{ analysis.breakdown.length }} parts</span>
@@ -137,7 +137,7 @@
           </div>
         </section>
 
-        <section class="panel">
+        <section class="panel other-panel">
           <div class="panel-head">
             <p class="section-label">Other Words</p>
             <span>{{ analysis.otherWords.length }} groups</span>
@@ -165,7 +165,7 @@
       </div>
 
       <div class="columns">
-        <section class="panel">
+        <section class="panel related-panel">
           <div class="panel-head">
             <p class="section-label">Related Words</p>
             <span>{{ analysis.relatedWords.length }} entries</span>
@@ -192,8 +192,8 @@
         </section>
       </div>
 
-      <div class="columns">
-        <section class="panel">
+      <div class="family-rail">
+        <section class="panel family-panel">
           <div class="panel-head">
             <p class="section-label">Family Memory</p>
           </div>
@@ -207,19 +207,6 @@
             }
           </div>
         </section>
-
-        @if (analysis.notes.length) {
-          <section class="panel notes">
-            <div class="panel-head">
-              <p class="section-label">Notes</p>
-            </div>
-            <ul>
-              @for (note of analysis.notes; track note) {
-                <li>{{ note }}</li>
-              }
-            </ul>
-          </section>
-        }
       </div>
     </section>
   }
