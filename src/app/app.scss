@@ -30,8 +30,18 @@
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  font-size: 0.72rem;
-  color: #7d8ea4;
+  font-size: 0.7rem;
+  color: #60748d;
+}
+
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(96, 116, 141, 0.08);
+  font-weight: 700;
 }
 
 h1 {
@@ -376,10 +386,11 @@ input::placeholder {
 
 .card-label {
   margin: 0 0 6px;
-  color: #7c8e97;
+  color: #5f7b8f;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  font-size: 0.68rem;
+  font-weight: 800;
 }
 
 .card-value {
@@ -424,6 +435,7 @@ input::placeholder {
   gap: 10px;
   align-items: center;
   color: #708395;
+  padding-bottom: 2px;
 }
 
 .panel-head span {
@@ -452,9 +464,13 @@ input::placeholder {
 }
 
 .part-top strong,
-.word-item strong {
-  color: #244054;
-  font-size: 0.95rem;
+.word-item strong,
+.group-head strong,
+.family-item strong,
+.table-row strong {
+  color: #20384e;
+  font-size: 0.98rem;
+  letter-spacing: 0.01em;
 }
 
 .part-top span {
@@ -521,14 +537,6 @@ input::placeholder {
   gap: 10px;
   align-items: baseline;
   margin-bottom: 10px;
-}
-
-.group-head strong,
-.shortcut-card strong,
-.family-item strong,
-.table-row strong {
-  color: #244054;
-  font-size: 0.95rem;
 }
 
 .group-head small {
