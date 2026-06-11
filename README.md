@@ -147,3 +147,5 @@ The app now gates the main experience behind Google sign-in and a basic profile 
 - The profile fields saved by the app are `firstName`, `lastName`, and `country`.
 - Profile data is stored in Postgres through the FastAPI backend, and the browser keeps a local cache for a faster return experience.
 - Set `DATABASE_URL` in Render for `etymobreak-ai-api`, ideally by attaching a Render Postgres instance to the service.
+- Use the **internal database URL** for the backend service on Render. Use the **external database URL** only for local development or tools running outside Render.
+- In Render, open the `etymobreak-ai-api` service, attach the Postgres database, and map the database connection to `DATABASE_URL`.
