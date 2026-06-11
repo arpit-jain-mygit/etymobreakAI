@@ -3,61 +3,81 @@
     <div class="hero-copy">
       <p class="eyebrow">EtymoBreak AI</p>
       <h1>Break words.</h1>
+      <div class="tab-row" role="tablist" aria-label="App tabs">
+        <button
+          type="button"
+          class="tab-chip"
+          [class.active]="activeTab() === 'search'"
+          (click)="setActiveTab('search')"
+        >
+          Search
+        </button>
+        <button
+          type="button"
+          class="tab-chip"
+          [class.active]="activeTab() === 'experiment'"
+          (click)="setActiveTab('experiment')"
+        >
+          Experiment
+        </button>
+      </div>
     </div>
 
-    <form class="search-panel" (submit)="$event.preventDefault(); analyze()">
-      <label class="field">
-        <div class="input-wrap">
-          <input
-            name="query"
-            [ngModel]="query()"
-            (ngModelChange)="query.set($event); openAutocomplete()"
-            (focus)="openAutocomplete()"
-            (blur)="closeAutocomplete()"
-            placeholder="Type any word to analyze"
-            autocomplete="off"
-            spellcheck="false"
-            aria-autocomplete="list"
-            aria-label="Search term"
-          />
-          @if (query()) {
-            <button type="button" class="icon-button" aria-label="Clear search" (click)="query.set('')">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
-          }
-        </div>
-        @if (showAutocomplete()) {
-          <div class="autocomplete-panel" role="listbox" aria-label="Autocomplete suggestions">
-            @for (item of autocompleteOptions(); track item) {
-              <button
-                type="button"
-                class="autocomplete-item"
-                (mousedown)="$event.preventDefault()"
-                (click)="chooseAutocomplete(item)"
-              >
-                <span>{{ item }}</span>
-                <small>root</small>
+    @if (activeTab() === 'search') {
+      <form class="search-panel" (submit)="$event.preventDefault(); analyze()">
+        <label class="field">
+          <div class="input-wrap">
+            <input
+              name="query"
+              [ngModel]="query()"
+              (ngModelChange)="query.set($event); openAutocomplete()"
+              (focus)="openAutocomplete()"
+              (blur)="closeAutocomplete()"
+              placeholder="Type any word to analyze"
+              autocomplete="off"
+              spellcheck="false"
+              aria-autocomplete="list"
+              aria-label="Search term"
+            />
+            @if (query()) {
+              <button type="button" class="icon-button" aria-label="Clear search" (click)="query.set('')">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
               </button>
             }
           </div>
-        }
-      </label>
-
-      <div class="actions">
-        <button class="primary" type="submit" [disabled]="loading()">
-          @if (loading()) {
-            <span class="spinner" aria-hidden="true"></span>
-          } @else {
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M10 4a6 6 0 1 0 3.87 10.61l4.26 4.26 1.41-1.41-4.26-4.26A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z" />
-            </svg>
+          @if (showAutocomplete()) {
+            <div class="autocomplete-panel" role="listbox" aria-label="Autocomplete suggestions">
+              @for (item of autocompleteOptions(); track item) {
+                <button
+                  type="button"
+                  class="autocomplete-item"
+                  (mousedown)="$event.preventDefault()"
+                  (click)="chooseAutocomplete(item)"
+                >
+                  <span>{{ item }}</span>
+                  <small>root</small>
+                </button>
+              }
+            </div>
           }
-          <span>{{ loading() ? 'Searching' : 'Search' }}</span>
-        </button>
-      </div>
-    </form>
+        </label>
+
+        <div class="actions">
+          <button class="primary" type="submit" [disabled]="loading()">
+            @if (loading()) {
+              <span class="spinner" aria-hidden="true"></span>
+            } @else {
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M10 4a6 6 0 1 0 3.87 10.61l4.26 4.26 1.41-1.41-4.26-4.26A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z" />
+              </svg>
+            }
+            <span>{{ loading() ? 'Searching' : 'Search' }}</span>
+          </button>
+        </div>
+      </form>
+    }
   </section>
 
   @if (error()) {
@@ -68,90 +88,228 @@
     <section class="notice calm-notice">{{ notice() }}</section>
   }
 
-  @if (result(); as analysis) {
-    <section class="result">
-      <div class="result-header">
-        <h2>{{ analysis.title }}</h2>
-      </div>
+  @if (activeTab() === 'search') {
+    @if (result(); as analysis) {
+      <section class="result">
+        <div class="result-header">
+          <h2>{{ analysis.title }}</h2>
+        </div>
 
-      <div class="meaning-grid">
-        <article class="info-card literal-card">
-          <p class="card-label">Literal Meaning</p>
-          <p class="card-value formula">{{ analysis.literalMeaningFormula || analysis.literalMeaning }}</p>
-          @if (analysis.literalMeaningArrow) {
-            <p class="card-arrow">{{ analysis.literalMeaningArrow }}</p>
-          }
-        </article>
-        <article class="info-card actual-card">
-          <p class="card-label">Actual Meaning</p>
-          <p class="card-value">{{ analysis.actualMeaning }}</p>
-        </article>
-      </div>
+        <div class="meaning-grid">
+          <article class="info-card literal-card">
+            <p class="card-label">Literal Meaning</p>
+            <p class="card-value formula">{{ analysis.literalMeaningFormula || analysis.literalMeaning }}</p>
+            @if (analysis.literalMeaningArrow) {
+              <p class="card-arrow">{{ analysis.literalMeaningArrow }}</p>
+            }
+          </article>
+          <article class="info-card actual-card">
+            <p class="card-label">Actual Meaning</p>
+            <p class="card-value">{{ analysis.actualMeaning }}</p>
+          </article>
+        </div>
 
-      <div class="content-grid">
-        <div class="column-stack">
-          <section class="panel breakdown-panel">
-            <div class="panel-head">
-              <p class="section-label">Breakdown</p>
-              <span>{{ analysis.breakdown.length }} parts</span>
-            </div>
+        <div class="content-grid">
+          <div class="column-stack">
+            <section class="panel breakdown-panel">
+              <div class="panel-head">
+                <p class="section-label">Breakdown</p>
+                <span>{{ analysis.breakdown.length }} parts</span>
+              </div>
 
-            <div class="breakdown-rows">
-              @for (row of breakdownRows(); track $index) {
-                <div class="part-row">
-                  @for (part of row; track part.label) {
-                    <article class="part-item">
-                      <div class="part-top">
-                        <strong>
-                          @if (part.index) {
-                            {{ part.index }}.
-                          }
-                          {{ part.label }}
-                        </strong>
-                        <span>{{ part.type }}</span>
-                      </div>
-                      <p>{{ part.meaning }}</p>
-                      @if (part.source) {
-                        <small>{{ part.source }}</small>
-                      }
-                      @if (part.otherExamples?.length) {
-                        <div class="examples-row" aria-label="Other examples">
-                          @for (example of part.otherExamples; track example) {
-                            <span class="example-pill">{{ example }}</span>
-                          }
+              <div class="breakdown-rows">
+                @for (row of breakdownRowsFor(analysis); track $index) {
+                  <div class="part-row">
+                    @for (part of row; track part.label) {
+                      <article class="part-item">
+                        <div class="part-top">
+                          <strong>
+                            @if (part.index) {
+                              {{ part.index }}.
+                            }
+                            {{ part.label }}
+                          </strong>
+                          <span>{{ part.type }}</span>
                         </div>
+                        <p>{{ part.meaning }}</p>
+                        @if (part.source) {
+                          <small>{{ part.source }}</small>
+                        }
+                        @if (part.otherExamples?.length) {
+                          <div class="examples-row" aria-label="Other examples">
+                            @for (example of part.otherExamples; track example) {
+                              <span class="example-pill">{{ example }}</span>
+                            }
+                          </div>
+                        }
+                      </article>
+                    }
+                  </div>
+                }
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="family-grid">
+          @for (section of familyCardsFor(analysis); track section.label) {
+            <section class="family-card family-card-{{ section.tone }}">
+              <div class="panel-head family-section-head">
+                <p class="section-label">{{ section.title }}</p>
+                <span>{{ section.items.length }} words</span>
+              </div>
+
+              <div class="family-list">
+                @for (item of section.items; track item.term) {
+                  <article class="family-item">
+                    <strong>{{ item.term }}</strong>
+                    <p>{{ item.meaning }}</p>
+                    @if (item.exampleSentence) {
+                      <em>{{ item.exampleSentence }}</em>
+                    }
+                  </article>
+                }
+              </div>
+            </section>
+          }
+        </div>
+      </section>
+    }
+  }
+
+  @if (activeTab() === 'experiment') {
+    <section class="experiment-panel">
+      <div class="experiment-toolbar">
+        <div class="alphabet-row" aria-label="Select letter">
+          @for (letter of alphabet(); track letter) {
+            <button
+              type="button"
+              class="alpha-chip"
+              [class.active]="experimentLetter() === letter"
+              (click)="chooseExperimentLetter(letter)"
+            >
+              {{ letter.toUpperCase() }}
+            </button>
+          }
+        </div>
+
+        <div class="slide-nav">
+          <button
+            type="button"
+            class="nav-button"
+            aria-label="Previous slide"
+            (click)="previousExperimentSlide()"
+            [disabled]="!experimentSlideCount() || experimentSlidePosition() <= 1"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+
+          <span>{{ experimentSlidePosition() || 0 }} / {{ experimentSlideCount() }}</span>
+
+          <button
+            type="button"
+            class="nav-button"
+            aria-label="Next slide"
+            (click)="nextExperimentSlide()"
+            [disabled]="!experimentSlideCount() || experimentSlidePosition() >= experimentSlideCount()"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 6 6 6-6 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      @if (experimentSlide(); as analysis) {
+        <div class="experiment-slide">
+          <div class="result-header">
+            <h2>{{ analysis.title }}</h2>
+          </div>
+
+          <div class="meaning-grid">
+            <article class="info-card literal-card">
+              <p class="card-label">Literal Meaning</p>
+              <p class="card-value formula">{{ analysis.literalMeaningFormula || analysis.literalMeaning }}</p>
+              @if (analysis.literalMeaningArrow) {
+                <p class="card-arrow">{{ analysis.literalMeaningArrow }}</p>
+              }
+            </article>
+            <article class="info-card actual-card">
+              <p class="card-label">Actual Meaning</p>
+              <p class="card-value">{{ analysis.actualMeaning }}</p>
+            </article>
+          </div>
+
+          <div class="content-grid">
+            <div class="column-stack">
+              <section class="panel breakdown-panel">
+                <div class="panel-head">
+                  <p class="section-label">Breakdown</p>
+                  <span>{{ analysis.breakdown.length }} parts</span>
+                </div>
+
+                <div class="breakdown-rows">
+                  @for (row of breakdownRowsFor(analysis); track $index) {
+                    <div class="part-row">
+                      @for (part of row; track part.label) {
+                        <article class="part-item">
+                          <div class="part-top">
+                            <strong>
+                              @if (part.index) {
+                                {{ part.index }}.
+                              }
+                              {{ part.label }}
+                            </strong>
+                            <span>{{ part.type }}</span>
+                          </div>
+                          <p>{{ part.meaning }}</p>
+                          @if (part.source) {
+                            <small>{{ part.source }}</small>
+                          }
+                          @if (part.otherExamples?.length) {
+                            <div class="examples-row" aria-label="Other examples">
+                              @for (example of part.otherExamples; track example) {
+                                <span class="example-pill">{{ example }}</span>
+                              }
+                            </div>
+                          }
+                        </article>
+                      }
+                    </div>
+                  }
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div class="family-grid">
+            @for (section of familyCardsFor(analysis); track section.label) {
+              <section class="family-card family-card-{{ section.tone }}">
+                <div class="panel-head family-section-head">
+                  <p class="section-label">{{ section.title }}</p>
+                  <span>{{ section.items.length }} words</span>
+                </div>
+
+                <div class="family-list">
+                  @for (item of section.items; track item.term) {
+                    <article class="family-item">
+                      <strong>{{ item.term }}</strong>
+                      <p>{{ item.meaning }}</p>
+                      @if (item.exampleSentence) {
+                        <em>{{ item.exampleSentence }}</em>
                       }
                     </article>
                   }
                 </div>
-              }
-            </div>
-          </section>
+              </section>
+            }
+          </div>
         </div>
-      </div>
-
-      <div class="family-grid">
-        @for (section of familyCards(); track section.label) {
-          <section class="family-card family-card-{{ section.tone }}">
-            <div class="panel-head family-section-head">
-              <p class="section-label">{{ section.title }}</p>
-              <span>{{ section.items.length }} words</span>
-            </div>
-
-            <div class="family-list">
-              @for (item of section.items; track item.term) {
-                <article class="family-item">
-                  <strong>{{ item.term }}</strong>
-                  <p>{{ item.meaning }}</p>
-                  @if (item.exampleSentence) {
-                    <em>{{ item.exampleSentence }}</em>
-                  }
-                </article>
-              }
-            </div>
-          </section>
-        }
-      </div>
+      } @else if (experimentLetter()) {
+        <section class="notice calm-notice">No slides yet.</section>
+      }
     </section>
   }
 </main>

@@ -50,6 +50,7 @@ interface FamilySection {
 }
 
 type BreakdownRow = AnalysisPart[];
+type AppTab = 'search' | 'experiment';
 
 interface RootFamily {
   root: string;
@@ -106,6 +107,7 @@ const EMPTY_ANALYSIS: AnalysisResult = {
   styleUrl: './app.scss',
 })
 export class App implements OnInit {
+  protected readonly activeTab = signal<AppTab>('search');
   protected readonly query = signal('');
   protected readonly loading = signal(false);
   protected readonly error = signal('');
@@ -113,20 +115,11 @@ export class App implements OnInit {
   protected readonly result = signal<AnalysisResult | null>(null);
   protected readonly rootAutocomplete = signal<string[]>([]);
   protected readonly autocompleteOpen = signal(false);
+  protected readonly experimentLetter = signal('');
+  protected readonly experimentIndex = signal(0);
+  protected readonly inventoryEntries = signal<unknown[]>([]);
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
-  protected readonly breakdownRows = computed(() => {
-    const analysis = this.result();
-    if (!analysis?.breakdown.length) {
-      return [];
-    }
-
-    const rows: BreakdownRow[] = [];
-    for (let index = 0; index < analysis.breakdown.length; index += 2) {
-      rows.push(analysis.breakdown.slice(index, index + 2));
-    }
-    return rows;
-  });
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
     const unique = [
@@ -150,6 +143,50 @@ export class App implements OnInit {
       this.query().trim().length > 0 &&
       this.autocompleteOptions().length > 0
   );
+  protected readonly alphabet = computed(() => 'abcdefghijklmnopqrstuvwxyz'.split(''));
+  protected readonly experimentSlides = computed(() => {
+    const letter = this.experimentLetter().trim().toLowerCase();
+    if (!letter) {
+      return [];
+    }
+
+    const filtered = this.inventoryEntries()
+      .filter((item) => {
+        if (!item || typeof item !== 'object') {
+          return false;
+        }
+
+        const entry: any = item;
+        const query = String(entry.query || '').trim().toLowerCase();
+        return query.startsWith(letter);
+      })
+      .map((item) => {
+        const entry: any = item;
+        const query = String(entry.query || '').trim().toLowerCase();
+        return this.normalizeAnalysisResult(item, query);
+      })
+      .filter((item) => !this.isEmptyAnalysis(item));
+
+    return filtered.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  });
+  protected readonly experimentSlide = computed(() => {
+    const slides = this.experimentSlides();
+    if (!slides.length) {
+      return null;
+    }
+
+    const index = Math.min(Math.max(this.experimentIndex(), 0), slides.length - 1);
+    return slides[index] ?? null;
+  });
+  protected readonly experimentSlideCount = computed(() => this.experimentSlides().length);
+  protected readonly experimentSlidePosition = computed(() => {
+    const total = this.experimentSlideCount();
+    if (!total) {
+      return 0;
+    }
+
+    return Math.min(Math.max(this.experimentIndex(), 0), total - 1) + 1;
+  });
   private normalizeForMatch(value: string): string {
     return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
@@ -173,8 +210,19 @@ export class App implements OnInit {
     return cleanedTerm.includes(cleanedLabel);
   }
 
-  protected readonly familyCards = computed(() => {
-    const analysis = this.result();
+  protected breakdownRowsFor(analysis: AnalysisResult | null): BreakdownRow[] {
+    if (!analysis) {
+      return [];
+    }
+
+    const rows: BreakdownRow[] = [];
+    for (let index = 0; index < analysis.breakdown.length; index += 2) {
+      rows.push(analysis.breakdown.slice(index, index + 2));
+    }
+    return rows;
+  }
+
+  protected familyCardsFor(analysis: AnalysisResult | null): FamilySection[] {
     if (!analysis) {
       return [];
     }
@@ -209,10 +257,38 @@ export class App implements OnInit {
     return [makeSection(rootPart, 'root'), makeSection(suffixPart, 'suffix')].filter(
       (section): section is FamilySection => section !== null
     );
-  });
+  }
 
   public ngOnInit(): void {
     this.inventoryLoadPromise = this.loadRootAutocomplete();
+  }
+
+  protected setActiveTab(tab: AppTab): void {
+    this.activeTab.set(tab);
+  }
+
+  protected chooseExperimentLetter(letter: string): void {
+    this.experimentLetter.set(letter);
+    this.experimentIndex.set(0);
+    this.activeTab.set('experiment');
+  }
+
+  protected previousExperimentSlide(): void {
+    const total = this.experimentSlideCount();
+    if (!total) {
+      return;
+    }
+
+    this.experimentIndex.set(Math.max(0, this.experimentIndex() - 1));
+  }
+
+  protected nextExperimentSlide(): void {
+    const total = this.experimentSlideCount();
+    if (!total) {
+      return;
+    }
+
+    this.experimentIndex.set(Math.min(total - 1, this.experimentIndex() + 1));
   }
 
   private async loadRootAutocomplete(): Promise<void> {
@@ -226,6 +302,8 @@ export class App implements OnInit {
       if (!Array.isArray(payload)) {
         return;
       }
+
+      this.inventoryEntries.set(payload);
 
       const inventoryTerms = payload
         .map((item) => {
