@@ -335,7 +335,7 @@ input::placeholder {
 }
 
 .meaning-grid,
-.columns {
+.content-grid {
   display: grid;
   gap: 10px;
 }
@@ -402,9 +402,15 @@ input::placeholder {
   color: #5b7481;
 }
 
-.columns {
+.content-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
+}
+
+.column-stack {
+  display: grid;
+  gap: 10px;
+  align-content: start;
 }
 
 .panel {
@@ -596,7 +602,7 @@ input::placeholder {
 
 @media (max-width: 880px) {
   .meaning-grid,
-  .columns {
+  .content-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -623,7 +629,7 @@ input::placeholder {
     max-height: 240px;
   }
 
-  .columns {
+  .content-grid {
     grid-template-columns: 1fr;
   }
 

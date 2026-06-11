@@ -109,102 +109,104 @@
         </article>
       </div>
 
-      <div class="columns">
-        <section class="panel breakdown-panel">
-          <div class="panel-head">
-            <p class="section-label">Breakdown</p>
-            <span>{{ analysis.breakdown.length }} parts</span>
-          </div>
+      <div class="content-grid">
+        <div class="column-stack">
+          <section class="panel breakdown-panel">
+            <div class="panel-head">
+              <p class="section-label">Breakdown</p>
+              <span>{{ analysis.breakdown.length }} parts</span>
+            </div>
 
-          <div class="part-list">
-            @for (part of analysis.breakdown; track part.label) {
-              <article class="part-item">
-                <div class="part-top">
-                  <strong>
-                    @if (part.index) {
-                      {{ part.index }}.
-                    }
-                    {{ part.label }}
-                  </strong>
-                  <span>{{ part.type }}</span>
-                </div>
-                <p>{{ part.meaning }}</p>
-                @if (part.source) {
-                  <small>{{ part.source }}</small>
-                }
-              </article>
-            }
-          </div>
-        </section>
-
-        <section class="panel other-panel">
-          <div class="panel-head">
-            <p class="section-label">Other Words</p>
-            <span>{{ analysis.otherWords.length }} groups</span>
-          </div>
-
-          <div class="group-list">
-            @for (group of analysis.otherWords; track group.title) {
-              <article class="group-card">
-                <div class="group-head">
-                  <strong>{{ group.title }}</strong>
-                  <small>{{ group.focus }}</small>
-                </div>
-                <div class="group-table">
-                  @for (word of group.words; track word.word) {
-                    <div class="group-row">
-                      <span>{{ word.word }}</span>
-                      <p>{{ word.meaning }}</p>
-                    </div>
+            <div class="part-list">
+              @for (part of analysis.breakdown; track part.label) {
+                <article class="part-item">
+                  <div class="part-top">
+                    <strong>
+                      @if (part.index) {
+                        {{ part.index }}.
+                      }
+                      {{ part.label }}
+                    </strong>
+                    <span>{{ part.type }}</span>
+                  </div>
+                  <p>{{ part.meaning }}</p>
+                  @if (part.source) {
+                    <small>{{ part.source }}</small>
                   }
-                </div>
-              </article>
-            }
-          </div>
-        </section>
-      </div>
+                </article>
+              }
+            </div>
+          </section>
 
-      <div class="columns">
-        <section class="panel related-panel">
-          <div class="panel-head">
-            <p class="section-label">Related Words</p>
-            <span>{{ analysis.relatedWords.length }} entries</span>
-          </div>
+          <section class="panel related-panel">
+            <div class="panel-head">
+              <p class="section-label">Related Words</p>
+              <span>{{ analysis.relatedWords.length }} entries</span>
+            </div>
 
-          <div class="word-list">
-            @for (word of analysis.relatedWords; track word.word) {
-              <article class="word-item">
-                <strong>{{ word.word }}</strong>
-                @if (word.breakdown) {
-                  <p class="word-breakdown">{{ word.breakdown }}</p>
-                }
-                <p>{{ word.meaning }}</p>
-                @if (word.explanation) {
-                  <small>{{ word.explanation }}</small>
-                }
-                @if (word.exampleSentence) {
-                  <span class="example-label">Example</span>
-                  <em>{{ word.exampleSentence }}</em>
-                }
-              </article>
-            }
-          </div>
-        </section>
+            <div class="word-list">
+              @for (word of analysis.relatedWords; track word.word) {
+                <article class="word-item">
+                  <strong>{{ word.word }}</strong>
+                  @if (word.breakdown) {
+                    <p class="word-breakdown">{{ word.breakdown }}</p>
+                  }
+                  <p>{{ word.meaning }}</p>
+                  @if (word.explanation) {
+                    <small>{{ word.explanation }}</small>
+                  }
+                  @if (word.exampleSentence) {
+                    <span class="example-label">Example</span>
+                    <em>{{ word.exampleSentence }}</em>
+                  }
+                </article>
+              }
+            </div>
+          </section>
+        </div>
 
-        <section class="panel family-panel">
-          <div class="panel-head">
-            <p class="section-label">Family Memory</p>
-          </div>
+        <div class="column-stack">
+          <section class="panel other-panel">
+            <div class="panel-head">
+              <p class="section-label">Other Words</p>
+              <span>{{ analysis.otherWords.length }} groups</span>
+            </div>
 
-          <div class="family-list">
-            @for (item of analysis.familyMemory; track item.term) {
-              <article class="family-item">
-                <strong>{{ item.term }}</strong>
-                <p>{{ item.meaning }}</p>
-              </article>
-            }
-          </div>
-        </section>
+            <div class="group-list">
+              @for (group of analysis.otherWords; track group.title) {
+                <article class="group-card">
+                  <div class="group-head">
+                    <strong>{{ group.title }}</strong>
+                    <small>{{ group.focus }}</small>
+                  </div>
+                  <div class="group-table">
+                    @for (word of group.words; track word.word) {
+                      <div class="group-row">
+                        <span>{{ word.word }}</span>
+                        <p>{{ word.meaning }}</p>
+                      </div>
+                    }
+                  </div>
+                </article>
+              }
+            </div>
+          </section>
+
+          <section class="panel family-panel">
+            <div class="panel-head">
+              <p class="section-label">Family Memory</p>
+            </div>
+
+            <div class="family-list">
+              @for (item of analysis.familyMemory; track item.term) {
+                <article class="family-item">
+                  <strong>{{ item.term }}</strong>
+                  <p>{{ item.meaning }}</p>
+                </article>
+              }
+            </div>
+          </section>
+        </div>
       </div>
     </section>
   }
