@@ -53,7 +53,10 @@ def _blank_output(query: str, mode: str) -> dict[str, Any]:
 
 def _text(value: Any) -> str:
     if isinstance(value, str):
-        return value.strip()
+        cleaned = value.strip()
+        if cleaned.startswith("{") or cleaned.startswith("["):
+            return ""
+        return cleaned
     return ""
 
 
@@ -400,6 +403,9 @@ No markdown. Never answer about a different query.
     try:
         parsed = json.loads(_extract_json_block(text))
     except json.JSONDecodeError:
+        return _blank_output(query, mode)
+
+    if not isinstance(parsed, dict):
         return _blank_output(query, mode)
 
     output = _normalize_output(parsed, query, mode)

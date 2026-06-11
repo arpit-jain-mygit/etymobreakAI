@@ -55,6 +55,28 @@ interface AnalysisResult {
   notes: string[];
 }
 
+const EMPTY_ANALYSIS: AnalysisResult = {
+  query: '',
+  mode: 'word',
+  title: '',
+  summary: '',
+  literalMeaningFormula: '',
+  literalMeaningArrow: '',
+  literalMeaning: '',
+  actualMeaning: '',
+  breakdown: [],
+  otherWords: [],
+  relatedWords: [],
+  slideNumber: null,
+  rootFamily: {
+    root: '',
+    meaning: '',
+    origin: '',
+  },
+  familyMemory: [],
+  notes: [],
+};
+
 @Component({
   selector: 'app-root',
   imports: [CommonModule, FormsModule],
@@ -118,6 +140,152 @@ export class App implements OnInit {
     }
   }
 
+  private normalizeAnalysisResult(payload: unknown, query: string): AnalysisResult {
+    const text = (value: unknown): string => {
+      if (typeof value !== 'string') {
+        return '';
+      }
+
+      const cleaned = value.trim();
+      if (!cleaned || cleaned.startsWith('{') || cleaned.startsWith('[')) {
+        return '';
+      }
+
+      return cleaned;
+    };
+
+    const list = <T>(value: unknown, mapper: (item: unknown) => T | null): T[] => {
+      if (!Array.isArray(value)) {
+        return [];
+      }
+
+      return value.map(mapper).filter((item): item is T => item !== null);
+    };
+
+    const data: any = payload && typeof payload === 'object' ? payload : {};
+
+    const breakdown = list(data.breakdown, (item) => {
+      if (!item || typeof item !== 'object') {
+        return null;
+      }
+
+      const entry: any = item;
+      const label = text(entry.label);
+      const meaning = text(entry.meaning);
+      if (!label || !meaning) {
+        return null;
+      }
+
+      return {
+        index: typeof entry.index === 'number' ? entry.index : undefined,
+        label,
+        type: text(entry.type),
+        meaning,
+        source: text(entry.source),
+      };
+    });
+
+    const otherWords = list(data.otherWords, (item) => {
+      if (!item || typeof item !== 'object') {
+        return null;
+      }
+
+      const entry: any = item;
+      const words = list(entry.words, (word) => {
+        if (!word || typeof word !== 'object') {
+          return null;
+        }
+
+        const wordEntry: any = word;
+        const wordLabel = text(wordEntry.word);
+        const wordMeaning = text(wordEntry.meaning);
+        if (!wordLabel || !wordMeaning) {
+          return null;
+        }
+
+        return {
+          word: wordLabel,
+          meaning: wordMeaning,
+        };
+      });
+
+      if (!text(entry.title) || !text(entry.focus) || !words.length) {
+        return null;
+      }
+
+      return {
+        title: text(entry.title),
+        focus: text(entry.focus),
+        words,
+      };
+    });
+
+    const relatedWords = list(data.relatedWords, (item) => {
+      if (!item || typeof item !== 'object') {
+        return null;
+      }
+
+      const entry: any = item;
+      const word = text(entry.word);
+      const meaning = text(entry.meaning);
+      if (!word || !meaning) {
+        return null;
+      }
+
+      return {
+        word,
+        breakdown: text(entry.breakdown),
+        meaning,
+        explanation: text(entry.explanation),
+        exampleSentence: text(entry.exampleSentence),
+      };
+    });
+
+    const familyMemory = list(data.familyMemory, (item) => {
+      if (!item || typeof item !== 'object') {
+        return null;
+      }
+
+      const entry: any = item;
+      const term = text(entry.term);
+      const meaning = text(entry.meaning);
+      if (!term || !meaning) {
+        return null;
+      }
+
+      return {
+        term,
+        meaning,
+      };
+    });
+
+    const slideNumber = typeof data.slideNumber === 'number' ? data.slideNumber : null;
+    const rootFamily: any =
+      data.rootFamily && typeof data.rootFamily === 'object' ? data.rootFamily : {};
+
+    return {
+      query: text(data.query) || query,
+      mode: ['word', 'root', 'prefix', 'suffix'].includes(text(data.mode)) ? text(data.mode) : 'word',
+      title: text(data.title),
+      summary: text(data.summary),
+      literalMeaningFormula: text(data.literalMeaningFormula),
+      literalMeaningArrow: text(data.literalMeaningArrow),
+      literalMeaning: text(data.literalMeaning),
+      actualMeaning: text(data.actualMeaning),
+      breakdown,
+      otherWords,
+      relatedWords,
+      slideNumber,
+      rootFamily: {
+        root: text(rootFamily.root),
+        meaning: text(rootFamily.meaning),
+        origin: text(rootFamily.origin),
+      },
+      familyMemory,
+      notes: list(data.notes, (item) => text(item)).filter(Boolean),
+    };
+  }
+
   protected async analyze(): Promise<void> {
     const normalized = this.query().trim().toLowerCase();
 
@@ -148,8 +316,8 @@ export class App implements OnInit {
         );
       }
 
-      const data = (await response.json()) as AnalysisResult;
-      this.result.set(data);
+      const payload = (await response.json().catch(() => null)) as unknown;
+      this.result.set(this.normalizeAnalysisResult(payload, normalized));
       return;
     } catch (error) {
       const message =
