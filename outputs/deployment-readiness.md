@@ -64,6 +64,39 @@ This file collects the current deployment steps for the frontend on Vercel and t
 - The backend can create this table automatically on startup.
 - You can also create it manually with the SQL stored in `outputs/postgres-schema.md`.
 
+### Render CLI Option
+If you want to create the table manually from your terminal, use the Render CLI and run the SQL against your database.
+
+1. Sign in to Render:
+
+```bash
+render login
+```
+
+2. Open a SQL session or run the create-table statement directly against your Render Postgres database:
+
+```bash
+render psql <your-postgres-database-name-or-id> -c "CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, google_sub TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, first_name TEXT NOT NULL, last_name TEXT NOT NULL, country TEXT NOT NULL, google_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);"
+```
+
+3. Confirm the table exists in Render Postgres after the command runs.
+
+### SQL Used by the Backend
+
+```sql
+CREATE TABLE IF NOT EXISTS profiles (
+    id TEXT PRIMARY KEY,
+    google_sub TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    country TEXT NOT NULL,
+    google_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+```
+
 ## 3. Google Sign-In Setup
 
 ### Google Cloud Console
