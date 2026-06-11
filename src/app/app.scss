@@ -447,10 +447,17 @@ input::placeholder {
   font-size: 0.8rem;
 }
 
+.breakdown-rows,
 .part-list,
 .word-list {
   display: grid;
   gap: 8px;
+}
+
+.part-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .part-item,
@@ -714,6 +721,10 @@ input::placeholder {
     grid-template-columns: 1fr;
   }
 
+  .part-row {
+    grid-template-columns: 1fr;
+  }
+
   .family-grid {
     grid-template-columns: 1fr;
   }
@@ -742,6 +753,10 @@ input::placeholder {
   }
 
   .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .part-row {
     grid-template-columns: 1fr;
   }
 

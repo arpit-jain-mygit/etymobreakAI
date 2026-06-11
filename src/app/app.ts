@@ -49,6 +49,8 @@ interface FamilySection {
   tone: string;
 }
 
+type BreakdownRow = AnalysisPart[];
+
 interface RootFamily {
   root: string;
   meaning: string;
@@ -113,6 +115,18 @@ export class App implements OnInit {
   protected readonly autocompleteOpen = signal(false);
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
+  protected readonly breakdownRows = computed(() => {
+    const analysis = this.result();
+    if (!analysis?.breakdown.length) {
+      return [];
+    }
+
+    const rows: BreakdownRow[] = [];
+    for (let index = 0; index < analysis.breakdown.length; index += 2) {
+      rows.push(analysis.breakdown.slice(index, index + 2));
+    }
+    return rows;
+  });
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
     const unique = [

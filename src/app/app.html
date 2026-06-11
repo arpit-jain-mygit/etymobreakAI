@@ -121,30 +121,34 @@
               <span>{{ analysis.breakdown.length }} parts</span>
             </div>
 
-            <div class="part-list">
-              @for (part of analysis.breakdown; track part.label) {
-                <article class="part-item">
-                  <div class="part-top">
-                    <strong>
-                      @if (part.index) {
-                        {{ part.index }}.
+            <div class="breakdown-rows">
+              @for (row of breakdownRows(); track $index) {
+                <div class="part-row">
+                  @for (part of row; track part.label) {
+                    <article class="part-item">
+                      <div class="part-top">
+                        <strong>
+                          @if (part.index) {
+                            {{ part.index }}.
+                          }
+                          {{ part.label }}
+                        </strong>
+                        <span>{{ part.type }}</span>
+                      </div>
+                      <p>{{ part.meaning }}</p>
+                      @if (part.source) {
+                        <small>{{ part.source }}</small>
                       }
-                      {{ part.label }}
-                    </strong>
-                    <span>{{ part.type }}</span>
-                  </div>
-                  <p>{{ part.meaning }}</p>
-                  @if (part.source) {
-                    <small>{{ part.source }}</small>
-                  }
-                  @if (part.otherExamples?.length) {
-                    <div class="examples-row" aria-label="Other examples">
-                      @for (example of part.otherExamples; track example) {
-                        <span class="example-pill">{{ example }}</span>
+                      @if (part.otherExamples?.length) {
+                        <div class="examples-row" aria-label="Other examples">
+                          @for (example of part.otherExamples; track example) {
+                            <span class="example-pill">{{ example }}</span>
+                          }
+                        </div>
                       }
-                    </div>
+                    </article>
                   }
-                </article>
+                </div>
               }
             </div>
           </section>
