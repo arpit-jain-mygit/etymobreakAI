@@ -60,6 +60,8 @@ interface QuizQuestion {
   options: string[];
   correctIndex: number;
   selectedIndex: number | null;
+  submitted: boolean;
+  isCorrect: boolean | null;
   sourceTitle: string;
   explanation: string;
 }
@@ -132,8 +134,7 @@ export class App implements OnInit {
   protected readonly quizLetter = signal('');
   protected readonly quizIndex = signal(0);
   protected readonly quizQuestions = signal<QuizQuestion[]>([]);
-  protected readonly quizSubmitted = signal(false);
-  protected readonly quizScore = signal<number | null>(null);
+  protected readonly quizNotice = signal('');
   protected readonly inventoryEntries = signal<unknown[]>([]);
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
@@ -234,23 +235,18 @@ export class App implements OnInit {
     () => this.quizQuestionCount() > 0 && this.quizAnsweredCount() === this.quizQuestionCount()
   );
   protected readonly quizCorrectCount = computed(() =>
-    this.quizSubmitted()
-      ? this.quizQuestions().filter(
-          (question) => question.selectedIndex !== null && question.selectedIndex === question.correctIndex
-        ).length
-      : 0
+    this.quizQuestions().filter((question) => question.submitted && question.isCorrect).length
   );
   protected readonly quizWrongCount = computed(() =>
-    this.quizSubmitted() ? this.quizQuestionCount() - this.quizCorrectCount() : 0
+    this.quizQuestions().filter((question) => question.submitted && question.isCorrect === false).length
   );
-  protected readonly quizTotalMarks = computed(() => {
-    const score = this.quizScore();
-    if (score === null) {
-      return 0;
-    }
-
-    return score;
-  });
+  protected readonly quizTotalMarks = computed(
+    () => this.quizCorrectCount() * 3 - this.quizWrongCount()
+  );
+  protected readonly quizCompleted = computed(
+    () => this.quizQuestions().length > 0 && this.quizQuestions().every((question) => question.submitted)
+  );
+  protected readonly quizCurrentQuestionSubmitted = computed(() => this.quizQuestion()?.submitted ?? false);
   private normalizeForMatch(value: string): string {
     return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
@@ -382,7 +378,7 @@ export class App implements OnInit {
   }
 
   protected selectQuizOption(index: number): void {
-    if (this.quizSubmitted()) {
+    if (this.quizCurrentQuestionSubmitted()) {
       return;
     }
 
@@ -399,24 +395,37 @@ export class App implements OnInit {
       selectedIndex: index,
     };
     this.quizQuestions.set(updated);
+    this.quizNotice.set('');
   }
 
-  protected submitQuiz(): void {
-    if (!this.quizCanSubmit()) {
+  protected submitCurrentQuizQuestion(): void {
+    if (this.quizCurrentQuestionSubmitted()) {
       return;
     }
 
-    let score = 0;
-    for (const question of this.quizQuestions()) {
-      if (question.selectedIndex === question.correctIndex) {
-        score += 3;
-      } else {
-        score -= 1;
-      }
+    const questions = this.quizQuestions();
+    const currentIndex = this.quizIndex();
+    const question = questions[currentIndex];
+    if (!question || question.selectedIndex === null) {
+      this.quizNotice.set('Pick one answer before submitting this question.');
+      return;
     }
 
-    this.quizScore.set(score);
-    this.quizSubmitted.set(true);
+    const isCorrect = question.selectedIndex === question.correctIndex;
+    const updated = [...questions];
+    updated[currentIndex] = {
+      ...question,
+      submitted: true,
+      isCorrect,
+    };
+    this.quizQuestions.set(updated);
+
+    const correctAnswer = question.options[question.correctIndex] ?? '';
+    this.quizNotice.set(
+      isCorrect
+        ? `Correct! +3 marks.`
+        : `Wrong. -1 mark. Correct answer: ${correctAnswer}.`
+    );
   }
 
   protected resetQuiz(): void {
@@ -608,6 +617,8 @@ export class App implements OnInit {
       options: options.slice(0, 4),
       correctIndex,
       selectedIndex: null,
+      submitted: false,
+      isCorrect: null,
       sourceTitle: entry.title,
       explanation,
     };
@@ -620,8 +631,7 @@ export class App implements OnInit {
 
     if (!this.inventoryEntries().length) {
       this.quizQuestions.set([]);
-      this.quizScore.set(null);
-      this.quizSubmitted.set(false);
+      this.quizNotice.set('');
       return;
     }
 
@@ -642,8 +652,7 @@ export class App implements OnInit {
 
     this.quizQuestions.set(questions);
     this.quizIndex.set(0);
-    this.quizSubmitted.set(false);
-    this.quizScore.set(null);
+    this.quizNotice.set('');
   }
 
   private normalizeAnalysisResult(payload: unknown, query: string): AnalysisResult {

@@ -390,9 +390,9 @@
                 type="button"
                 class="quiz-option"
                 [class.selected]="question.selectedIndex === optionIndex"
-                [class.correct]="quizSubmitted() && optionIndex === question.correctIndex"
-                [class.wrong]="quizSubmitted() && question.selectedIndex === optionIndex && optionIndex !== question.correctIndex"
-                [disabled]="quizSubmitted()"
+                [class.correct]="question.submitted && optionIndex === question.correctIndex"
+                [class.wrong]="question.submitted && question.selectedIndex === optionIndex && optionIndex !== question.correctIndex"
+                [disabled]="question.submitted"
                 (click)="selectQuizOption(optionIndex)"
               >
                 <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>
@@ -401,9 +401,15 @@
             }
           </div>
 
-          @if (quizSubmitted()) {
+          @if (quizNotice()) {
             <section class="notice calm-notice quiz-result">
-              <strong>Your score: {{ quizTotalMarks() }} / 30</strong>
+              {{ quizNotice() }}
+            </section>
+          }
+
+          @if (question.submitted) {
+            <section class="notice calm-notice quiz-result">
+              <strong>Current score: {{ quizTotalMarks() }} / 30</strong>
               <span>{{ quizCorrectCount() }} right × 3 - {{ quizWrongCount() }} wrong × 1</span>
             </section>
             <p class="quiz-explanation">{{ question.explanation }}</p>
@@ -411,10 +417,22 @@
 
           <div class="quiz-actions">
             <button type="button" class="primary" (click)="resetQuiz()">Reset Quiz</button>
-            <button type="button" class="primary" [disabled]="!quizCanSubmit()" (click)="submitQuiz()">
-              Submit Quiz
+            <button
+              type="button"
+              class="primary"
+              [disabled]="question.submitted || question.selectedIndex === null"
+              (click)="submitCurrentQuizQuestion()"
+            >
+              Submit Answer
             </button>
           </div>
+
+          @if (quizCompleted()) {
+            <section class="notice calm-notice quiz-result">
+              <strong>Final score: {{ quizTotalMarks() }} / 30</strong>
+              <span>{{ quizCorrectCount() }} right × 3 - {{ quizWrongCount() }} wrong × 1</span>
+            </section>
+          }
         </div>
       } @else {
         <section class="notice calm-notice">Pick a letter or use All to generate a 10-question quiz.</section>
