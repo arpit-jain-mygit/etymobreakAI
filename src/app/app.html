@@ -212,6 +212,42 @@
                 </article>
               }
             </div>
+
+            @if (analysis.wordFamily.length) {
+              <div class="family-list nested-family-list">
+                @for (item of analysis.wordFamily; track item.word) {
+                  <article class="family-item nested-family-item">
+                    <strong>{{ item.word }}</strong>
+                    <p>{{ item.meaning }}</p>
+                    @if (item.breakdown?.length) {
+                      <div class="nested-parts">
+                        @for (part of item.breakdown; track part.label) {
+                          <div class="nested-part">
+                            <div class="nested-part-head">
+                              <span>{{ part.label }}</span>
+                              @if (part.type) {
+                                <small>{{ part.type }}</small>
+                              }
+                            </div>
+                            <p>{{ part.meaning }}</p>
+                            @if (part.otherExamples?.length) {
+                              <div class="examples-row">
+                                @for (example of part.otherExamples; track example) {
+                                  <span class="example-pill">{{ example }}</span>
+                                }
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                    @if (item.exampleSentence) {
+                      <em>{{ item.exampleSentence }}</em>
+                    }
+                  </article>
+                }
+              </div>
+            }
           </section>
         </div>
       </div>

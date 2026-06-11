@@ -133,6 +133,8 @@ def _coerce_word_family(value: Any) -> list[dict[str, Any]]:
             {
                 "word": word,
                 "meaning": _text(item.get("meaning", "")),
+                "breakdown": _coerce_breakdown(item.get("breakdown", [])),
+                "exampleSentence": _text(item.get("exampleSentence", "")),
             }
         )
     return words
@@ -330,6 +332,8 @@ def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, 
             {
                 "word": item["word"],
                 "meaning": item["meaning"],
+                "breakdown": [],
+                "exampleSentence": "",
             }
             for item in related_words
         ],

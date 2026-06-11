@@ -32,6 +32,8 @@ interface RelatedWord {
 interface WordFamilyItem {
   word: string;
   meaning: string;
+  breakdown?: AnalysisPart[];
+  exampleSentence?: string;
 }
 
 interface RootFamily {
@@ -216,6 +218,28 @@ export class App implements OnInit {
       return {
         word,
         meaning,
+        breakdown: list(entry.breakdown, (part) => {
+          if (!part || typeof part !== 'object') {
+            return null;
+          }
+
+          const partEntry: any = part;
+          const label = text(partEntry.label);
+          const meaningText = text(partEntry.meaning);
+          if (!label || !meaningText) {
+            return null;
+          }
+
+          return {
+            index: typeof partEntry.index === 'number' ? partEntry.index : undefined,
+            label,
+            type: text(partEntry.type),
+            meaning: meaningText,
+            source: text(partEntry.source),
+            otherExamples: list(partEntry.otherExamples, (example) => text(example)).filter(Boolean),
+          };
+        }),
+        exampleSentence: text(entry.exampleSentence),
       };
     });
 
