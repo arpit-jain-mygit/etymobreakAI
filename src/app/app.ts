@@ -198,7 +198,7 @@ export class App implements OnInit {
 
       return {
         label: part.label,
-        title: `Family words for ${part.label}`,
+        title: tone === 'root' ? 'Root' : 'Suffix',
         tone,
         items: [...items].sort((a, b) =>
           a.term.localeCompare(b.term, undefined, { sensitivity: 'base' })

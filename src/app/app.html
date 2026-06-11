@@ -2,16 +2,11 @@
   <section class="hero">
     <div class="hero-copy">
       <p class="eyebrow">EtymoBreak AI</p>
-      <h1>Break words into roots, suffixes, and meaning.</h1>
-      <p class="lead">
-        Type any word and let the system figure out the root, prefix, suffix, and related word
-        family on its own.
-      </p>
+      <h1>Break words.</h1>
     </div>
 
     <form class="search-panel" (submit)="$event.preventDefault(); analyze()">
       <label class="field">
-        <span>Search term</span>
         <div class="input-wrap">
           <input
             name="query"
@@ -23,6 +18,7 @@
             autocomplete="off"
             spellcheck="false"
             aria-autocomplete="list"
+            aria-label="Search term"
           />
           @if (query()) {
             <button type="button" class="icon-button" aria-label="Clear search" (click)="query.set('')">
@@ -75,28 +71,7 @@
   @if (result(); as analysis) {
     <section class="result">
       <div class="result-header">
-        <div>
-          <p class="section-label">Result</p>
-          <h2>{{ analysis.title }}</h2>
-          <p class="summary">{{ analysis.summary }}</p>
-          @if (analysis.slideNumber || analysis.rootFamily.root) {
-            <p class="meta-line">
-              @if (analysis.slideNumber) {
-                <span>Slide {{ analysis.slideNumber }}</span>
-              }
-              @if (analysis.rootFamily.root) {
-                <span>Root: {{ analysis.rootFamily.root }}</span>
-              }
-              @if (analysis.rootFamily.meaning) {
-                <span>{{ analysis.rootFamily.meaning }}</span>
-              }
-              @if (analysis.rootFamily.origin) {
-                <span>{{ analysis.rootFamily.origin }}</span>
-              }
-            </p>
-          }
-        </div>
-        <div class="badge">Study Guide</div>
+        <h2>{{ analysis.title }}</h2>
       </div>
 
       <div class="meaning-grid">
