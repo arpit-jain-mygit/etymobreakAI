@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import re
+from functools import lru_cache
+from pathlib import Path
 from urllib import error, request
 from typing import Any
 
@@ -24,6 +26,201 @@ def normalize_mode(value: str | None) -> str:
     if value in {"word", "root", "prefix", "suffix"}:
         return value
     return "word"
+
+
+ROOT_INVENTORY_PATH = Path(__file__).resolve().parents[1] / "public" / "root-inventory.json"
+
+
+def _blank_output(query: str, mode: str) -> dict[str, Any]:
+    return {
+        "query": query,
+        "mode": normalize_mode(mode),
+        "title": "",
+        "summary": "",
+        "literalMeaningFormula": "",
+        "literalMeaningArrow": "",
+        "literalMeaning": "",
+        "actualMeaning": "",
+        "breakdown": [],
+        "otherWords": [],
+        "relatedWords": [],
+        "memoryHacks": [],
+        "quickRecallTable": [],
+        "finalShortcut": {},
+        "familyMemory": [],
+        "notes": [],
+        "conclusion": "",
+    }
+
+
+def _text(value: Any) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    return ""
+
+
+def _text_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [_text(item) for item in value if _text(item)]
+
+
+def _coerce_breakdown(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+
+    output: list[dict[str, Any]] = []
+    for index, item in enumerate(value, start=1):
+        if not isinstance(item, dict):
+            continue
+        output.append(
+            {
+                "index": item.get("index", index),
+                "label": _text(item.get("label", "")),
+                "type": _text(item.get("type", "")),
+                "meaning": _text(item.get("meaning", "")),
+                "source": _text(item.get("source", "")),
+            }
+        )
+    return output
+
+
+def _coerce_other_words(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+
+    groups: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        words = item.get("words", [])
+        if not isinstance(words, list):
+            words = []
+        groups.append(
+            {
+                "title": _text(item.get("title", "")),
+                "focus": _text(item.get("focus", "")),
+                "words": [
+                    {
+                        "word": _text(word.get("word", "")),
+                        "meaning": _text(word.get("meaning", "")),
+                    }
+                    for word in words
+                    if isinstance(word, dict) and _text(word.get("word", ""))
+                ],
+            }
+        )
+    return groups
+
+
+def _coerce_related_words(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+
+    words: list[dict[str, Any]] = []
+    for item in value[:10]:
+        if not isinstance(item, dict):
+            continue
+        word = _text(item.get("word", ""))
+        if not word:
+            continue
+        words.append(
+            {
+                "word": word,
+                "breakdown": _text(item.get("breakdown", "")),
+                "meaning": _text(item.get("meaning", "")),
+                "explanation": _text(item.get("explanation", "")),
+                "exampleSentence": _text(item.get("exampleSentence", "")),
+            }
+        )
+    return words
+
+
+def _coerce_memory_hacks(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+
+    groups: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        lines = item.get("lines", [])
+        if not isinstance(lines, list):
+            lines = []
+        groups.append(
+            {
+                "title": _text(item.get("title", "")),
+                "lines": _text_list(lines),
+            }
+        )
+    return groups
+
+
+def _coerce_table_rows(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+
+    rows: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            {
+                "part": _text(item.get("part", "")),
+                "meaning": _text(item.get("meaning", "")),
+            }
+        )
+    return rows
+
+
+def _coerce_family_memory(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+
+    rows: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        term = _text(item.get("term", ""))
+        if not term:
+            continue
+        rows.append(
+            {
+                "term": term,
+                "meaning": _text(item.get("meaning", "")),
+            }
+        )
+    return rows
+
+
+@lru_cache(maxsize=1)
+def _load_inventory() -> dict[str, dict[str, Any]]:
+    if not ROOT_INVENTORY_PATH.exists():
+        return {}
+
+    try:
+        raw = json.loads(ROOT_INVENTORY_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    entries: list[dict[str, Any]]
+    if isinstance(raw, list):
+        entries = [item for item in raw if isinstance(item, dict)]
+    elif isinstance(raw, dict):
+        entries = [item for item in raw.values() if isinstance(item, dict)]
+    else:
+        entries = []
+
+    inventory: dict[str, dict[str, Any]] = {}
+    for item in entries:
+        key = str(item.get("query", "")).strip().lower()
+        if key:
+            inventory[key] = item
+    return inventory
+
+
+def _lookup_inventory(query: str) -> dict[str, Any] | None:
+    return _load_inventory().get(query.strip().lower())
 
 
 def _strip_json_wrappers(text: str) -> str:
@@ -77,31 +274,36 @@ def _extract_json_block(text: str) -> str:
 
 
 def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, Any]:
-    breakdown = data.get("breakdown", data.get("parts", []))
-    other_words = data.get("otherWords", [])
-    related_words = data.get("relatedWords", [])
-    memory_hacks = data.get("memoryHacks", [])
-    quick_recall = data.get("quickRecallTable", [])
-    family_memory = data.get("familyMemory", [])
+    breakdown = _coerce_breakdown(data.get("breakdown", data.get("parts", [])))
+    other_words = _coerce_other_words(data.get("otherWords", []))
+    related_words = _coerce_related_words(data.get("relatedWords", []))
+    memory_hacks = _coerce_memory_hacks(data.get("memoryHacks", []))
+    quick_recall = _coerce_table_rows(data.get("quickRecallTable", []))
+    family_memory = _coerce_family_memory(data.get("familyMemory", []))
     final_shortcut = data.get("finalShortcut", {})
+    if not isinstance(final_shortcut, dict):
+        final_shortcut = {}
     return {
-        "query": data.get("query", query),
-        "mode": normalize_mode(data.get("mode", mode)),
-        "title": data.get("title", query.upper()),
-        "summary": data.get("summary", ""),
-        "literalMeaningFormula": data.get("literalMeaningFormula", ""),
-        "literalMeaningArrow": data.get("literalMeaningArrow", ""),
-        "literalMeaning": data.get("literalMeaning", ""),
-        "actualMeaning": data.get("actualMeaning", ""),
-        "breakdown": breakdown if isinstance(breakdown, list) else [],
-        "otherWords": other_words if isinstance(other_words, list) else [],
-        "relatedWords": related_words[:10] if isinstance(related_words, list) else [],
-        "memoryHacks": memory_hacks if isinstance(memory_hacks, list) else [],
-        "quickRecallTable": quick_recall if isinstance(quick_recall, list) else [],
-        "finalShortcut": final_shortcut if isinstance(final_shortcut, dict) else {},
-        "familyMemory": family_memory if isinstance(family_memory, list) else [],
-        "notes": data.get("notes", []),
-        "conclusion": data.get("conclusion", ""),
+        "query": _text(data.get("query", query)) or query,
+        "mode": normalize_mode(_text(data.get("mode", mode)) or mode),
+        "title": _text(data.get("title", query.upper())),
+        "summary": _text(data.get("summary", "")),
+        "literalMeaningFormula": _text(data.get("literalMeaningFormula", "")),
+        "literalMeaningArrow": _text(data.get("literalMeaningArrow", "")),
+        "literalMeaning": _text(data.get("literalMeaning", "")),
+        "actualMeaning": _text(data.get("actualMeaning", "")),
+        "breakdown": breakdown,
+        "otherWords": other_words,
+        "relatedWords": related_words,
+        "memoryHacks": memory_hacks,
+        "quickRecallTable": quick_recall,
+        "finalShortcut": {
+            "title": _text(final_shortcut.get("title", "")),
+            "text": _text(final_shortcut.get("text", "")),
+        },
+        "familyMemory": family_memory,
+        "notes": _text_list(data.get("notes", [])),
+        "conclusion": _text(data.get("conclusion", "")),
     }
 
 
@@ -161,6 +363,10 @@ def _filter_related_words(
 
 
 def _mistral_analysis(query: str, mode: str) -> dict[str, Any]:
+    inventory_hit = _lookup_inventory(query)
+    if inventory_hit:
+        return _normalize_output(inventory_hit, query, mode)
+
     api_key = os.getenv("MISTRAL_API_KEY")
     if not api_key:
         raise AnalysisError(503, "Missing Mistral API key", "Set MISTRAL_API_KEY in Render")
@@ -226,8 +432,8 @@ No markdown. Never answer about a different query.
 
     try:
         parsed = json.loads(_extract_json_block(text))
-    except json.JSONDecodeError as exc:
-        raise AnalysisError(502, "Mistral returned invalid JSON", text[:400]) from exc
+    except json.JSONDecodeError:
+        return _blank_output(query, mode)
 
     output = _normalize_output(parsed, query, mode)
     output["relatedWords"] = _filter_related_words(
@@ -236,8 +442,6 @@ No markdown. Never answer about a different query.
         output["breakdown"],
         output["otherWords"],
     )
-    if not output["summary"] or not output["breakdown"]:
-        raise AnalysisError(502, "Mistral response missing required fields", text[:400])
     return output
 
 

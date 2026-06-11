@@ -1,0 +1,121 @@
+[
+  {
+    "query": "cardiology",
+    "mode": "word",
+    "title": "CARDIOLOGY",
+    "summary": "A breakdown of cardio + logy and the word family built from heart-related roots.",
+    "literalMeaningFormula": "cardio + logy",
+    "literalMeaningArrow": "➡️ study of the heart",
+    "literalMeaning": "Root + suffix",
+    "actualMeaning": "The branch of medicine that deals with the heart and blood vessels.",
+    "breakdown": [
+      {
+        "index": 1,
+        "label": "cardio",
+        "type": "root",
+        "meaning": "heart",
+        "source": "From Greek kardia = heart."
+      },
+      {
+        "index": 2,
+        "label": "-logy",
+        "type": "suffix",
+        "meaning": "study of, science of",
+        "source": "A suffix used for study or science."
+      }
+    ],
+    "otherWords": [
+      {
+        "title": "Other Words with cardio",
+        "focus": "cardio",
+        "words": [
+          { "word": "Cardiology", "meaning": "study of the heart" },
+          { "word": "Cardiologist", "meaning": "heart specialist" },
+          { "word": "Cardiac", "meaning": "relating to the heart" },
+          { "word": "Cardiovascular", "meaning": "heart + blood vessels" },
+          { "word": "Electrocardiogram", "meaning": "recording of heart activity" }
+        ]
+      },
+      {
+        "title": "Other Words with -logy",
+        "focus": "-logy",
+        "words": [
+          { "word": "Biology", "meaning": "study of life" },
+          { "word": "Geology", "meaning": "study of Earth" },
+          { "word": "Psychology", "meaning": "study of mind" },
+          { "word": "Anthropology", "meaning": "study of humans" },
+          { "word": "Neurology", "meaning": "study of nerves" },
+          { "word": "Urology", "meaning": "study of the urinary system" }
+        ]
+      }
+    ],
+    "relatedWords": [
+      {
+        "word": "Cardiologist",
+        "breakdown": "cardio = heart; logist = specialist",
+        "meaning": "heart specialist",
+        "exampleSentence": "The cardiologist checked the patient’s heart rhythm."
+      },
+      {
+        "word": "Cardiac",
+        "breakdown": "cardio/cardiac = heart",
+        "meaning": "relating to the heart",
+        "exampleSentence": "The doctor watched for any cardiac problems."
+      },
+      {
+        "word": "Cardiovascular",
+        "breakdown": "cardio = heart; vascular = blood vessels",
+        "meaning": "relating to the heart and blood vessels",
+        "exampleSentence": "Exercise improves cardiovascular health."
+      },
+      {
+        "word": "Electrocardiogram",
+        "breakdown": "electro = electricity; cardio = heart; gram = record",
+        "meaning": "recording of heart activity",
+        "exampleSentence": "The electrocardiogram showed a normal pattern."
+      },
+      {
+        "word": "Cardiology",
+        "breakdown": "cardio = heart; logy = study of",
+        "meaning": "study of the heart",
+        "exampleSentence": "Cardiology helps doctors understand heart disease."
+      }
+    ],
+    "memoryHacks": [
+      {
+        "title": "UPSC Memory Hacks",
+        "lines": [
+          "cardio = heart ❤️",
+          "Think of cardiac arrest, cardiology, cardiologist."
+        ]
+      },
+      {
+        "title": "logy = study of 📚",
+        "lines": [
+          "biology = study of life",
+          "geology = study of Earth",
+          "cardiology = study of the heart"
+        ]
+      }
+    ],
+    "quickRecallTable": [
+      { "part": "cardio", "meaning": "heart" },
+      { "part": "logy", "meaning": "study of" }
+    ],
+    "finalShortcut": {
+      "title": "Final Shortcut",
+      "text": "Cardiology = cardio (heart) + logy (study of) = study of the heart ❤️📚"
+    },
+    "familyMemory": [
+      { "term": "cardio", "meaning": "heart" },
+      { "term": "cardiac", "meaning": "heart-related" },
+      { "term": "cardiology", "meaning": "study of heart" },
+      { "term": "cardiologist", "meaning": "heart doctor" },
+      { "term": "electrocardiogram", "meaning": "electrical recording of heart activity" }
+    ],
+    "conclusion": "➡️ Cardiology = study of the heart.",
+    "notes": [
+      "Use this word family to remember heart-related terms."
+    ]
+  }
+]
