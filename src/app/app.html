@@ -148,61 +148,9 @@
               }
             </div>
           </section>
-
-          <section class="panel related-panel">
-            <div class="panel-head">
-              <p class="section-label">Related Words</p>
-              <span>{{ analysis.relatedWords.length }} entries</span>
-            </div>
-
-            <div class="word-list">
-              @for (word of analysis.relatedWords; track word.word) {
-                <article class="word-item">
-                  <strong>{{ word.word }}</strong>
-                  @if (word.breakdown) {
-                    <p class="word-breakdown">{{ word.breakdown }}</p>
-                  }
-                  <p>{{ word.meaning }}</p>
-                  @if (word.explanation) {
-                    <small>{{ word.explanation }}</small>
-                  }
-                  @if (word.exampleSentence) {
-                    <span class="example-label">Example</span>
-                    <em>{{ word.exampleSentence }}</em>
-                  }
-                </article>
-              }
-            </div>
-          </section>
         </div>
 
         <div class="column-stack">
-          <section class="panel other-panel">
-            <div class="panel-head">
-              <p class="section-label">Other Words</p>
-              <span>{{ analysis.otherWords.length }} groups</span>
-            </div>
-
-            <div class="group-list">
-              @for (group of analysis.otherWords; track group.title) {
-                <article class="group-card">
-                  <div class="group-head">
-                    <strong>{{ group.title }}</strong>
-                    <small>{{ group.focus }}</small>
-                  </div>
-                  <div class="group-table">
-                    @for (word of group.words; track word.word) {
-                      <div class="group-row">
-                        <span>{{ word.word }}</span>
-                        <p>{{ word.meaning }}</p>
-                      </div>
-                    }
-                  </div>
-                </article>
-              }
-            </div>
-          </section>
-
           <section class="panel family-panel">
             <div class="panel-head">
               <p class="section-label">Family Memory</p>
