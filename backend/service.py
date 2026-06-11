@@ -236,16 +236,45 @@ def _find_json_object(text: str) -> str | None:
     return None
 
 
-def _extract_json_block(text: str) -> str:
+def _parse_json_payload(text: str) -> dict[str, Any] | None:
     cleaned = _strip_json_wrappers(text)
-    if cleaned.startswith("{") and cleaned.endswith("}"):
-        return cleaned
+    candidates = [cleaned]
 
-    block = _find_json_object(cleaned)
-    if block:
-        return block
+    for _ in range(3):
+        current = candidates[-1]
 
-    raise AnalysisError(502, "Mistral returned non-JSON output", cleaned[:400])
+        try:
+            parsed = json.loads(current)
+        except json.JSONDecodeError:
+            parsed = None
+
+        if isinstance(parsed, dict):
+            return parsed
+        if isinstance(parsed, str):
+            unwrapped = parsed.strip()
+            if unwrapped and unwrapped not in candidates:
+                candidates.append(unwrapped)
+                continue
+            break
+        if isinstance(parsed, list):
+            return None
+
+        block = _find_json_object(current)
+        if block:
+            try:
+                nested = json.loads(block)
+            except json.JSONDecodeError:
+                nested = None
+            if isinstance(nested, dict):
+                return nested
+            if isinstance(nested, str):
+                unwrapped = nested.strip()
+                if unwrapped and unwrapped not in candidates:
+                    candidates.append(unwrapped)
+                    continue
+        break
+
+    return None
 
 
 def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, Any]:
@@ -400,11 +429,7 @@ No markdown. Never answer about a different query.
     if not text.strip():
         raise AnalysisError(502, "Mistral returned an empty response")
 
-    try:
-        parsed = json.loads(_extract_json_block(text))
-    except json.JSONDecodeError:
-        return _blank_output(query, mode)
-
+    parsed = _parse_json_payload(text)
     if not isinstance(parsed, dict):
         return _blank_output(query, mode)
 
