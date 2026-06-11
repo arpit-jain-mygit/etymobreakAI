@@ -15722,14 +15722,25 @@
         "label": "fract",
         "type": "root",
         "meaning": "break",
-        "source": "From Latin frangere/fractus = to break."
+        "source": "From Latin frangere/fractus = to break.",
+        "otherExamples": [
+          "fracture",
+          "fraction",
+          "fractious"
+        ]
       },
       {
         "index": 2,
         "label": "ure",
         "type": "suffix",
         "meaning": "act, process, result, or condition",
-        "source": "A noun-forming suffix used for the result/state of an action, as in fracture, closure, exposure."
+        "source": "A noun-forming suffix used for the result/state of an action, as in fracture, closure, exposure.",
+        "otherExamples": [
+          "fracture",
+          "closure",
+          "exposure",
+          "pressure"
+        ]
       }
     ],
     "familyMemory": [
@@ -15760,11 +15771,41 @@
     "wordFamily": [
       {
         "word": "Fracture",
-        "meaning": "a break"
+        "meaning": "a break",
+        "breakdown": [
+          {
+            "index": 1,
+            "label": "fract",
+            "type": "root",
+            "meaning": "break",
+            "source": "From Latin frangere/fractus = to break.",
+            "otherExamples": [
+              "fracture",
+              "fraction",
+              "fractious"
+            ]
+          },
+          {
+            "index": 2,
+            "label": "ure",
+            "type": "suffix",
+            "meaning": "act, process, result, or condition",
+            "source": "A noun-forming suffix used for the result/state of an action, as in fracture, closure, exposure.",
+            "otherExamples": [
+              "fracture",
+              "closure",
+              "exposure",
+              "pressure"
+            ]
+          }
+        ],
+        "exampleSentence": "Fracture means a break."
       },
       {
         "word": "Fragile",
-        "meaning": "easy to break; fragment or fraction - a part or element of a larger whole"
+        "meaning": "easy to break; fragment or fraction - a part or element of a larger whole",
+        "breakdown": [],
+        "exampleSentence": "Fragile means easy to break; fragment or fraction - a part or element of a larger whole."
       }
     ]
   },
