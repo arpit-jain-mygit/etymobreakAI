@@ -208,20 +208,18 @@
           </div>
         </section>
 
-        <section class="panel notes">
-          <div class="panel-head">
-            <p class="section-label">Notes</p>
-          </div>
-          @if (analysis.notes.length) {
+        @if (analysis.notes.length) {
+          <section class="panel notes">
+            <div class="panel-head">
+              <p class="section-label">Notes</p>
+            </div>
             <ul>
               @for (note of analysis.notes; track note) {
                 <li>{{ note }}</li>
-            }
-          </ul>
-          } @else {
-            <p class="empty-state">No notes for this entry.</p>
-          }
-        </section>
+              }
+            </ul>
+          </section>
+        }
       </div>
     </section>
   }

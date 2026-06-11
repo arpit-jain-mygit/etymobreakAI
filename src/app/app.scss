@@ -5,7 +5,7 @@
 
 .shell {
   min-height: 100dvh;
-  padding: 24px;
+  padding: 18px;
   background:
     radial-gradient(circle at top left, rgba(188, 220, 208, 0.42), transparent 28%),
     radial-gradient(circle at top right, rgba(214, 228, 255, 0.52), transparent 24%),
@@ -14,14 +14,14 @@
 
 .hero {
   display: grid;
-  gap: 20px;
+  gap: 14px;
   max-width: 1120px;
   margin: 0 auto;
 }
 
 .hero-copy {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   max-width: 760px;
 }
 
@@ -37,7 +37,7 @@
 h1 {
   margin: 0;
   font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-  font-size: clamp(2.6rem, 4vw, 4.6rem);
+  font-size: clamp(2rem, 3vw, 3.3rem);
   line-height: 1;
   color: #264653;
   font-weight: 600;
@@ -46,8 +46,8 @@ h1 {
 .lead {
   margin: 0;
   max-width: 64ch;
-  font-size: 1.05rem;
-  line-height: 1.7;
+  font-size: 0.98rem;
+  line-height: 1.55;
   color: #5c6b7c;
 }
 
@@ -72,10 +72,10 @@ h1 {
 }
 
 .search-panel {
-  border-radius: 20px;
-  padding: 18px;
+  border-radius: 18px;
+  padding: 14px;
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 
 .mode-row {
@@ -88,7 +88,7 @@ h1 {
   display: grid;
   gap: 3px;
   text-align: left;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid rgba(150, 171, 185, 0.2);
   background: rgba(246, 249, 245, 0.9);
@@ -108,11 +108,11 @@ h1 {
 .field {
   position: relative;
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .field span {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   color: #516172;
 }
 
@@ -121,8 +121,8 @@ h1 {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px 8px 16px;
-  border-radius: 16px;
+  padding: 7px 9px 7px 14px;
+  border-radius: 14px;
   border: 1px solid rgba(150, 171, 185, 0.22);
   background: rgba(255, 255, 255, 0.92);
 }
@@ -133,7 +133,7 @@ input {
   border: 0;
   background: transparent;
   color: #253241;
-  font-size: 1.08rem;
+  font-size: 1rem;
   outline: none;
 }
 
@@ -149,8 +149,8 @@ input::placeholder {
   z-index: 20;
   display: grid;
   gap: 6px;
-  padding: 10px;
-  border-radius: 16px;
+  padding: 8px;
+  border-radius: 14px;
   border: 1px solid rgba(158, 188, 179, 0.28);
   background:
     linear-gradient(180deg, rgba(250, 252, 248, 0.98), rgba(239, 246, 241, 0.98));
@@ -168,7 +168,7 @@ input::placeholder {
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: 11px 12px;
+  padding: 9px 10px;
   border: 1px solid transparent;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.68);
@@ -184,7 +184,7 @@ input::placeholder {
 }
 
 .autocomplete-item span {
-  font-size: 0.98rem;
+  font-size: 0.92rem;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -204,9 +204,9 @@ input::placeholder {
 }
 
 .icon-button {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   background: rgba(232, 238, 233, 0.95);
   color: #607081;
   display: grid;
@@ -226,7 +226,7 @@ input::placeholder {
 
 .actions {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .primary {
@@ -234,8 +234,8 @@ input::placeholder {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 18px;
-  border-radius: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #cfe7df, #dbe7ff);
   color: #25404c;
   font-weight: 700;
@@ -269,30 +269,30 @@ input::placeholder {
 }
 
 .notice {
-  margin-top: 18px;
-  border-radius: 16px;
-  padding: 14px 16px;
+  margin-top: 12px;
+  border-radius: 14px;
+  padding: 12px 14px;
   color: #8b6d47;
   background: rgba(250, 244, 232, 0.94);
 }
 
 .result {
   display: grid;
-  gap: 18px;
-  padding-top: 20px;
+  gap: 12px;
+  padding-top: 14px;
 }
 
 .result-header {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   align-items: flex-start;
 }
 
 .result h2 {
-  margin: 4px 0 8px;
+  margin: 2px 0 6px;
   font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-  font-size: clamp(1.9rem, 3vw, 3rem);
+  font-size: clamp(1.6rem, 2.5vw, 2.4rem);
   color: #28465a;
   font-weight: 600;
 }
@@ -300,21 +300,22 @@ input::placeholder {
 .summary {
   margin: 0;
   color: #5e6f80;
-  line-height: 1.6;
+  line-height: 1.45;
   max-width: 68ch;
+  font-size: 0.95rem;
 }
 
 .meta-line {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 14px;
-  margin: 10px 0 0;
+  gap: 6px 10px;
+  margin: 8px 0 0;
   color: #6a7f8e;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .meta-line span {
-  padding-right: 14px;
+  padding-right: 10px;
   border-right: 1px solid rgba(158, 177, 184, 0.18);
 }
 
@@ -324,7 +325,7 @@ input::placeholder {
 }
 
 .badge {
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 999px;
   background: rgba(217, 231, 226, 0.95);
   color: #4d6670;
@@ -336,7 +337,7 @@ input::placeholder {
 .meaning-grid,
 .columns {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .meaning-grid {
@@ -345,12 +346,12 @@ input::placeholder {
 
 .info-card,
 .panel {
-  border-radius: 18px;
-  padding: 18px;
+  border-radius: 16px;
+  padding: 14px;
 }
 
 .card-label {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: #7c8e97;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -359,21 +360,21 @@ input::placeholder {
 
 .card-value {
   margin: 0;
-  font-size: 1.05rem;
-  line-height: 1.65;
+  font-size: 0.96rem;
+  line-height: 1.5;
   color: #304454;
 }
 
 .card-value.formula {
   font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-  font-size: 1.18rem;
+  font-size: 1.02rem;
   color: #28465a;
 }
 
 .card-arrow {
-  margin: 8px 0 0;
-  font-size: 1rem;
-  line-height: 1.65;
+  margin: 6px 0 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
   color: #5b7481;
 }
 
@@ -383,31 +384,31 @@ input::placeholder {
 
 .panel {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .panel-head {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
   color: #708395;
 }
 
 .panel-head span {
-  font-size: 0.88rem;
+  font-size: 0.8rem;
 }
 
 .part-list,
 .word-list {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .part-item,
 .word-item {
-  padding: 14px;
-  border-radius: 14px;
+  padding: 12px;
+  border-radius: 12px;
   background: rgba(248, 250, 246, 0.9);
   border: 1px solid rgba(158, 177, 184, 0.18);
 }
@@ -415,20 +416,20 @@ input::placeholder {
 .part-top {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   align-items: baseline;
 }
 
 .part-top strong,
 .word-item strong {
   color: #244054;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .part-top span {
   color: #7f97a9;
   text-transform: uppercase;
-  font-size: 0.7rem;
+  font-size: 0.64rem;
   letter-spacing: 0.12em;
 }
 
@@ -436,32 +437,34 @@ input::placeholder {
 .part-item small,
 .word-item p,
 .notes li {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: #516576;
-  line-height: 1.55;
+  line-height: 1.45;
 }
 
 .word-item small {
   display: block;
   color: #7a8d9c;
+  font-size: 0.82rem;
 }
 
 .word-breakdown {
-  margin-top: 8px !important;
+  margin-top: 6px !important;
   font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   color: #446271 !important;
+  font-size: 0.9rem;
 }
 
 .group-list,
 .family-list {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .group-card,
 .family-item {
-  padding: 14px;
-  border-radius: 14px;
+  padding: 12px;
+  border-radius: 12px;
   background: rgba(248, 250, 246, 0.9);
   border: 1px solid rgba(158, 177, 184, 0.18);
 }
@@ -469,37 +472,36 @@ input::placeholder {
 .group-head {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   align-items: baseline;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .group-head strong,
 .shortcut-card strong,
-.memory-card strong,
 .family-item strong,
 .table-row strong {
   color: #244054;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .group-head small {
   color: #7a8d9c;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
 }
 
 .group-table {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .group-row,
 .table-row {
   display: grid;
-  gap: 4px;
-  padding: 12px 0;
+  gap: 3px;
+  padding: 8px 0;
   border-top: 1px solid rgba(158, 177, 184, 0.14);
 }
 
@@ -512,45 +514,49 @@ input::placeholder {
 .group-row span {
   color: #244054;
   font-weight: 600;
+  font-size: 0.92rem;
 }
 
 .group-row p,
 .family-item p {
   margin: 0;
   color: #516576;
-  line-height: 1.55;
+  line-height: 1.45;
+  font-size: 0.9rem;
 }
 
 .family-item {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .example-label {
   display: inline-block;
-  margin-top: 10px;
+  margin-top: 8px;
   color: #8aa096;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
 }
 
 .word-item em {
   display: block;
-  margin-top: 6px;
+  margin-top: 4px;
   color: #3e5565;
   font-style: normal;
-  line-height: 1.6;
+  line-height: 1.45;
+  font-size: 0.88rem;
 }
 
 .notes ul {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 16px;
 }
 
 .empty-state {
   margin: 0;
   color: #7a8d9c;
+  font-size: 0.88rem;
 }
 
 @keyframes spin {
@@ -568,7 +574,7 @@ input::placeholder {
 
 @media (max-width: 640px) {
   .shell {
-    padding: 16px;
+    padding: 12px;
   }
 
   .result-header {
@@ -586,5 +592,28 @@ input::placeholder {
 
   .autocomplete-panel {
     max-height: 240px;
+  }
+
+  .hero {
+    gap: 12px;
+  }
+
+  h1 {
+    font-size: 1.9rem;
+  }
+
+  .lead {
+    font-size: 0.92rem;
+  }
+
+  .search-panel,
+  .panel,
+  .info-card {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .result {
+    gap: 10px;
   }
 }
