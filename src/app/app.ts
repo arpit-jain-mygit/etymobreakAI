@@ -116,7 +116,7 @@ export class App implements OnInit {
       return [];
     }
 
-    const filtered = unique.filter((item) => item.includes(current));
+    const filtered = unique.filter((item) => item.startsWith(current));
     return filtered.slice(0, 8);
   });
   protected readonly showAutocomplete = computed(
