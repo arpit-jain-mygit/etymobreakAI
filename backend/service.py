@@ -77,37 +77,63 @@ def _extract_json_block(text: str) -> str:
 
 
 def _normalize_output(data: dict[str, Any], query: str, mode: str) -> dict[str, Any]:
+    breakdown = data.get("breakdown", data.get("parts", []))
+    other_words = data.get("otherWords", [])
     related_words = data.get("relatedWords", [])
+    memory_hacks = data.get("memoryHacks", [])
+    quick_recall = data.get("quickRecallTable", [])
+    family_memory = data.get("familyMemory", [])
+    final_shortcut = data.get("finalShortcut", {})
     return {
         "query": data.get("query", query),
         "mode": normalize_mode(data.get("mode", mode)),
         "title": data.get("title", query.upper()),
         "summary": data.get("summary", ""),
+        "literalMeaningFormula": data.get("literalMeaningFormula", ""),
+        "literalMeaningArrow": data.get("literalMeaningArrow", ""),
         "literalMeaning": data.get("literalMeaning", ""),
         "actualMeaning": data.get("actualMeaning", ""),
-        "parts": data.get("parts", []),
+        "breakdown": breakdown if isinstance(breakdown, list) else [],
+        "otherWords": other_words if isinstance(other_words, list) else [],
         "relatedWords": related_words[:10] if isinstance(related_words, list) else [],
+        "memoryHacks": memory_hacks if isinstance(memory_hacks, list) else [],
+        "quickRecallTable": quick_recall if isinstance(quick_recall, list) else [],
+        "finalShortcut": final_shortcut if isinstance(final_shortcut, dict) else {},
+        "familyMemory": family_memory if isinstance(family_memory, list) else [],
         "notes": data.get("notes", []),
+        "conclusion": data.get("conclusion", ""),
     }
 
 
-def _extract_match_terms(query: str, parts: list[Any]) -> list[str]:
+def _extract_match_terms(query: str, breakdown: list[Any], other_words: list[Any]) -> list[str]:
     terms = [query.strip().lower()]
-    for part in parts:
+    for part in breakdown:
         if not isinstance(part, dict):
             continue
         label = str(part.get("label", "")).strip().lower()
         cleaned = re.sub(r"^[^a-z0-9]+|[^a-z0-9]+$", "", label)
         if len(cleaned) >= 3:
             terms.append(cleaned)
+    for group in other_words:
+        if not isinstance(group, dict):
+            continue
+        focus = str(group.get("focus", "")).strip().lower()
+        cleaned = re.sub(r"^[^a-z0-9]+|[^a-z0-9]+$", "", focus)
+        if len(cleaned) >= 3:
+            terms.append(cleaned)
     return list(dict.fromkeys(term for term in terms if term))
 
 
-def _filter_related_words(related_words: Any, query: str, parts: list[Any]) -> list[dict[str, Any]]:
+def _filter_related_words(
+    related_words: Any,
+    query: str,
+    breakdown: list[Any],
+    other_words: list[Any],
+) -> list[dict[str, Any]]:
     if not isinstance(related_words, list):
         return []
 
-    match_terms = _extract_match_terms(query, parts)
+    match_terms = _extract_match_terms(query, breakdown, other_words)
     filtered: list[dict[str, Any]] = []
     for item in related_words:
         if not isinstance(item, dict):
@@ -140,15 +166,22 @@ def _mistral_analysis(query: str, mode: str) -> dict[str, Any]:
         raise AnalysisError(503, "Missing Mistral API key", "Set MISTRAL_API_KEY in Render")
 
     model_name = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
-    prompt = f"""JSON only. Keys: query, mode, title, summary, literalMeaning, actualMeaning, parts, relatedWords, notes.
+    prompt = f"""JSON only. Keys: query, mode, title, summary, breakdown, literalMeaningFormula, literalMeaningArrow, literalMeaning, actualMeaning, otherWords, relatedWords, memoryHacks, quickRecallTable, finalShortcut, familyMemory, conclusion, notes.
 Query: {query}
 Infer mode from the query and keep text short.
-parts: [{{
-  label, type, meaning, optional source
-}}]
-relatedWords: up to 10 word-family items tied to the query root/prefix/suffix or extracted parts. No synonyms.
-Each relatedWords item must include: word, meaning, explanation, exampleSentence.
-Keep each related word item very short: meaning 2-4 words, explanation one short clause, exampleSentence one short sentence.
+breakdown: up to 4 items. Each item must include: index, label, type, meaning, source.
+literalMeaningFormula: a short formula line like "cardio + logy".
+literalMeaningArrow: a short arrow line like "➡️ study of the heart".
+literalMeaning: a one-line label or heading for the literal meaning block.
+actualMeaning: one short paragraph.
+otherWords: up to 2 groups. Each group must include: title, focus, words. Each words item must include: word, meaning.
+relatedWords: up to 5 word-family items tied to the query root/prefix/suffix or extracted parts. No synonyms.
+Each relatedWords item must include: word, breakdown, meaning, exampleSentence.
+memoryHacks: up to 2 groups. Each group must include: title, lines. Make the lines short, friendly memory tips.
+quickRecallTable: 2 to 4 rows with part and meaning.
+finalShortcut: object with title and text.
+familyMemory: 3 to 6 short rows with term and meaning.
+conclusion: one short closing line that starts with the final answer, like "➡️ ..."
 notes: up to 2 short strings.
 No markdown. Never answer about a different query.
 """
@@ -197,8 +230,13 @@ No markdown. Never answer about a different query.
         raise AnalysisError(502, "Mistral returned invalid JSON", text[:400]) from exc
 
     output = _normalize_output(parsed, query, mode)
-    output["relatedWords"] = _filter_related_words(output["relatedWords"], query, output["parts"])
-    if not output["summary"] or not output["parts"]:
+    output["relatedWords"] = _filter_related_words(
+        output["relatedWords"],
+        query,
+        output["breakdown"],
+        output["otherWords"],
+    )
+    if not output["summary"] or not output["breakdown"]:
         raise AnalysisError(502, "Mistral response missing required fields", text[:400])
     return output
 

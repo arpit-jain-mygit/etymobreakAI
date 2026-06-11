@@ -76,16 +76,19 @@
           <h2>{{ analysis.title }}</h2>
           <p class="summary">{{ analysis.summary }}</p>
         </div>
-        <div class="badge">{{ analysis.mode }}</div>
+        <div class="badge">Study Guide</div>
       </div>
 
       <div class="meaning-grid">
         <article class="info-card">
-          <p class="card-label">Literal meaning</p>
-          <p class="card-value">{{ analysis.literalMeaning }}</p>
+          <p class="card-label">Literal Meaning</p>
+          <p class="card-value formula">{{ analysis.literalMeaningFormula || analysis.literalMeaning }}</p>
+          @if (analysis.literalMeaningArrow) {
+            <p class="card-arrow">{{ analysis.literalMeaningArrow }}</p>
+          }
         </article>
         <article class="info-card">
-          <p class="card-label">Actual meaning</p>
+          <p class="card-label">Actual Meaning</p>
           <p class="card-value">{{ analysis.actualMeaning }}</p>
         </article>
       </div>
@@ -94,14 +97,19 @@
         <section class="panel">
           <div class="panel-head">
             <p class="section-label">Breakdown</p>
-            <span>{{ analysis.parts.length }} parts</span>
+            <span>{{ analysis.breakdown.length }} parts</span>
           </div>
 
           <div class="part-list">
-            @for (part of analysis.parts; track part.label) {
+            @for (part of analysis.breakdown; track part.label) {
               <article class="part-item">
                 <div class="part-top">
-                  <strong>{{ part.label }}</strong>
+                  <strong>
+                    @if (part.index) {
+                      {{ part.index }}.
+                    }
+                    {{ part.label }}
+                  </strong>
                   <span>{{ part.type }}</span>
                 </div>
                 <p>{{ part.meaning }}</p>
@@ -115,14 +123,45 @@
 
         <section class="panel">
           <div class="panel-head">
-            <p class="section-label">Word family</p>
-            <span>{{ analysis.relatedWords.length }} words</span>
+            <p class="section-label">Other Words</p>
+            <span>{{ analysis.otherWords.length }} groups</span>
+          </div>
+
+          <div class="group-list">
+            @for (group of analysis.otherWords; track group.title) {
+              <article class="group-card">
+                <div class="group-head">
+                  <strong>{{ group.title }}</strong>
+                  <small>{{ group.focus }}</small>
+                </div>
+                <div class="group-table">
+                  @for (word of group.words; track word.word) {
+                    <div class="group-row">
+                      <span>{{ word.word }}</span>
+                      <p>{{ word.meaning }}</p>
+                    </div>
+                  }
+                </div>
+              </article>
+            }
+          </div>
+        </section>
+      </div>
+
+      <div class="columns">
+        <section class="panel">
+          <div class="panel-head">
+            <p class="section-label">Related Words</p>
+            <span>{{ analysis.relatedWords.length }} entries</span>
           </div>
 
           <div class="word-list">
             @for (word of analysis.relatedWords; track word.word) {
               <article class="word-item">
                 <strong>{{ word.word }}</strong>
+                @if (word.breakdown) {
+                  <p class="word-breakdown">{{ word.breakdown }}</p>
+                }
                 <p>{{ word.meaning }}</p>
                 @if (word.explanation) {
                   <small>{{ word.explanation }}</small>
@@ -135,18 +174,86 @@
             }
           </div>
         </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <p class="section-label">UPSC Memory Hacks</p>
+            <span>{{ analysis.memoryHacks.length }} blocks</span>
+          </div>
+
+          <div class="memory-list">
+            @for (memory of analysis.memoryHacks; track memory.title) {
+              <article class="memory-card">
+                <strong>{{ memory.title }}</strong>
+                <ul>
+                  @for (line of memory.lines; track line) {
+                    <li>{{ line }}</li>
+                  }
+                </ul>
+              </article>
+            }
+          </div>
+        </section>
       </div>
 
-      <section class="panel notes">
-        <div class="panel-head">
-          <p class="section-label">Notes</p>
-        </div>
-        <ul>
-          @for (note of analysis.notes; track note) {
-            <li>{{ note }}</li>
+      <div class="columns">
+        <section class="panel">
+          <div class="panel-head">
+            <p class="section-label">Quick Recall Table</p>
+          </div>
+
+          <div class="table-list">
+            @for (row of analysis.quickRecallTable; track row.part) {
+              <div class="table-row">
+                <strong>{{ row.part }}</strong>
+                <p>{{ row.meaning }}</p>
+              </div>
+            }
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <p class="section-label">Final Shortcut</p>
+          </div>
+
+          <article class="shortcut-card">
+            <strong>{{ analysis.finalShortcut?.title }}</strong>
+            <p>{{ analysis.finalShortcut?.text }}</p>
+          </article>
+        </section>
+      </div>
+
+      <div class="columns">
+        <section class="panel">
+          <div class="panel-head">
+            <p class="section-label">Family Memory</p>
+          </div>
+
+          <div class="family-list">
+            @for (item of analysis.familyMemory; track item.term) {
+              <article class="family-item">
+                <strong>{{ item.term }}</strong>
+                <p>{{ item.meaning }}</p>
+              </article>
+            }
+          </div>
+        </section>
+
+        <section class="panel notes">
+          <div class="panel-head">
+            <p class="section-label">Conclusion</p>
+          </div>
+          <p class="conclusion">{{ analysis.conclusion }}</p>
+          @if (analysis.notes.length) {
+            <ul>
+              @for (note of analysis.notes; track note) {
+                <li>{{ note }}</li>
+              }
+            </ul>
           }
-        </ul>
-      </section>
+        </section>
+      </div>
     </section>
   }
 </main>

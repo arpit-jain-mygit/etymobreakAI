@@ -4,17 +4,43 @@ import { FormsModule } from '@angular/forms';
 import { getApiBaseUrl } from './api-base';
 
 interface AnalysisPart {
+  index?: number;
   label: string;
   type: string;
   meaning: string;
   source?: string;
 }
 
+interface WordFamilyGroup {
+  title: string;
+  focus: string;
+  words: Array<{
+    word: string;
+    meaning: string;
+  }>;
+}
+
 interface RelatedWord {
   word: string;
+  breakdown?: string;
   meaning: string;
   explanation?: string;
   exampleSentence?: string;
+}
+
+interface MemoryHackGroup {
+  title: string;
+  lines: string[];
+}
+
+interface RecallRow {
+  part: string;
+  meaning: string;
+}
+
+interface FinalShortcut {
+  title: string;
+  text: string;
 }
 
 interface AnalysisResult {
@@ -22,11 +48,22 @@ interface AnalysisResult {
   mode: string;
   title: string;
   summary: string;
+  literalMeaningFormula: string;
+  literalMeaningArrow: string;
   literalMeaning: string;
   actualMeaning: string;
-  parts: AnalysisPart[];
+  breakdown: AnalysisPart[];
+  otherWords: WordFamilyGroup[];
   relatedWords: RelatedWord[];
+  memoryHacks: MemoryHackGroup[];
+  quickRecallTable: RecallRow[];
+  finalShortcut: FinalShortcut;
+  familyMemory: Array<{
+    term: string;
+    meaning: string;
+  }>;
   notes: string[];
+  conclusion: string;
 }
 
 @Component({
