@@ -149,37 +149,29 @@
             </div>
           </section>
         </div>
+      </div>
 
-        <div class="column-stack">
-          <section class="panel family-panel">
-            <div class="panel-head">
-              <p class="section-label">Family Words</p>
+      <div class="family-grid">
+        @for (section of familyCards(); track section.label) {
+          <section class="family-card family-card-{{ section.tone }}">
+            <div class="panel-head family-section-head">
+              <p class="section-label">{{ section.title }}</p>
+              <span>{{ section.items.length }} words</span>
             </div>
 
-            <div class="family-grid">
-              @for (section of familyCards(); track section.label) {
-                <section class="family-card family-card-{{ section.tone }}">
-                  <div class="panel-head family-section-head">
-                    <p class="section-label">{{ section.title }}</p>
-                    <span>{{ section.items.length }} words</span>
-                  </div>
-
-                  <div class="family-list">
-                    @for (item of section.items; track item.term) {
-                      <article class="family-item">
-                        <strong>{{ item.term }}</strong>
-                        <p>{{ item.meaning }}</p>
-                        @if (item.exampleSentence) {
-                          <em>{{ item.exampleSentence }}</em>
-                        }
-                      </article>
-                    }
-                  </div>
-                </section>
+            <div class="family-list">
+              @for (item of section.items; track item.term) {
+                <article class="family-item">
+                  <strong>{{ item.term }}</strong>
+                  <p>{{ item.meaning }}</p>
+                  @if (item.exampleSentence) {
+                    <em>{{ item.exampleSentence }}</em>
+                  }
+                </article>
               }
             </div>
           </section>
-        </div>
+        }
       </div>
     </section>
   }
