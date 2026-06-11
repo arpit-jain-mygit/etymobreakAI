@@ -60,6 +60,7 @@ interface AnalysisResult {
   familyMemory: Array<{
     term: string;
     meaning: string;
+    exampleSentence?: string;
   }>;
   notes: string[];
 }
@@ -321,6 +322,7 @@ export class App implements OnInit {
       return {
         term,
         meaning,
+        exampleSentence: text(entry.exampleSentence),
       };
     });
 

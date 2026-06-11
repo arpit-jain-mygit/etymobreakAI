@@ -178,6 +178,7 @@ def _coerce_family_memory(value: Any) -> list[dict[str, Any]]:
             {
                 "term": term,
                 "meaning": _text(item.get("meaning", "")),
+                "exampleSentence": _text(item.get("exampleSentence", "")),
             }
         )
     return rows

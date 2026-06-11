@@ -161,6 +161,9 @@
                 <article class="family-item">
                   <strong>{{ item.term }}</strong>
                   <p>{{ item.meaning }}</p>
+                  @if (item.exampleSentence) {
+                    <em>{{ item.exampleSentence }}</em>
+                  }
                 </article>
               }
             </div>
