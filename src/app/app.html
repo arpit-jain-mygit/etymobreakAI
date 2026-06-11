@@ -157,7 +157,7 @@
             </div>
 
             <div class="family-list">
-              @for (item of analysis.familyMemory; track item.term) {
+              @for (item of sortedFamilyMemory(); track item.term) {
                 <article class="family-item">
                   <strong>{{ item.term }}</strong>
                   <p>{{ item.meaning }}</p>

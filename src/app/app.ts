@@ -127,6 +127,44 @@ export class App implements OnInit {
       this.query().trim().length > 0 &&
       this.autocompleteOptions().length > 0
   );
+  protected readonly sortedFamilyMemory = computed(() => {
+    const analysis = this.result();
+    if (!analysis) {
+      return [];
+    }
+
+    const root = analysis.rootFamily.root.trim().toLowerCase();
+    const score = (term: string): number => {
+      const cleaned = term.trim().toLowerCase();
+      if (!cleaned) {
+        return Number.MAX_SAFE_INTEGER;
+      }
+
+      if (root && cleaned === root) {
+        return 0;
+      }
+
+      if (root && cleaned.startsWith(root)) {
+        return 1;
+      }
+
+      return 2;
+    };
+
+    return [...analysis.familyMemory].sort((a, b) => {
+      const rankDiff = score(a.term) - score(b.term);
+      if (rankDiff !== 0) {
+        return rankDiff;
+      }
+
+      const lengthDiff = a.term.length - b.term.length;
+      if (lengthDiff !== 0) {
+        return lengthDiff;
+      }
+
+      return a.term.localeCompare(b.term);
+    });
+  });
 
   public ngOnInit(): void {
     this.inventoryLoadPromise = this.loadRootAutocomplete();
