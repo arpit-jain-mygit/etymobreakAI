@@ -731,10 +731,10 @@
 
           <div class="quiz-summary-list">
             @for (question of quizSummaryItems(); track question.id; let index = $index) {
-              <article class="info-card quiz-summary-item" [class.correct]="question.status === 'correct'" [class.wrong]="question.status === 'wrong'">
+              <article class="info-card quiz-summary-item" [class.correct]="question.status === 'correct'" [class.wrong]="question.status === 'wrong'" [class.skipped]="question.status === 'skipped'">
                 <div class="quiz-summary-top">
                   <strong>{{ index + 1 }}. {{ question.sourceTitle }}</strong>
-                  <span>{{ question.status === 'correct' ? 'Correct' : 'Wrong' }}</span>
+                  <span>{{ question.status === 'correct' ? 'Correct' : question.status === 'skipped' ? 'Skipped' : 'Wrong' }}</span>
                 </div>
                 <p class="quiz-prompt">{{ question.prompt }}</p>
                 <div class="quiz-summary-grid">

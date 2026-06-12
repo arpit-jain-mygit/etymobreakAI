@@ -98,6 +98,7 @@ interface QuizAttemptQuestion {
   selectedText: string;
   correctIndex: number;
   correctText: string;
+  skipped: boolean;
   submitted: boolean;
   isCorrect: boolean | null;
 }
@@ -117,6 +118,7 @@ interface QuizQuestion {
   options: string[];
   correctIndex: number;
   selectedIndex: number | null;
+  skipped: boolean;
   submitted: boolean;
   isCorrect: boolean | null;
   sourceTitle: string;
@@ -155,7 +157,7 @@ interface QuizSummaryQuestion extends QuizQuestion {
   userAnswer: string;
   userAnswerLabel: string;
   correctAnswerLabel: string;
-  status: 'correct' | 'wrong';
+  status: 'correct' | 'wrong' | 'skipped';
 }
 
 interface RootFamily {
@@ -384,14 +386,15 @@ export class App implements OnInit, AfterViewInit {
       const selectedIndex = question.selectedIndex;
       const selectedText = selectedIndex === null ? '' : question.options[selectedIndex] ?? '';
       const correctText = question.options[question.correctIndex] ?? '';
-      const userAnswerLabel = selectedText || 'Unanswered';
-      const isCorrect = selectedIndex !== null && selectedIndex === question.correctIndex;
+      const isSkipped = question.skipped || selectedIndex === null;
+      const userAnswerLabel = isSkipped ? 'Skipped' : selectedText || 'Unanswered';
+      const isCorrect = !isSkipped && selectedIndex === question.correctIndex;
       return {
         ...question,
         userAnswer: selectedText,
         userAnswerLabel,
         correctAnswerLabel: correctText,
-        status: isCorrect ? 'correct' : 'wrong',
+        status: isCorrect ? 'correct' : isSkipped ? 'skipped' : 'wrong',
       };
     })
   );
@@ -696,6 +699,18 @@ export class App implements OnInit, AfterViewInit {
     }
 
     this.quizNotice.set('Question skipped. Come back to it anytime before finishing.');
+    const questions = this.quizQuestions();
+    const currentIndex = this.quizIndex();
+    const question = questions[currentIndex];
+    if (question) {
+      const updated = [...questions];
+      updated[currentIndex] = {
+        ...question,
+        selectedIndex: null,
+        skipped: true,
+      };
+      this.quizQuestions.set(updated);
+    }
     this.quizIndex.set(Math.min(total - 1, this.quizIndex() + 1));
   }
 
@@ -715,6 +730,7 @@ export class App implements OnInit, AfterViewInit {
     updated[currentIndex] = {
       ...question,
       selectedIndex: index,
+      skipped: false,
     };
     this.quizQuestions.set(updated);
     this.quizNotice.set('');
@@ -741,9 +757,11 @@ export class App implements OnInit, AfterViewInit {
     }
 
     const finalizedQuestions = this.quizQuestions().map((question) => {
-      const isCorrect = question.selectedIndex !== null && question.selectedIndex === question.correctIndex;
+      const skipped = question.skipped || question.selectedIndex === null;
+      const isCorrect = !skipped && question.selectedIndex === question.correctIndex;
       return {
         ...question,
+        skipped,
         submitted: true,
         isCorrect,
       };
@@ -767,6 +785,7 @@ export class App implements OnInit, AfterViewInit {
       selectedText: question.selectedIndex === null ? '' : question.options[question.selectedIndex] ?? '',
       correctIndex: question.correctIndex,
       correctText: question.options[question.correctIndex] ?? '',
+      skipped: question.skipped,
       submitted: question.submitted,
       isCorrect: question.isCorrect,
     }));
@@ -1328,6 +1347,7 @@ export class App implements OnInit, AfterViewInit {
       options: options.map((option) => option.text),
       correctIndex,
       selectedIndex: null,
+      skipped: false,
       submitted: false,
       isCorrect: null,
       sourceTitle: sourceTitle || 'Quiz item',

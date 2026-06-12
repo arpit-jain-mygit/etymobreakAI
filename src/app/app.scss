@@ -791,6 +791,10 @@ input::placeholder {
   background: rgba(252, 236, 236, 0.96);
 }
 
+.quiz-summary-item.skipped {
+  background: rgba(242, 247, 250, 0.96);
+}
+
 .quiz-summary-top,
 .quiz-summary-grid {
   display: flex;
