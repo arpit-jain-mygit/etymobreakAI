@@ -296,7 +296,7 @@ export class App implements OnInit, AfterViewInit {
       case 'mixed':
         return 'Mixed quiz';
       case 'confident':
-        return 'Confident words quiz';
+        return 'Revision quiz';
       default:
         return 'Words quiz';
     }
@@ -784,7 +784,7 @@ export class App implements OnInit, AfterViewInit {
       this.quizFlowStage.set('setup');
       this.quizNotice.set(
         this.quizType() === 'confident'
-          ? 'Mark a few words as Confident first, then build a quiz from them.'
+          ? 'Mark a few words as Confident first, then build a revision quiz from them.'
           : 'That quiz bank could not be loaded yet. Please try again in a moment.'
       );
       this.quizPreparing.set(false);
