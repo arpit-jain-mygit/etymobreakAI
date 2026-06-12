@@ -1477,63 +1477,63 @@ export class App implements OnInit, AfterViewInit {
       }
 
       const payload = (await response.json().catch(() => null)) as { items?: Partial<QuizHistoryEntry>[] } | null;
-      const history: QuizHistoryEntry[] = (payload?.items ?? [])
-        .map((item) => {
-          if (!item || typeof item !== 'object') {
-            return null;
-          }
+      const history: QuizHistoryEntry[] = [];
+      for (const item of payload?.items ?? []) {
+        if (!item || typeof item !== 'object') {
+          continue;
+        }
 
-          const entry = item as Partial<QuizHistoryEntry>;
-          const time = String(entry.time || '').trim();
-          const playerName = String(entry.playerName || '').trim();
-          const playerEmail = String(entry.playerEmail || '').trim();
-          const country = String(entry.country || '').trim();
-          const quizScope = String(entry.quizScope || '').trim();
-          const marks = Number(entry.marks || 0);
-          const percentage = Number(entry.percentage || 0);
-          const total = Number(entry.total || 0);
-          const correct = Number(entry.correct || 0);
-          const wrong = Number(entry.wrong || 0);
-          const quizType = String(entry.quizType || '').trim();
-          const difficulty = Number(entry.difficulty || 0);
-          const questionCount = Number(entry.questionCount || 0);
-          const timeLimitMinutes = Number(entry.timeLimitMinutes || 0);
-          const timeSpentSeconds = Number(entry.timeSpentSeconds || 0);
-          const questions = Array.isArray((entry as { questions?: unknown }).questions)
-            ? (((entry as { questions?: QuizAttemptQuestion[] }).questions ?? []).map((question) => ({
-                ...question,
-                options: Array.isArray(question?.options) ? question.options : [],
-              })) as QuizAttemptQuestion[])
-            : [];
+        const entry = item as Partial<QuizHistoryEntry>;
+        const time = String(entry.time || '').trim();
+        const playerName = String(entry.playerName || '').trim();
+        const playerEmail = String(entry.playerEmail || '').trim();
+        const country = String(entry.country || '').trim();
+        const quizScope = String(entry.quizScope || '').trim();
+        const marks = Number(entry.marks || 0);
+        const percentage = Number(entry.percentage || 0);
+        const total = Number(entry.total || 0);
+        const correct = Number(entry.correct || 0);
+        const wrong = Number(entry.wrong || 0);
+        const quizType = String(entry.quizType || '').trim();
+        const difficulty = Number(entry.difficulty || 0);
+        const questionCount = Number(entry.questionCount || 0);
+        const timeLimitMinutes = Number(entry.timeLimitMinutes || 0);
+        const timeSpentSeconds = Number(entry.timeSpentSeconds || 0);
+        const questions = Array.isArray((entry as { questions?: unknown }).questions)
+          ? (((entry as { questions?: QuizAttemptQuestion[] }).questions ?? []).map((question) => ({
+              ...question,
+              options: Array.isArray(question?.options) ? question.options : [],
+            })) as QuizAttemptQuestion[])
+          : [];
 
-          if (!time || !playerName || !playerEmail) {
-            return null;
-          }
+        if (!time || !playerName || !playerEmail) {
+          continue;
+        }
 
-          return {
-            id: String(entry.id || `${time}-${playerEmail}`).trim(),
-            time,
-            playerName,
-            playerEmail,
-            country,
-            quizScope,
-            correct,
-            wrong,
-            marks,
-            percentage,
-            total,
-            quizType,
-            difficulty,
-            questionCount,
-            timeLimitMinutes,
-            timeSpentSeconds,
-            questions,
-            bucketObjectName: String((entry as { bucketObjectName?: string }).bucketObjectName || '').trim(),
-            bucketUri: String((entry as { bucketUri?: string }).bucketUri || '').trim(),
-          };
-        })
-        .filter((entry): entry is QuizHistoryEntry => entry !== null)
-        .sort((a, b) => b.time.localeCompare(a.time));
+        history.push({
+          id: String(entry.id || `${time}-${playerEmail}`).trim(),
+          time,
+          playerName,
+          playerEmail,
+          country,
+          quizScope,
+          correct,
+          wrong,
+          marks,
+          percentage,
+          total,
+          quizType,
+          difficulty,
+          questionCount,
+          timeLimitMinutes,
+          timeSpentSeconds,
+          questions,
+          bucketObjectName: String((entry as { bucketObjectName?: string }).bucketObjectName || '').trim(),
+          bucketUri: String((entry as { bucketUri?: string }).bucketUri || '').trim(),
+        });
+      }
+
+      history.sort((a, b) => b.time.localeCompare(a.time));
 
       this.quizHistory.set(history);
       if (history.length && !history.some((item) => item.id === this.selectedQuizHistoryId())) {
