@@ -351,7 +351,23 @@
         <section class="result">
         <div class="result-header">
           <h2>{{ analysis.title }}</h2>
+          <button
+            type="button"
+            class="tab-chip"
+            [class.active]="isAnalysisConfident(analysis)"
+            [disabled]="confidentWordsSaving()"
+            (click)="toggleConfidentForAnalysis(analysis)"
+          >
+            {{ isAnalysisConfident(analysis) ? 'Confident' : 'Mark Confident' }}
+          </button>
         </div>
+
+        @if (confidentWordNotice()) {
+          <section class="notice calm-notice">{{ confidentWordNotice() }}</section>
+        }
+        @if (confidentWordsError()) {
+          <section class="notice">{{ confidentWordsError() }}</section>
+        }
 
         <div class="meaning-grid">
           <article class="info-card literal-card">
@@ -474,7 +490,23 @@
             <div class="experiment-slide">
               <div class="result-header" style="text-align:center;">
                 <h2>{{ analysis.title }}</h2>
+                <button
+                  type="button"
+                  class="tab-chip"
+                  [class.active]="isAnalysisConfident(analysis)"
+                  [disabled]="confidentWordsSaving()"
+                  (click)="toggleConfidentForAnalysis(analysis)"
+                >
+                  {{ isAnalysisConfident(analysis) ? 'Confident' : 'Mark Confident' }}
+                </button>
               </div>
+
+              @if (confidentWordNotice()) {
+                <section class="notice calm-notice">{{ confidentWordNotice() }}</section>
+              }
+              @if (confidentWordsError()) {
+                <section class="notice">{{ confidentWordsError() }}</section>
+              }
 
           <div class="meaning-grid">
             <article class="info-card literal-card">
@@ -625,6 +657,18 @@
               <strong>Mixed quiz</strong>
               <p>A blended quiz with words and word parts together.</p>
               <em>Level 1 to Level 5</em>
+            </button>
+
+            <button
+              type="button"
+              class="quiz-setup-card"
+              [class.active]="quizType() === 'confident'"
+              (click)="selectQuizType('confident')"
+            >
+              <span class="section-label">Type 4</span>
+              <strong>Confident words quiz</strong>
+              <p>Build a quiz from the words you marked as Confident.</p>
+              <em>{{ confidentWords().length }} saved words</em>
             </button>
           </div>
 

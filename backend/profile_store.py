@@ -460,3 +460,211 @@ def list_quiz_history_by_google_identity(google_sub: str | None, email: str | No
 
     history.sort(key=lambda item: item.get("time", ""), reverse=True)
     return history
+
+
+def _confident_word_object_name(google_sub: str, query: str, mode: str) -> str:
+    profile_folder = _sanitize_path_segment(google_sub)
+    query_segment = _sanitize_path_segment(query)
+    mode_segment = _sanitize_path_segment(mode or "word")
+    return f"users/{profile_folder}/confident-words/{query_segment}--{mode_segment}.json"
+
+
+def _profile_identity(profile_data: dict[str, Any]) -> tuple[str, str, str, str]:
+    google = profile_data.get("google", {})
+    google_data = google if isinstance(google, dict) else {}
+    google_sub = str(google_data.get("sub", "")).strip()
+    email = str(google_data.get("email", "")).strip()
+    first_name = str(profile_data.get("firstName", "")).strip()
+    last_name = str(profile_data.get("lastName", "")).strip()
+    country = str(profile_data.get("country", "")).strip()
+    return google_sub, email, first_name, last_name, country
+
+
+def _confident_analysis_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    analysis = payload.get("analysis", {})
+    if isinstance(analysis, dict):
+        return analysis
+    return {}
+
+
+def _write_confident_word_to_bucket(
+    *,
+    confident_id: str,
+    profile_id: str,
+    google_sub: str,
+    profile_data: dict[str, Any],
+    payload: dict[str, Any],
+    created_at: str,
+) -> tuple[str, str]:
+    client, bucket_name = _bucket_client()
+    bucket = client.bucket(bucket_name)
+    analysis = _confident_analysis_payload(payload)
+    query = str(payload.get("query", "")).strip() or str(analysis.get("query", "")).strip()
+    mode = str(payload.get("mode", "")).strip() or str(analysis.get("mode", "")).strip() or "word"
+    object_name = _confident_word_object_name(google_sub, query, mode)
+
+    bucket_payload = {
+        "id": confident_id,
+        "profileId": profile_id,
+        "googleSub": google_sub,
+        "createdAt": created_at,
+        "updatedAt": created_at,
+        "query": query,
+        "mode": mode,
+        "player": {
+            "firstName": str(profile_data.get("firstName", "")).strip(),
+            "lastName": str(profile_data.get("lastName", "")).strip(),
+            "country": str(profile_data.get("country", "")).strip(),
+            "email": str(profile_data.get("google", {}).get("email", "")).strip()
+            if isinstance(profile_data.get("google", {}), dict)
+            else "",
+        },
+        "analysis": analysis,
+        "metadata": {
+            "title": str(analysis.get("title", "")).strip(),
+            "summary": str(analysis.get("summary", "")).strip(),
+            "breakdownCount": len(analysis.get("breakdown", [])) if isinstance(analysis.get("breakdown", []), list) else 0,
+            "familyCount": len(analysis.get("familyMemory", [])) if isinstance(analysis.get("familyMemory", []), list) else 0,
+        },
+    }
+
+    blob = bucket.blob(object_name)
+    blob.upload_from_string(
+        json.dumps(bucket_payload, ensure_ascii=False, indent=2),
+        content_type="application/json",
+    )
+    return object_name, f"gs://{bucket_name}/{object_name}"
+
+
+def _delete_confident_word_from_bucket(google_sub: str, query: str, mode: str) -> None:
+    client, bucket_name = _bucket_client()
+    bucket = client.bucket(bucket_name)
+    object_name = _confident_word_object_name(google_sub, query, mode)
+    blob = bucket.blob(object_name)
+    try:
+        blob.delete()
+    except Exception:
+        return
+
+
+def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
+    profile_data = payload.get("profile", {})
+    profile = profile_data if isinstance(profile_data, dict) else {}
+    google_sub, email, first_name, last_name, country = _profile_identity(profile)
+
+    if not google_sub or not email:
+        raise ProfileStoreError("Google identity is required.")
+    if not first_name or not last_name or not country:
+        raise ProfileStoreError("Profile details are required.")
+
+    query = str(payload.get("query", "")).strip() or str(_confident_analysis_payload(payload).get("query", "")).strip()
+    mode = str(payload.get("mode", "")).strip() or str(_confident_analysis_payload(payload).get("mode", "")).strip() or "word"
+    if not query:
+        raise ProfileStoreError("A query is required to save a confident word.")
+
+    profile_id = f"profile-{google_sub}"
+    confident_id = str(payload.get("id", "")).strip() or f"confident-{google_sub}-{_sanitize_path_segment(query)}-{_sanitize_path_segment(mode)}"
+    now = datetime.now(timezone.utc).isoformat()
+
+    if not bool(payload.get("confident", True)):
+        if _broker_is_configured():
+            return _call_broker("POST", "/confident-words", payload=payload)
+
+        _delete_confident_word_from_bucket(google_sub, query, mode)
+        return {
+            "id": confident_id,
+            "query": query,
+            "mode": mode,
+            "removed": True,
+        }
+
+    if _broker_is_configured():
+        return _call_broker("POST", "/confident-words", payload=payload)
+
+    bucket_object_name, bucket_uri = _write_confident_word_to_bucket(
+        confident_id=confident_id,
+        profile_id=profile_id,
+        google_sub=google_sub,
+        profile_data=profile,
+        payload=payload,
+        created_at=now,
+    )
+    analysis = _confident_analysis_payload(payload)
+    return {
+        "id": confident_id,
+        "time": now,
+        "query": query,
+        "mode": mode,
+        "title": str(analysis.get("title", "")).strip(),
+        "playerName": f"{first_name} {last_name}".strip(),
+        "playerEmail": email,
+        "country": country,
+        "analysis": analysis,
+        "bucketObjectName": bucket_object_name,
+        "bucketUri": bucket_uri,
+    }
+
+
+def list_confident_words_by_google_identity(google_sub: str | None, email: str | None) -> list[dict[str, Any]]:
+    sub = str(google_sub or "").strip()
+    mail = str(email or "").strip()
+    if not sub and not mail:
+        return []
+
+    resolved_sub = sub
+    if not resolved_sub and mail:
+        profile = get_profile_by_google_identity(None, mail)
+        resolved_sub = str((profile or {}).get("google", {}).get("sub", "")).strip()
+
+    if not resolved_sub:
+        return []
+
+    if _broker_is_configured():
+        broker_payload = _call_broker("GET", "/confident-words", params={"sub": resolved_sub, "email": mail})
+        items = broker_payload.get("items", [])
+        return items if isinstance(items, list) else []
+
+    client, bucket_name = _bucket_client()
+    bucket = client.bucket(bucket_name)
+    prefix = f"users/{_sanitize_path_segment(resolved_sub)}/confident-words/"
+
+    entries: list[dict[str, Any]] = []
+    for blob in client.list_blobs(bucket, prefix=prefix):
+        try:
+            raw = blob.download_as_text()
+            payload = json.loads(raw)
+        except Exception:
+            continue
+
+        if not isinstance(payload, dict):
+            continue
+
+        player = payload.get("player", {})
+        analysis = payload.get("analysis", {})
+        if not isinstance(player, dict):
+            player = {}
+        if not isinstance(analysis, dict):
+            analysis = {}
+
+        entries.append(
+            {
+                "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
+                "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip() or (
+                    blob.updated.isoformat() if getattr(blob, "updated", None) else ""
+                ),
+                "query": str(payload.get("query", "")).strip(),
+                "mode": str(payload.get("mode", "")).strip(),
+                "title": str(payload.get("metadata", {}).get("title", "")).strip()
+                if isinstance(payload.get("metadata", {}), dict)
+                else str(analysis.get("title", "")).strip(),
+                "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
+                "playerEmail": str(player.get("email", "")).strip() or mail,
+                "country": str(player.get("country", "")).strip(),
+                "analysis": analysis,
+                "bucketObjectName": blob.name,
+                "bucketUri": f"gs://{bucket_name}/{blob.name}",
+            }
+        )
+
+    entries.sort(key=lambda item: item.get("time", ""), reverse=True)
+    return entries

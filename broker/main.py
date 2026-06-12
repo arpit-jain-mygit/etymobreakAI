@@ -33,6 +33,15 @@ class QuizHistoryRequest(BaseModel):
     attempt: dict = Field(default_factory=dict)
 
 
+class ConfidentWordRequest(BaseModel):
+    id: str = Field(default="")
+    profile: dict
+    query: str = Field(min_length=1)
+    mode: str = Field(default="word")
+    analysis: dict = Field(default_factory=dict)
+    confident: bool = Field(default=True)
+
+
 app = FastAPI(title="EtymoBreak AI Quiz Broker")
 app.add_middleware(
     CORSMiddleware,
@@ -134,6 +143,41 @@ def _attempt_payload(
     return object_name, f"gs://{bucket_name}/{object_name}"
 
 
+def _confident_object_name(google_sub: str, query: str, mode: str) -> str:
+    profile_folder = _sanitize_path_segment(google_sub)
+    return f"users/{profile_folder}/confident-words/{_sanitize_path_segment(query)}--{_sanitize_path_segment(mode or 'word')}.json"
+
+
+def _confident_payload(payload: ConfidentWordRequest) -> dict[str, Any]:
+    analysis = payload.analysis if isinstance(payload.analysis, dict) else {}
+    return {
+        "id": str(payload.id or "").strip(),
+        "query": str(payload.query or analysis.get("query", "")).strip(),
+        "mode": str(payload.mode or analysis.get("mode", "word")).strip() or "word",
+        "analysis": analysis,
+    }
+
+
+def _confident_item_from_payload(payload: dict[str, Any], bucket_name: str, blob_name: str, fallback_email: str) -> dict[str, Any]:
+    metadata = payload.get("metadata", {}) if isinstance(payload.get("metadata", {}), dict) else {}
+    player = payload.get("player", {}) if isinstance(payload.get("player", {}), dict) else {}
+    analysis = payload.get("analysis", {}) if isinstance(payload.get("analysis", {}), dict) else {}
+
+    return {
+        "id": str(payload.get("id", "")).strip() or blob_name.rsplit("/", 1)[-1].removesuffix(".json"),
+        "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip(),
+        "query": str(payload.get("query", "")).strip(),
+        "mode": str(payload.get("mode", "")).strip(),
+        "title": str(metadata.get("title", "")).strip() or str(analysis.get("title", "")).strip(),
+        "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
+        "playerEmail": str(player.get("email", "")).strip() or fallback_email,
+        "country": str(player.get("country", "")).strip(),
+        "analysis": analysis,
+        "bucketObjectName": blob_name,
+        "bucketUri": f"gs://{bucket_name}/{blob_name}",
+    }
+
+
 def _profile_id(google_sub: str) -> str:
     return f"profile-{google_sub}"
 
@@ -216,6 +260,107 @@ def create_quiz_history(payload: QuizHistoryRequest) -> dict[str, Any]:
         "bucketObjectName": bucket_object_name,
         "bucketUri": bucket_uri,
     }
+
+
+@app.post("/confident-words", dependencies=[Depends(_require_secret)])
+def save_confident_word(payload: ConfidentWordRequest) -> dict[str, Any]:
+    profile = payload.profile if isinstance(payload.profile, dict) else {}
+    google = profile.get("google", {}) if isinstance(profile.get("google", {}), dict) else {}
+
+    google_sub = str(google.get("sub", "")).strip()
+    email = str(google.get("email", "")).strip()
+    first_name = str(profile.get("firstName", "")).strip()
+    last_name = str(profile.get("lastName", "")).strip()
+    country = str(profile.get("country", "")).strip()
+    confident = bool(payload.confident)
+
+    if not google_sub or not email:
+        raise HTTPException(status_code=400, detail="Google identity is required.")
+    if not first_name or not last_name or not country:
+        raise HTTPException(status_code=400, detail="Profile details are required.")
+
+    payload_data = _confident_payload(payload)
+    query = payload_data["query"]
+    mode = payload_data["mode"]
+    if not query:
+      raise HTTPException(status_code=400, detail="A query is required.")
+
+    now = datetime.now(timezone.utc).isoformat()
+    confident_id = str(payload.id or "").strip() or f"confident-{google_sub}-{query}-{mode}"
+
+    if not confident:
+        client, bucket_name = _bucket_client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(_confident_object_name(google_sub, query, mode))
+        try:
+            blob.delete()
+        except Exception:
+            pass
+        return {
+            "id": confident_id,
+            "query": query,
+            "mode": mode,
+            "removed": True,
+        }
+
+    client, bucket_name = _bucket_client()
+    bucket = client.bucket(bucket_name)
+    object_name = _confident_object_name(google_sub, query, mode)
+    bucket_payload = {
+        "id": confident_id,
+        "profileId": f"profile-{google_sub}",
+        "googleSub": google_sub,
+        "createdAt": now,
+        "updatedAt": now,
+        "query": query,
+        "mode": mode,
+        "player": {
+            "firstName": first_name,
+            "lastName": last_name,
+            "country": country,
+            "email": email,
+        },
+        "analysis": payload_data["analysis"],
+        "metadata": {
+            "title": str(payload_data["analysis"].get("title", "")).strip(),
+            "summary": str(payload_data["analysis"].get("summary", "")).strip(),
+        },
+    }
+
+    blob = bucket.blob(object_name)
+    blob.upload_from_string(json.dumps(bucket_payload, ensure_ascii=False, indent=2), content_type="application/json")
+    return _confident_item_from_payload(bucket_payload, bucket_name, object_name, email)
+
+
+@app.get("/confident-words", dependencies=[Depends(_require_secret)])
+def get_confident_words(sub: str | None = None, email: str | None = None) -> dict[str, Any]:
+    resolved_sub = str(sub or "").strip()
+    mail = str(email or "").strip()
+    if not resolved_sub and mail:
+        return {"items": []}
+
+    if not resolved_sub:
+        return {"items": []}
+
+    client, bucket_name = _bucket_client()
+    bucket = client.bucket(bucket_name)
+    prefix = f"users/{_sanitize_path_segment(resolved_sub)}/confident-words/"
+
+    items: list[dict[str, Any]] = []
+    for blob in client.list_blobs(bucket, prefix=prefix):
+        try:
+            raw = blob.download_as_text()
+            payload = json.loads(raw)
+        except Exception:
+            continue
+
+        if not isinstance(payload, dict):
+            continue
+
+        items.append(_confident_item_from_payload(payload, bucket_name, blob.name, mail))
+
+    items.sort(key=lambda item: item.get("time", ""), reverse=True)
+    return {"items": items}
 
 
 @app.get("/quiz-history", dependencies=[Depends(_require_secret)])

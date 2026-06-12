@@ -12,8 +12,10 @@ from .profile_store import (
     ProfileStoreError,
     ensure_schema,
     get_profile_by_google_identity,
+    list_confident_words_by_google_identity,
     insert_quiz_history,
     list_quiz_history_by_google_identity,
+    upsert_confident_word,
     upsert_profile,
 )
 
@@ -54,6 +56,15 @@ class QuizHistoryRequest(BaseModel):
     percentage: int = Field(ge=0)
     totalPossible: int = Field(ge=0)
     attempt: dict = Field(default_factory=dict)
+
+
+class ConfidentWordRequest(BaseModel):
+    id: str = Field(default="")
+    profile: dict
+    query: str = Field(min_length=1)
+    mode: str = Field(default="word")
+    analysis: dict = Field(default_factory=dict)
+    confident: bool = Field(default=True)
 
 
 @app.get("/health")
@@ -157,3 +168,33 @@ def get_quiz_history(sub: str | None = None, email: str | None = None) -> dict:
         )
 
     return {"items": history}
+
+
+@app.post("/confident-words")
+def save_confident_word(payload: ConfidentWordRequest) -> dict:
+    try:
+        return upsert_confident_word(payload.model_dump())
+    except ProfileStoreError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Confident word storage is unavailable.",
+                "details": str(exc),
+            },
+        )
+
+
+@app.get("/confident-words")
+def get_confident_words(sub: str | None = None, email: str | None = None) -> dict:
+    try:
+        items = list_confident_words_by_google_identity(sub, email)
+    except ProfileStoreError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Confident word storage is unavailable.",
+                "details": str(exc),
+            },
+        )
+
+    return {"items": items}

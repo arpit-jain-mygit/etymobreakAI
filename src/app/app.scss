@@ -80,6 +80,14 @@ h1 {
   margin: 0 auto;
 }
 
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .auth-panel {
   max-width: 1080px;
   margin: 0 auto;
@@ -679,7 +687,7 @@ input::placeholder {
 
 .quiz-setup-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
 }
 

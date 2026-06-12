@@ -97,6 +97,20 @@ interface QuizHistoryEntry {
   bucketUri?: string;
 }
 
+interface ConfidentWordEntry {
+  id: string;
+  time: string;
+  query: string;
+  mode: string;
+  title: string;
+  playerName: string;
+  playerEmail: string;
+  country: string;
+  analysis: AnalysisResult;
+  bucketObjectName?: string;
+  bucketUri?: string;
+}
+
 interface QuizAttemptQuestion {
   id: string;
   type: QuizQuestionType;
@@ -112,7 +126,7 @@ interface QuizAttemptQuestion {
   isCorrect: boolean | null;
 }
 
-type QuizBankType = 'word' | 'root_prefix_suffix' | 'mixed';
+type QuizBankType = 'word' | 'root_prefix_suffix' | 'mixed' | 'confident';
 type QuizFlowStage = 'setup' | 'taking' | 'summary';
 
 type BreakdownRow = AnalysisPart[];
@@ -259,11 +273,16 @@ export class App implements OnInit, AfterViewInit {
   protected readonly googleButtonRendered = signal(false);
   protected readonly inventoryEntries = signal<unknown[]>([]);
   protected readonly quizHistory = signal<QuizHistoryEntry[]>([]);
+  protected readonly confidentWords = signal<ConfidentWordEntry[]>([]);
   protected readonly quizHistoryLoading = signal(false);
   protected readonly quizHistorySubmitting = signal(false);
   protected readonly quizHistorySaved = signal(false);
   protected readonly quizHistoryError = signal('');
   protected readonly selectedQuizHistoryId = signal('');
+  protected readonly confidentWordsLoading = signal(false);
+  protected readonly confidentWordsSaving = signal(false);
+  protected readonly confidentWordsError = signal('');
+  protected readonly confidentWordNotice = signal('');
   protected readonly quizTimeLabel = computed(() => {
     const remaining = Math.max(0, this.quizTimeRemaining());
     const minutes = Math.floor(remaining / 60);
@@ -276,6 +295,8 @@ export class App implements OnInit, AfterViewInit {
         return 'Root / Prefix / Suffix quiz';
       case 'mixed':
         return 'Mixed quiz';
+      case 'confident':
+        return 'Confident words quiz';
       default:
         return 'Words quiz';
     }
@@ -285,6 +306,7 @@ export class App implements OnInit, AfterViewInit {
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
   private quizBankLoadPromise: Promise<void> | null = null;
+  private confidentWordsLoadPromise: Promise<void> | null = null;
   private quizBankCache = new Map<QuizBankType, QuizBankFile>();
   private quizTimerHandle: number | null = null;
   private readonly profileStorageKey = 'etymobreak-profile';
@@ -294,7 +316,7 @@ export class App implements OnInit, AfterViewInit {
     const current = this.query().trim().toLowerCase();
     const unique = [
       ...new Set(
-        this.rootAutocomplete()
+      this.rootAutocomplete()
           .map((item) => item.trim().toLowerCase())
           .filter(Boolean)
       ),
@@ -590,6 +612,9 @@ export class App implements OnInit, AfterViewInit {
     this.quizHistoryError.set('');
     this.quizHistorySaved.set(false);
     this.selectedQuizHistoryId.set('');
+    this.confidentWords.set([]);
+    this.confidentWordsError.set('');
+    this.confidentWordNotice.set('');
     try {
       localStorage.removeItem(this.profileStorageKey);
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
@@ -607,6 +632,7 @@ export class App implements OnInit, AfterViewInit {
 
     this.profileMenuView.set('profile');
     void this.loadQuizHistoryFromServer();
+    void this.loadConfidentWordsFromServer();
   }
 
   protected setProfileMenuView(view: 'profile' | 'history'): void {
@@ -616,6 +642,7 @@ export class App implements OnInit, AfterViewInit {
         this.selectedQuizHistoryId.set(this.quizHistory()[0]!.id);
       }
       void this.loadQuizHistoryFromServer();
+      void this.loadConfidentWordsFromServer();
     }
   }
 
@@ -650,6 +677,81 @@ export class App implements OnInit, AfterViewInit {
     this.quizType.set(type);
   }
 
+  protected isAnalysisConfident(analysis: AnalysisResult | null): boolean {
+    if (!analysis) {
+      return false;
+    }
+
+    const key = this.confidentKey(analysis.query, analysis.mode);
+    return this.confidentWords().some((item) => this.confidentKey(item.query, item.mode) === key);
+  }
+
+  protected async toggleConfidentForAnalysis(analysis: AnalysisResult | null): Promise<void> {
+    const profile = this.profile();
+    if (!analysis || !profile) {
+      return;
+    }
+
+    const query = analysis.query.trim();
+    if (!query) {
+      return;
+    }
+
+    const confident = !this.isAnalysisConfident(analysis);
+    this.confidentWordsSaving.set(true);
+    this.confidentWordsError.set('');
+    this.confidentWordNotice.set('');
+
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/confident-words`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          profile,
+          query,
+          mode: analysis.mode || 'word',
+          analysis,
+          confident,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+          details?: string;
+        } | null;
+        const message = payload?.error || 'Your confident word could not be saved.';
+        const details = payload?.details ? ` ${payload.details}` : '';
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      const saved = (await response.json().catch(() => null)) as
+        | ConfidentWordEntry
+        | { removed?: boolean }
+        | null;
+
+      if (saved && !(saved as { removed?: boolean }).removed) {
+        const entry = saved as ConfidentWordEntry;
+        const key = this.confidentKey(entry.query, entry.mode);
+        const next = [entry, ...this.confidentWords().filter((item) => this.confidentKey(item.query, item.mode) !== key)];
+        this.confidentWords.set(next);
+        this.confidentWordNotice.set(`${analysis.title || analysis.query} was marked as Confident.`);
+      } else {
+        const key = this.confidentKey(query, analysis.mode || 'word');
+        this.confidentWords.update((items) =>
+          items.filter((item) => this.confidentKey(item.query, item.mode) !== key)
+        );
+        this.confidentWordNotice.set(`${analysis.title || analysis.query} was removed from Confident words.`);
+      }
+    } catch (error) {
+      this.confidentWordsError.set(error instanceof Error ? error.message : 'Your confident word could not be saved.');
+    } finally {
+      this.confidentWordsSaving.set(false);
+    }
+  }
+
   protected selectQuizDifficulty(level: number): void {
     this.quizDifficulty.set(Math.min(5, Math.max(1, Math.floor(level))));
   }
@@ -680,7 +782,11 @@ export class App implements OnInit, AfterViewInit {
     );
     if (!deck.length) {
       this.quizFlowStage.set('setup');
-      this.quizNotice.set('That quiz bank could not be loaded yet. Please try again in a moment.');
+      this.quizNotice.set(
+        this.quizType() === 'confident'
+          ? 'Mark a few words as Confident first, then build a quiz from them.'
+          : 'That quiz bank could not be loaded yet. Please try again in a moment.'
+      );
       this.quizPreparing.set(false);
       return;
     }
@@ -1006,6 +1112,7 @@ export class App implements OnInit, AfterViewInit {
       this.profileLastName.set(lastName);
       this.profileCountry.set(country);
       void this.loadQuizHistoryFromServer();
+      void this.loadConfidentWordsFromServer();
       return;
     } catch {
       this.loadPendingGoogleIdentity();
@@ -1094,6 +1201,7 @@ export class App implements OnInit, AfterViewInit {
       this.profileCountry.set(country);
       this.profileMenuOpen.set(false);
       void this.loadQuizHistoryFromServer();
+      void this.loadConfidentWordsFromServer();
       localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
       this.authGateLoading.set(false);
@@ -1140,6 +1248,7 @@ export class App implements OnInit, AfterViewInit {
       this.authGateLoading.set(false);
       this.profileMenuOpen.set(false);
       void this.loadQuizHistoryFromServer();
+      void this.loadConfidentWordsFromServer();
 
       localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
@@ -1154,6 +1263,7 @@ export class App implements OnInit, AfterViewInit {
       this.authGateLoading.set(false);
       this.profileMenuOpen.set(false);
       void this.loadQuizHistoryFromServer();
+      void this.loadConfidentWordsFromServer();
 
       try {
         localStorage.setItem(this.profileStorageKey, JSON.stringify(fallbackProfile));
@@ -1320,12 +1430,16 @@ export class App implements OnInit, AfterViewInit {
   }
 
   private async loadQuizBank(bankType: QuizBankType): Promise<QuizBankFile | null> {
+    if (bankType === 'confident') {
+      return null;
+    }
+
     const cached = this.quizBankCache.get(bankType);
     if (cached) {
       return cached;
     }
 
-    const fileMap: Record<QuizBankType, string> = {
+    const fileMap: Record<Exclude<QuizBankType, 'confident'>, string> = {
       word: '/question_bank_words.json',
       root_prefix_suffix: '/question_bank_roots_prefixes_suffixes.json',
       mixed: '/question_bank_mixed.json',
@@ -1411,6 +1525,10 @@ export class App implements OnInit, AfterViewInit {
     targetCount: number
   ): Promise<QuizQuestion[]> {
     this.quizAttemptCounter += 1;
+    if (type === 'confident') {
+      return this.buildConfidentQuizDeck(difficulty, targetCount);
+    }
+
     const bank = await this.loadQuizBank(type);
     if (!bank) {
       return [];
@@ -1427,6 +1545,197 @@ export class App implements OnInit, AfterViewInit {
     return selected
       .map((record, index) => this.normalizeQuizQuestion(record, index))
       .filter((question): question is QuizQuestion => question !== null);
+  }
+
+  private buildQuestionOptions(correct: string, distractors: string[]): { options: string[]; correctIndex: number } | null {
+    const safeCorrect = String(correct || '').trim();
+    if (!safeCorrect) {
+      return null;
+    }
+
+    const uniqueDistractors = this.uniqueStrings(distractors).filter((item) => item !== safeCorrect);
+    if (uniqueDistractors.length < 3) {
+      return null;
+    }
+
+    const options = this.shuffle([safeCorrect, ...this.shuffle(uniqueDistractors).slice(0, 3)]);
+    const correctIndex = options.indexOf(safeCorrect);
+    return { options, correctIndex };
+  }
+
+  private createConfidentQuestion(
+    sourceTitle: string,
+    prompt: string,
+    correct: string,
+    distractors: string[],
+    type: QuizQuestionType,
+    explanation: string
+  ): QuizQuestion | null {
+    const safeCorrect = String(correct || '').trim();
+    if (!safeCorrect || !prompt.trim()) {
+      return null;
+    }
+
+    const options = this.buildQuestionOptions(safeCorrect, distractors);
+    if (!options) {
+      return null;
+    }
+
+    return {
+      id: `confident-${this.quizAttemptCounter}-${this.quizQuestions().length}-${Math.random().toString(36).slice(2, 8)}`,
+      type,
+      prompt: prompt.trim(),
+      options: options.options,
+      correctIndex: options.correctIndex,
+      selectedIndex: null,
+      skipped: false,
+      submitted: false,
+      isCorrect: null,
+      sourceTitle: sourceTitle || 'Confident word',
+      explanation: explanation.trim() || 'Review the answer from your confident words.',
+    };
+  }
+
+  private async buildConfidentQuizDeck(difficulty: number, targetCount: number): Promise<QuizQuestion[]> {
+    await this.loadConfidentWordsFromServer();
+
+    const analyses = this.shuffle(
+      this.confidentWords()
+        .map((item) => item.analysis)
+        .filter((item) => !this.isEmptyAnalysis(item))
+    );
+    if (!analyses.length) {
+      return [];
+    }
+
+    const titles = this.uniqueStrings(
+      analyses.map((analysis) => analysis.title || analysis.query).filter((value): value is string => Boolean(value))
+    );
+    const meanings = this.uniqueStrings(
+      analyses
+        .map((analysis) => analysis.actualMeaning || analysis.summary || analysis.literalMeaning)
+        .filter((value): value is string => Boolean(value))
+    );
+    const formulas = this.uniqueStrings(
+      analyses
+        .map((analysis) => analysis.literalMeaningFormula || analysis.literalMeaning)
+        .filter((value): value is string => Boolean(value))
+    );
+    const breakdownMeanings = this.uniqueStrings(
+      analyses.flatMap((analysis) => analysis.breakdown.map((part) => part.meaning).filter(Boolean))
+    );
+    const familyTerms = this.uniqueStrings(
+      analyses.flatMap((analysis) => analysis.familyMemory.map((item) => item.term).filter(Boolean))
+    );
+    const rootMeanings = this.uniqueStrings(
+      analyses
+        .map((analysis) => analysis.rootFamily.meaning)
+        .filter((value): value is string => Boolean(value))
+    );
+    const fallbackPool = this.uniqueStrings([
+      ...titles,
+      ...meanings,
+      ...formulas,
+      ...breakdownMeanings,
+      ...familyTerms,
+      ...rootMeanings,
+    ]);
+
+    const candidates: QuizQuestion[] = [];
+    for (const analysis of analyses) {
+      const sourceTitle = analysis.title || analysis.query || 'Confident word';
+      const explanation = analysis.actualMeaning || analysis.summary || analysis.literalMeaning || sourceTitle;
+
+      if (difficulty >= 1) {
+        const correctMeaning = analysis.actualMeaning || analysis.summary || analysis.literalMeaning;
+        if (correctMeaning) {
+          const distractors = fallbackPool.filter((item) => item !== correctMeaning);
+          const question = this.createConfidentQuestion(
+            sourceTitle,
+            `What does ${sourceTitle} mean?`,
+            correctMeaning,
+            distractors,
+            'meaning',
+            explanation
+          );
+          if (question) {
+            candidates.push(question);
+          }
+        }
+      }
+
+      if (difficulty >= 2) {
+        const formula = analysis.literalMeaningFormula || analysis.literalMeaning;
+        if (formula) {
+          const distractors = fallbackPool.filter((item) => item !== formula);
+          const question = this.createConfidentQuestion(
+            sourceTitle,
+            `Which literal formula fits ${sourceTitle}?`,
+            formula,
+            distractors,
+            'literal',
+            analysis.literalMeaningArrow || explanation
+          );
+          if (question) {
+            candidates.push(question);
+          }
+        }
+      }
+
+      if (difficulty >= 3) {
+        for (const part of analysis.breakdown) {
+          const prompt = `What does ${part.label} mean in ${sourceTitle}?`;
+          const distractors = fallbackPool.filter((item) => item !== part.meaning);
+          const question = this.createConfidentQuestion(
+            sourceTitle,
+            prompt,
+            part.meaning,
+            distractors,
+            'root',
+            part.source || explanation
+          );
+          if (question) {
+            candidates.push(question);
+          }
+        }
+      }
+
+      if (difficulty >= 4) {
+        for (const item of analysis.familyMemory) {
+          const prompt = `Which word belongs to the ${analysis.rootFamily.root || sourceTitle} family?`;
+          const distractors = fallbackPool.filter((value) => value !== item.term);
+          const question = this.createConfidentQuestion(
+            sourceTitle,
+            prompt,
+            item.term,
+            distractors,
+            'family',
+            item.exampleSentence || item.meaning || explanation
+          );
+          if (question) {
+            candidates.push(question);
+          }
+        }
+      }
+
+      if (difficulty >= 5 && analysis.rootFamily.root && analysis.rootFamily.meaning) {
+        const prompt = `What does the root ${analysis.rootFamily.root} mean?`;
+        const distractors = fallbackPool.filter((value) => value !== analysis.rootFamily.meaning);
+        const question = this.createConfidentQuestion(
+          sourceTitle,
+          prompt,
+          analysis.rootFamily.meaning,
+          distractors,
+          'root',
+          analysis.rootFamily.origin || explanation
+        );
+        if (question) {
+          candidates.push(question);
+        }
+      }
+    }
+
+    return this.shuffle(candidates).slice(0, Math.min(50, Math.max(5, Math.floor(targetCount / 5) * 5)) || candidates.length);
   }
 
   private startQuizTimer(): void {
@@ -1545,6 +1854,92 @@ export class App implements OnInit, AfterViewInit {
     } finally {
       this.quizHistoryLoading.set(false);
     }
+  }
+
+  private confidentKey(query: string, mode: string): string {
+    return `${this.normalizeForMatch(query)}|${this.normalizeForMatch(mode || 'word')}`;
+  }
+
+  private normalizeConfidentEntry(item: unknown): ConfidentWordEntry | null {
+    if (!item || typeof item !== 'object') {
+      return null;
+    }
+
+    const entry = item as { [key: string]: unknown };
+    const rawAnalysis =
+      entry['analysis'] && typeof entry['analysis'] === 'object' ? (entry['analysis'] as unknown) : entry;
+    const rawAnalysisRecord = rawAnalysis as { [key: string]: unknown };
+    const query = String(entry['query'] || rawAnalysisRecord['query'] || '').trim();
+    const mode = String(entry['mode'] || rawAnalysisRecord['mode'] || 'word').trim() || 'word';
+    const analysis = this.normalizeAnalysisResult(rawAnalysis, query);
+    if (!query || this.isEmptyAnalysis(analysis)) {
+      return null;
+    }
+
+    const player = entry['player'] && typeof entry['player'] === 'object' ? (entry['player'] as { [key: string]: unknown }) : {};
+
+    return {
+      id: String(entry['id'] || `${query}-${mode}`).trim(),
+      time: String(entry['time'] || entry['updatedAt'] || entry['createdAt'] || '').trim(),
+      query,
+      mode,
+      title: String(entry['title'] || analysis.title || query).trim(),
+      playerName: String(entry['playerName'] || '').trim() || `${String(player['firstName'] || '').trim()} ${String(player['lastName'] || '').trim()}`.trim(),
+      playerEmail: String(entry['playerEmail'] || '').trim() || String(player['email'] || '').trim(),
+      country: String(entry['country'] || '').trim() || String(player['country'] || '').trim(),
+      analysis,
+      bucketObjectName: String(entry['bucketObjectName'] || '').trim() || undefined,
+      bucketUri: String(entry['bucketUri'] || '').trim() || undefined,
+    };
+  }
+
+  private async loadConfidentWordsFromServer(): Promise<void> {
+    const profile = this.profile();
+    if (!profile) {
+      this.confidentWords.set([]);
+      return;
+    }
+
+    if (this.confidentWordsLoadPromise) {
+      await this.confidentWordsLoadPromise;
+      return;
+    }
+
+    this.confidentWordsLoadPromise = (async () => {
+      try {
+        this.confidentWordsLoading.set(true);
+        this.confidentWordsError.set('');
+        const params = new URLSearchParams();
+        if (profile.google.sub) {
+          params.set('sub', profile.google.sub);
+        }
+        if (profile.google.email) {
+          params.set('email', profile.google.email);
+        }
+
+        const response = await fetch(`${getApiBaseUrl()}/confident-words?${params.toString()}`);
+        if (!response.ok) {
+          this.confidentWords.set([]);
+          return;
+        }
+
+        const payload = (await response.json().catch(() => null)) as { items?: unknown[] } | null;
+        const entries = (payload?.items ?? [])
+          .map((item) => this.normalizeConfidentEntry(item))
+          .filter((item): item is ConfidentWordEntry => item !== null)
+          .sort((a, b) => b.time.localeCompare(a.time));
+
+        this.confidentWords.set(entries);
+      } catch {
+        this.confidentWords.set([]);
+        this.confidentWordsError.set('Confident words could not be loaded.');
+      } finally {
+        this.confidentWordsLoading.set(false);
+        this.confidentWordsLoadPromise = null;
+      }
+    })();
+
+    await this.confidentWordsLoadPromise;
   }
 
   private normalizeAnalysisResult(payload: unknown, query: string): AnalysisResult {
@@ -1849,6 +2244,7 @@ export class App implements OnInit, AfterViewInit {
     this.loading.set(true);
     this.error.set('');
     this.notice.set('');
+    this.confidentWordNotice.set('');
 
     try {
       if (this.inventoryLoadPromise) {
