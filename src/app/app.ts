@@ -375,7 +375,9 @@ export class App implements OnInit, AfterViewInit {
     this.quizQuestions().filter((question) => question.submitted && question.isCorrect).length
   );
   protected readonly quizWrongCount = computed(() =>
-    this.quizQuestions().filter((question) => question.submitted && question.isCorrect === false).length
+    this.quizQuestions().filter(
+      (question) => question.submitted && !question.skipped && question.isCorrect === false
+    ).length
   );
   protected readonly quizTotalMarks = computed(
     () => this.quizCorrectCount() * 3 - this.quizWrongCount()
