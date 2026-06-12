@@ -215,6 +215,7 @@ def _history_item_from_payload(payload: dict[str, Any], bucket_name: str, blob_n
 
 @app.get("/health")
 def health() -> dict[str, str]:
+    # Smoke-test anchor for Cloud Build trigger verification.
     return {"status": "ok"}
 
 

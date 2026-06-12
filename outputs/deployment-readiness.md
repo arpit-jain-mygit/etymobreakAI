@@ -142,6 +142,65 @@ https://etymobreak-ai-quiz-broker-562528323498.asia-south1.run.app
 10. Put the same secret into `BROKER_SHARED_SECRET` on Render.
 11. Confirm the broker accepts `POST /quiz-history` and `GET /quiz-history`.
 
+### Broker Auto-Deploy on Every Change
+Use Cloud Build to redeploy the broker whenever files under `broker/` change.
+
+1. Keep the broker deployment config in the repository root at `cloudbuild-broker.yaml`.
+2. Create a Cloud Build trigger on the `main` branch.
+3. Restrict the trigger to changes under `broker/**` so frontend-only commits do not redeploy the broker.
+4. Point the trigger at `cloudbuild-broker.yaml`.
+5. Make sure the Cloud Build service account can:
+   - push images to Artifact Registry (`roles/artifactregistry.writer`)
+   - deploy Cloud Run revisions (`roles/run.admin`)
+   - attach the broker runtime service account with `roles/iam.serviceAccountUser`
+6. Set the broker env vars once in the Cloud Run service:
+   - `GCP_QUIZ_BUCKET`
+   - `BROKER_SHARED_SECRET`
+7. After that, every broker commit to `main` will:
+   - build a new image from `./broker`
+   - push it to Artifact Registry
+   - deploy a fresh Cloud Run revision for `etymobreak-ai-quiz-broker`
+8. Leave the service env vars in Cloud Run itself. The trigger only swaps the image, so the existing broker config stays in place.
+
+### Cloud Build Trigger Form Values
+When creating the trigger in Google Cloud Console, use these values:
+
+- **Event:** Push to a branch
+- **Branch:** `main`
+- **Included files:** `broker/**`
+- **Configuration:** Cloud Build configuration file
+- **Cloud Build config file path:** `cloudbuild-broker.yaml`
+- **Service account:** default Cloud Build service account is fine if it has the roles listed above
+
+### Cloud Build IAM Commands
+Run these once in Cloud Shell if the trigger account does not already have the required roles:
+
+```bash
+gcloud projects add-iam-policy-binding etymobreak-ai \
+  --member="serviceAccount:562528323498@cloudbuild.gserviceaccount.com" \
+  --role="roles/artifactregistry.writer"
+
+gcloud projects add-iam-policy-binding etymobreak-ai \
+  --member="serviceAccount:562528323498@cloudbuild.gserviceaccount.com" \
+  --role="roles/run.admin"
+
+gcloud iam service-accounts add-iam-policy-binding \
+  etymobreak-ai-broker@etymobreak-ai.iam.gserviceaccount.com \
+  --member="serviceAccount:562528323498@cloudbuild.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+```
+
+### Broker Env Vars on Cloud Run
+Set these on the Cloud Run broker service itself:
+
+```bash
+gcloud run services update etymobreak-ai-quiz-broker \
+  --region asia-south1 \
+  --set-env-vars GCP_QUIZ_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=<long-random-secret>
+```
+
+The same `BROKER_SHARED_SECRET` value must be sent by the Render backend when it calls the broker.
+
 ### Render Backend Broker Wiring
 1. Add `BROKER_URL` to the Render backend service.
 2. Add `BROKER_SHARED_SECRET` to the Render backend service.
