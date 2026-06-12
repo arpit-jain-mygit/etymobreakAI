@@ -822,7 +822,7 @@ input::placeholder {
 }
 
 .quiz-summary-item.skipped {
-  background: rgba(242, 247, 250, 0.96);
+  background: rgba(248, 251, 249, 0.985);
 }
 
 .quiz-summary-top,
@@ -892,8 +892,9 @@ input::placeholder {
 }
 
 .quiz-summary-option.skipped-correct {
-  border-color: rgba(169, 210, 179, 0.55);
-  background: rgba(241, 250, 243, 0.98);
+  border-color: rgba(214, 233, 217, 0.55);
+  background: rgba(249, 253, 250, 0.995);
+  color: #577364;
 }
 
 .quiz-summary-option.selected.correct {
