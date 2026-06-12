@@ -31,6 +31,27 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 """
 
+QUIZ_HISTORY_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS quiz_history (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT NOT NULL,
+    google_sub TEXT NOT NULL,
+    email TEXT NOT NULL,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    country TEXT NOT NULL,
+    quiz_scope TEXT NOT NULL,
+    correct_count INTEGER NOT NULL,
+    wrong_count INTEGER NOT NULL,
+    marks INTEGER NOT NULL,
+    percentage INTEGER NOT NULL,
+    total_possible INTEGER NOT NULL,
+    attempt_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+"""
+
 
 def database_url() -> str:
     primary = os.getenv("DATABASE_URL", "").strip()
@@ -55,6 +76,7 @@ def ensure_schema() -> None:
     with _connect() as conn:
         with conn.cursor() as cursor:
             cursor.execute(PROFILE_TABLE_SQL)
+            cursor.execute(QUIZ_HISTORY_TABLE_SQL)
         conn.commit()
 
 
@@ -176,3 +198,141 @@ def get_profile_by_google_identity(google_sub: str | None, email: str | None) ->
         return None
 
     return _profile_row_to_payload(row)
+
+
+def insert_quiz_history(payload: dict[str, Any]) -> dict[str, Any]:
+    profile = payload.get("profile", {})
+    profile_data = profile if isinstance(profile, dict) else {}
+    google = profile_data.get("google", {})
+    google_data = google if isinstance(google, dict) else {}
+
+    quiz_scope = str(payload.get("quizScope", "")).strip().upper() or "ALL"
+    attempt = payload.get("attempt", {})
+    attempt_data = attempt if isinstance(attempt, dict) else {}
+    now = datetime.now(timezone.utc).isoformat()
+
+    google_sub = str(google_data.get("sub", "")).strip()
+    email = str(google_data.get("email", "")).strip()
+    first_name = str(profile_data.get("firstName", "")).strip()
+    last_name = str(profile_data.get("lastName", "")).strip()
+    country = str(profile_data.get("country", "")).strip()
+
+    if not google_sub or not email:
+        raise ProfileStoreError("Google identity is required.")
+    if not first_name or not last_name or not country:
+        raise ProfileStoreError("Profile details are required.")
+
+    profile_id = f"profile-{google_sub}"
+    quiz_history_id = str(payload.get("id", "")).strip() or f"quiz-{google_sub}-{now}"
+    attempt_json = json.dumps(attempt_data, ensure_ascii=False)
+
+    ensure_schema()
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(
+                """
+                INSERT INTO quiz_history (
+                    id, profile_id, google_sub, email, first_name, last_name, country,
+                    quiz_scope, correct_count, wrong_count, marks, percentage, total_possible,
+                    attempt_json, created_at, updated_at
+                ) VALUES (
+                    %(id)s, %(profile_id)s, %(google_sub)s, %(email)s, %(first_name)s, %(last_name)s, %(country)s,
+                    %(quiz_scope)s, %(correct_count)s, %(wrong_count)s, %(marks)s, %(percentage)s, %(total_possible)s,
+                    %(attempt_json)s, %(created_at)s, %(updated_at)s
+                )
+                RETURNING id, profile_id, google_sub, email, first_name, last_name, country, quiz_scope,
+                          correct_count, wrong_count, marks, percentage, total_possible, attempt_json,
+                          created_at, updated_at
+                """,
+                {
+                    "id": quiz_history_id,
+                    "profile_id": profile_id,
+                    "google_sub": google_sub,
+                    "email": email,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "country": country,
+                    "quiz_scope": quiz_scope,
+                    "correct_count": int(payload.get("correctCount", 0) or 0),
+                    "wrong_count": int(payload.get("wrongCount", 0) or 0),
+                    "marks": int(payload.get("marks", 0) or 0),
+                    "percentage": int(payload.get("percentage", 0) or 0),
+                    "total_possible": int(payload.get("totalPossible", 0) or 0),
+                    "attempt_json": attempt_json,
+                    "created_at": now,
+                    "updated_at": now,
+                },
+            )
+            row = cursor.fetchone()
+        conn.commit()
+
+    if not row:
+        raise ProfileStoreError("Quiz history could not be saved.")
+
+    return {
+        "id": row.get("id", ""),
+        "time": row.get("created_at", ""),
+        "playerName": f"{row.get('first_name', '')} {row.get('last_name', '')}".strip(),
+        "playerEmail": row.get("email", ""),
+        "country": row.get("country", ""),
+        "quizScope": row.get("quiz_scope", ""),
+        "correct": row.get("correct_count", 0),
+        "wrong": row.get("wrong_count", 0),
+        "marks": row.get("marks", 0),
+        "percentage": row.get("percentage", 0),
+        "total": row.get("total_possible", 0),
+    }
+
+
+def list_quiz_history_by_google_identity(google_sub: str | None, email: str | None) -> list[dict[str, Any]]:
+    sub = str(google_sub or "").strip()
+    mail = str(email or "").strip()
+    if not sub and not mail:
+        return []
+
+    ensure_schema()
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cursor:
+            if sub:
+                cursor.execute(
+                    """
+                    SELECT id, first_name, last_name, email, country, quiz_scope, correct_count, wrong_count,
+                           marks, percentage, total_possible, created_at
+                    FROM quiz_history
+                    WHERE google_sub = %s
+                    ORDER BY created_at DESC
+                    """,
+                    (sub,),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT id, first_name, last_name, email, country, quiz_scope, correct_count, wrong_count,
+                           marks, percentage, total_possible, created_at
+                    FROM quiz_history
+                    WHERE email = %s
+                    ORDER BY created_at DESC
+                    """,
+                    (mail,),
+                )
+            rows = cursor.fetchall() or []
+
+    history: list[dict[str, Any]] = []
+    for row in rows:
+        history.append(
+            {
+                "id": row.get("id", ""),
+                "time": row.get("created_at", ""),
+                "playerName": f"{row.get('first_name', '')} {row.get('last_name', '')}".strip(),
+                "playerEmail": row.get("email", ""),
+                "country": row.get("country", ""),
+                "quizScope": row.get("quiz_scope", ""),
+                "correct": row.get("correct_count", 0),
+                "wrong": row.get("wrong_count", 0),
+                "marks": row.get("marks", 0),
+                "percentage": row.get("percentage", 0),
+                "total": row.get("total_possible", 0),
+            }
+        )
+
+    return history

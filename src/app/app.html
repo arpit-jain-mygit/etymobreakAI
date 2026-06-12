@@ -162,6 +162,14 @@
               </div>
             } @else {
               <div class="history-list" aria-label="Quiz history">
+                @if (quizHistoryLoading()) {
+                  <p class="history-empty">Loading history...</p>
+                }
+
+                @if (quizHistoryError()) {
+                  <p class="history-empty">{{ quizHistoryError() }}</p>
+                }
+
                 @if (quizHistoryCount()) {
                   @for (item of quizHistory(); track item.id) {
                     <article class="history-item">
@@ -602,6 +610,14 @@
                     (click)="submitCurrentQuizQuestion()"
                   >
                     Submit Answer
+                  </button>
+                  <button
+                    type="button"
+                    class="primary"
+                    [disabled]="!quizCompleted() || quizHistorySubmitting() || quizHistorySaved()"
+                    (click)="submitQuizAttempt()"
+                  >
+                    {{ historyActionLabel() }}
                   </button>
                 </div>
 

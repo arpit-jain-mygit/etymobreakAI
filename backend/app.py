@@ -12,6 +12,8 @@ from .profile_store import (
     ProfileStoreError,
     ensure_schema,
     get_profile_by_google_identity,
+    insert_quiz_history,
+    list_quiz_history_by_google_identity,
     upsert_profile,
 )
 
@@ -35,6 +37,17 @@ class ProfileRequest(BaseModel):
     lastName: str = Field(min_length=1)
     country: str = Field(min_length=1)
     google: dict
+
+
+class QuizHistoryRequest(BaseModel):
+    profile: dict
+    quizScope: str = Field(min_length=1)
+    correctCount: int = Field(ge=0)
+    wrongCount: int = Field(ge=0)
+    marks: int = Field()
+    percentage: int = Field(ge=0)
+    totalPossible: int = Field(ge=0)
+    attempt: dict = Field(default_factory=dict)
 
 
 @app.get("/health")
@@ -108,3 +121,33 @@ def get_profile(sub: str | None = None, email: str | None = None) -> dict:
         )
 
     return profile
+
+
+@app.post("/quiz-history")
+def create_quiz_history(payload: QuizHistoryRequest) -> dict:
+    try:
+        return insert_quiz_history(payload.model_dump())
+    except ProfileStoreError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Quiz history storage is unavailable.",
+                "details": str(exc),
+            },
+        )
+
+
+@app.get("/quiz-history")
+def get_quiz_history(sub: str | None = None, email: str | None = None) -> dict:
+    try:
+        history = list_quiz_history_by_google_identity(sub, email)
+    except ProfileStoreError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Quiz history storage is unavailable.",
+                "details": str(exc),
+            },
+        )
+
+    return {"items": history}

@@ -89,6 +89,17 @@ interface QuizHistoryEntry {
   total: number;
 }
 
+interface QuizAttemptQuestion {
+  id: string;
+  type: QuizQuestionType;
+  prompt: string;
+  sourceTitle: string;
+  selectedIndex: number | null;
+  correctIndex: number;
+  submitted: boolean;
+  isCorrect: boolean | null;
+}
+
 type BreakdownRow = AnalysisPart[];
 type AppTab = 'search' | 'experiment' | 'quiz';
 type AuthStage = 'home' | 'loading' | 'profile' | 'app';
@@ -192,12 +203,14 @@ export class App implements OnInit, AfterViewInit {
   protected readonly googleButtonRendered = signal(false);
   protected readonly inventoryEntries = signal<unknown[]>([]);
   protected readonly quizHistory = signal<QuizHistoryEntry[]>([]);
+  protected readonly quizHistoryLoading = signal(false);
+  protected readonly quizHistorySubmitting = signal(false);
+  protected readonly quizHistorySaved = signal(false);
+  protected readonly quizHistoryError = signal('');
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
   private readonly profileStorageKey = 'etymobreak-profile';
   private readonly pendingGoogleStorageKey = 'etymobreak-google-identity';
-  private readonly quizHistoryStoragePrefix = 'etymobreak-quiz-history';
-  private lastRecordedQuizAttempt = -1;
   private quizAttemptCounter = 0;
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
@@ -481,6 +494,8 @@ export class App implements OnInit, AfterViewInit {
     this.authError.set('');
     this.googleButtonRendered.set(false);
     this.quizHistory.set([]);
+    this.quizHistoryError.set('');
+    this.quizHistorySaved.set(false);
     try {
       localStorage.removeItem(this.profileStorageKey);
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
@@ -497,13 +512,13 @@ export class App implements OnInit, AfterViewInit {
     }
 
     this.profileMenuView.set('profile');
-    this.loadQuizHistory();
+    void this.loadQuizHistoryFromServer();
   }
 
   protected setProfileMenuView(view: 'profile' | 'history'): void {
     this.profileMenuView.set(view);
     if (view === 'history') {
-      this.loadQuizHistory();
+      void this.loadQuizHistoryFromServer();
     }
   }
 
@@ -630,9 +645,89 @@ export class App implements OnInit, AfterViewInit {
         ? `Correct! +3 marks.`
         : `Wrong. -1 mark. Correct answer: ${correctAnswer}.`
     );
+  }
 
-    if (updated.every((item) => item.submitted)) {
-      this.recordQuizHistory();
+  protected async submitQuizAttempt(): Promise<void> {
+    if (!this.profile()) {
+      this.quizHistoryError.set('Sign in first to save quiz history.');
+      return;
+    }
+
+    if (!this.quizCompleted()) {
+      this.quizNotice.set('Finish all questions before submitting the quiz.');
+      return;
+    }
+
+    if (this.quizHistorySubmitting() || this.quizHistorySaved()) {
+      return;
+    }
+
+    const profile = this.profile();
+    if (!profile) {
+      return;
+    }
+
+    this.quizHistorySubmitting.set(true);
+    this.quizHistoryError.set('');
+
+    const totalPossible = this.quizQuestionCount() * 3;
+    const marks = this.quizTotalMarks();
+    const percentage = totalPossible > 0 ? Math.max(0, Math.round((marks / totalPossible) * 100)) : 0;
+    const questionHistory: QuizAttemptQuestion[] = this.quizQuestions().map((question) => ({
+      id: question.id,
+      type: question.type,
+      prompt: question.prompt,
+      sourceTitle: question.sourceTitle,
+      selectedIndex: question.selectedIndex,
+      correctIndex: question.correctIndex,
+      submitted: question.submitted,
+      isCorrect: question.isCorrect,
+    }));
+
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/quiz-history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          profile,
+          quizScope: this.quizLetter().trim() ? this.quizLetter().trim().toUpperCase() : 'ALL',
+          correctCount: this.quizCorrectCount(),
+          wrongCount: this.quizWrongCount(),
+          marks,
+          percentage,
+          totalPossible,
+          attempt: {
+            questions: questionHistory,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+          details?: string;
+        } | null;
+        const message = payload?.error || 'Your quiz history could not be saved.';
+        const details = payload?.details ? ` ${payload.details}` : '';
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      const saved = (await response.json().catch(() => null)) as QuizHistoryEntry | null;
+      if (saved) {
+        const next = [saved, ...this.quizHistory().filter((item) => item.id !== saved.id)].slice(0, 25);
+        this.quizHistory.set(next);
+      } else {
+        await this.loadQuizHistoryFromServer();
+      }
+
+      this.quizHistorySaved.set(true);
+      this.quizNotice.set('Quiz saved to your history.');
+    } catch (error) {
+      this.quizHistoryError.set(error instanceof Error ? error.message : 'Your quiz history could not be saved.');
+    } finally {
+      this.quizHistorySubmitting.set(false);
     }
   }
 
@@ -651,6 +746,18 @@ export class App implements OnInit, AfterViewInit {
       dateStyle: 'medium',
       timeStyle: 'short',
     });
+  }
+
+  protected historyActionLabel(): string {
+    if (this.quizHistorySubmitting()) {
+      return 'Saving...';
+    }
+
+    if (this.quizHistorySaved()) {
+      return 'Saved';
+    }
+
+    return 'Submit Quiz';
   }
 
   private async loadRootAutocomplete(): Promise<void> {
@@ -740,7 +847,7 @@ export class App implements OnInit, AfterViewInit {
       this.profileFirstName.set(firstName);
       this.profileLastName.set(lastName);
       this.profileCountry.set(country);
-      this.loadQuizHistory();
+      void this.loadQuizHistoryFromServer();
       return;
     } catch {
       this.loadPendingGoogleIdentity();
@@ -828,7 +935,7 @@ export class App implements OnInit, AfterViewInit {
       this.profileLastName.set(lastName);
       this.profileCountry.set(country);
       this.profileMenuOpen.set(false);
-      this.loadQuizHistory();
+      void this.loadQuizHistoryFromServer();
       localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
       this.authGateLoading.set(false);
@@ -874,6 +981,7 @@ export class App implements OnInit, AfterViewInit {
       this.authError.set('');
       this.authGateLoading.set(false);
       this.profileMenuOpen.set(false);
+      void this.loadQuizHistoryFromServer();
 
       localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
@@ -887,7 +995,7 @@ export class App implements OnInit, AfterViewInit {
       this.authError.set(error instanceof Error ? error.message : 'Your profile could not be created.');
       this.authGateLoading.set(false);
       this.profileMenuOpen.set(false);
-      this.loadQuizHistory();
+      void this.loadQuizHistoryFromServer();
 
       try {
         localStorage.setItem(this.profileStorageKey, JSON.stringify(fallbackProfile));
@@ -1169,7 +1277,8 @@ export class App implements OnInit, AfterViewInit {
 
   private buildQuizDeck(letter = ''): void {
     this.quizAttemptCounter += 1;
-    this.lastRecordedQuizAttempt = -1;
+    this.quizHistorySaved.set(false);
+    this.quizHistoryError.set('');
     const allEntries = this.getInventoryAnalyses();
     const filteredEntries = letter.trim() ? this.getInventoryAnalyses(letter) : allEntries;
     const sourceEntries = filteredEntries.length >= 10 ? filteredEntries : allEntries;
@@ -1186,27 +1295,32 @@ export class App implements OnInit, AfterViewInit {
     this.quizNotice.set('');
   }
 
-  private getQuizHistoryStorageKey(): string {
+  private async loadQuizHistoryFromServer(): Promise<void> {
     const profile = this.profile();
-    const googleId = String(profile?.google?.sub || profile?.google?.email || '').trim();
-    return `${this.quizHistoryStoragePrefix}:${googleId || 'guest'}`;
-  }
+    if (!profile) {
+      this.quizHistory.set([]);
+      return;
+    }
 
-  private loadQuizHistory(): void {
     try {
-      const raw = localStorage.getItem(this.getQuizHistoryStorageKey());
-      if (!raw) {
+      this.quizHistoryLoading.set(true);
+      this.quizHistoryError.set('');
+      const params = new URLSearchParams();
+      if (profile.google.sub) {
+        params.set('sub', profile.google.sub);
+      }
+      if (profile.google.email) {
+        params.set('email', profile.google.email);
+      }
+
+      const response = await fetch(`${getApiBaseUrl()}/quiz-history?${params.toString()}`);
+      if (!response.ok) {
         this.quizHistory.set([]);
         return;
       }
 
-      const parsed = JSON.parse(raw) as Partial<QuizHistoryEntry>[] | null;
-      if (!Array.isArray(parsed)) {
-        this.quizHistory.set([]);
-        return;
-      }
-
-      const history = parsed
+      const payload = (await response.json().catch(() => null)) as { items?: Partial<QuizHistoryEntry>[] } | null;
+      const history = (payload?.items ?? [])
         .map((item) => {
           if (!item || typeof item !== 'object') {
             return null;
@@ -1248,48 +1362,10 @@ export class App implements OnInit, AfterViewInit {
       this.quizHistory.set(history);
     } catch {
       this.quizHistory.set([]);
+      this.quizHistoryError.set('Quiz history could not be loaded.');
+    } finally {
+      this.quizHistoryLoading.set(false);
     }
-  }
-
-  private saveQuizHistory(entries: QuizHistoryEntry[]): void {
-    try {
-      localStorage.setItem(this.getQuizHistoryStorageKey(), JSON.stringify(entries));
-    } catch {
-      return;
-    }
-  }
-
-  private recordQuizHistory(): void {
-    if (!this.profile() || !this.quizCompleted() || this.lastRecordedQuizAttempt === this.quizAttemptCounter) {
-      return;
-    }
-
-    const profile = this.profile();
-    if (!profile) {
-      return;
-    }
-
-    const totalPossible = this.quizQuestionCount() * 3;
-    const marks = this.quizTotalMarks();
-    const percentage = totalPossible > 0 ? Math.max(0, Math.round((marks / totalPossible) * 100)) : 0;
-    const entry: QuizHistoryEntry = {
-      id: `${Date.now()}-${this.quizAttemptCounter}`,
-      time: new Date().toISOString(),
-      playerName: this.profileDisplayName() || `${profile.firstName} ${profile.lastName}`.trim(),
-      playerEmail: profile.google.email,
-      country: profile.country,
-      quizScope: this.quizLetter().trim() ? this.quizLetter().trim().toUpperCase() : 'ALL',
-      correct: this.quizCorrectCount(),
-      wrong: this.quizWrongCount(),
-      marks,
-      percentage,
-      total: totalPossible,
-    };
-
-    const next = [entry, ...this.quizHistory()].slice(0, 25);
-    this.quizHistory.set(next);
-    this.saveQuizHistory(next);
-    this.lastRecordedQuizAttempt = this.quizAttemptCounter;
   }
 
   private normalizeAnalysisResult(payload: unknown, query: string): AnalysisResult {

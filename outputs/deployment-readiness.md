@@ -58,11 +58,13 @@ This file collects the current deployment steps for the frontend on Vercel and t
 8. Verify `GET /health` returns `{"status":"ok"}`.
 9. Verify `GET /config` returns a non-empty `googleClientId`.
 10. Verify `POST /profile` can create a profile and persist it in Postgres.
+11. Verify `POST /quiz-history` can save a completed quiz attempt.
+12. Verify `GET /quiz-history` returns prior quiz attempts for the signed-in Google account.
 
 ### Postgres Checklist
-- The backend currently uses one table: `profiles`.
-- The backend can create this table automatically on startup.
-- You can also create it manually with the SQL stored in `outputs/postgres-schema.md`.
+- The backend currently uses two tables: `profiles` and `quiz_history`.
+- The backend can create these tables automatically on startup.
+- You can also create them manually with the SQL stored in `outputs/postgres-schema.md`.
 
 ### Render CLI Option
 If you want to create the table manually from your terminal, use the Render CLI and run the SQL against your database.
@@ -76,7 +78,7 @@ render login
 2. Open a SQL session or run the create-table statement directly against your Render Postgres database:
 
 ```bash
-render psql <your-postgres-database-name-or-id> -c "CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, google_sub TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, first_name TEXT NOT NULL, last_name TEXT NOT NULL, country TEXT NOT NULL, google_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);"
+render psql <your-postgres-database-name-or-id> -c "CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, google_sub TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, first_name TEXT NOT NULL, last_name TEXT NOT NULL, country TEXT NOT NULL, google_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS quiz_history (id TEXT PRIMARY KEY, profile_id TEXT NOT NULL, google_sub TEXT NOT NULL, email TEXT NOT NULL, first_name TEXT NOT NULL, last_name TEXT NOT NULL, country TEXT NOT NULL, quiz_scope TEXT NOT NULL, correct_count INTEGER NOT NULL, wrong_count INTEGER NOT NULL, marks INTEGER NOT NULL, percentage INTEGER NOT NULL, total_possible INTEGER NOT NULL, attempt_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);"
 ```
 
 3. Confirm the table exists in Render Postgres after the command runs.
@@ -92,6 +94,25 @@ CREATE TABLE IF NOT EXISTS profiles (
     last_name TEXT NOT NULL,
     country TEXT NOT NULL,
     google_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS quiz_history (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT NOT NULL,
+    google_sub TEXT NOT NULL,
+    email TEXT NOT NULL,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    country TEXT NOT NULL,
+    quiz_scope TEXT NOT NULL,
+    correct_count INTEGER NOT NULL,
+    wrong_count INTEGER NOT NULL,
+    marks INTEGER NOT NULL,
+    percentage INTEGER NOT NULL,
+    total_possible INTEGER NOT NULL,
+    attempt_json TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
