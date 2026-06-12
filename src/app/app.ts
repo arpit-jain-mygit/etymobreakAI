@@ -769,9 +769,20 @@ export class App implements OnInit, AfterViewInit {
       localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
     } catch (error) {
-      this.profile.set(null);
+      const fallbackProfile: StoredProfile = {
+        ...profile,
+      };
+
+      this.profile.set(fallbackProfile);
+      this.authMessage.set('Profile saved locally. Welcome to EtymoBreak.');
       this.authError.set(error instanceof Error ? error.message : 'Your profile could not be created.');
-      this.authMessage.set('Google is connected. Please try again to create your profile.');
+
+      try {
+        localStorage.setItem(this.profileStorageKey, JSON.stringify(fallbackProfile));
+        sessionStorage.removeItem(this.pendingGoogleStorageKey);
+      } catch {
+        this.authError.set('Your profile could not be saved locally.');
+      }
       return;
     } finally {
       this.loading.set(false);
@@ -849,6 +860,7 @@ export class App implements OnInit, AfterViewInit {
     if (!this.profileLastName().trim()) {
       this.profileLastName.set(familyName || fallbackParts.slice(1).join(' ') || '');
     }
+    void this.loadProfileFromServer(this.googleIdentity()!);
     this.authError.set('');
     this.authMessage.set('Google account connected. Finish your profile and continue.');
   }
