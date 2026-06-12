@@ -80,12 +80,61 @@ This file collects the current deployment steps for the frontend on Vercel and t
 - Use a user-level folder keyed by the Google subject ID so each signed-in user stays isolated.
 
 ### Cloud Run Broker Checklist
-1. Create a tiny FastAPI service from `broker/`.
-2. Deploy it to Cloud Run with a service account attached.
-3. Assign the service account bucket write/list access.
-4. Set `GCP_QUIZ_BUCKET` and `BROKER_SHARED_SECRET` on the broker service.
-5. Copy the broker URL into `BROKER_URL` on Render.
-6. Confirm the broker accepts `POST /quiz-history` and `GET /quiz-history`.
+1. Open Google Cloud Console and go to the `etymobreak-ai` project.
+2. Open Cloud Shell from the console header. Cloud Shell already has `gcloud` installed and authenticated for the current Google account.
+3. Clone the repository in Cloud Shell if the code is not already there:
+
+```bash
+git clone https://github.com/arpit-jain-mygit/etymobreakAI.git
+cd etymobreakAI
+git checkout codex-cloud-run-broker
+```
+
+4. Create the broker service account:
+
+```bash
+gcloud iam service-accounts create etymobreak-ai-broker \
+  --display-name="EtymoBreak AI Broker"
+```
+
+5. Grant the deployer account permission to attach that service account:
+
+```bash
+gcloud iam service-accounts add-iam-policy-binding \
+  etymobreak-ai-broker@etymobreak-ai.iam.gserviceaccount.com \
+  --member="user:sachin.arpit.gcp.may2026@gmail.com" \
+  --role="roles/iam.serviceAccountUser"
+```
+
+6. Create or choose the GCS bucket for quiz attempts, for example `etymobreak-ai-quizzes`.
+7. Grant bucket access to the broker service account:
+
+```bash
+gcloud storage buckets add-iam-policy-binding gs://etymobreak-ai-quizzes \
+  --member="serviceAccount:etymobreak-ai-broker@etymobreak-ai.iam.gserviceaccount.com" \
+  --role="roles/storage.objectAdmin"
+```
+
+8. Deploy the broker from the `broker/` folder. Cloud Run will use the `broker/Dockerfile` for a deterministic build:
+
+```bash
+gcloud run deploy etymobreak-ai-quiz-broker \
+  --source ./broker \
+  --region asia-south1 \
+  --service-account etymobreak-ai-broker@etymobreak-ai.iam.gserviceaccount.com \
+  --allow-unauthenticated \
+  --set-env-vars GCP_QUIZ_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=replace-with-a-long-random-secret
+```
+
+9. Copy the Cloud Run service URL into `BROKER_URL` on the Render backend service.
+10. Put the same secret into `BROKER_SHARED_SECRET` on Render.
+11. Confirm the broker accepts `POST /quiz-history` and `GET /quiz-history`.
+
+### Render Backend Broker Wiring
+1. Add `BROKER_URL` to the Render backend service.
+2. Add `BROKER_SHARED_SECRET` to the Render backend service.
+3. Keep `DATABASE_URL` pointed at Render Postgres for profiles only.
+4. Keep quiz attempts out of Postgres.
 
 ### Example Cloud Run Deploy Command
 Use the command below after signing in with the Google Cloud CLI and selecting the right project:
@@ -103,6 +152,7 @@ Notes:
 - Cloud Run uses the attached service account through Application Default Credentials, so no JSON key file is needed.
 - Give the broker service account `Storage Object Admin` on the quiz bucket, or at minimum `Storage Object Creator` plus `Storage Object Viewer`.
 - Keep the broker service public only if you are protecting it with the shared secret header from the Render backend.
+- If a buildpacks deploy fails, keep the Dockerfile path and redeploy from the same command above.
 
 ### Render CLI Option
 If you want to create the table manually from your terminal, use the Render CLI and run the SQL against your database.
