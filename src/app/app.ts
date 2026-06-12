@@ -102,6 +102,7 @@ interface QuizAttemptQuestion {
   type: QuizQuestionType;
   prompt: string;
   sourceTitle: string;
+  options: string[];
   selectedIndex: number | null;
   selectedText: string;
   correctIndex: number;
@@ -814,6 +815,7 @@ export class App implements OnInit, AfterViewInit {
       type: question.type,
       prompt: question.prompt,
       sourceTitle: question.sourceTitle,
+      options: question.options,
       selectedIndex: question.selectedIndex,
       selectedText: question.selectedIndex === null ? '' : question.options[question.selectedIndex] ?? '',
       correctIndex: question.correctIndex,
@@ -1498,7 +1500,10 @@ export class App implements OnInit, AfterViewInit {
           const timeLimitMinutes = Number(entry.timeLimitMinutes || 0);
           const timeSpentSeconds = Number(entry.timeSpentSeconds || 0);
           const questions = Array.isArray((entry as { questions?: unknown }).questions)
-            ? ((entry as { questions?: QuizAttemptQuestion[] }).questions ?? [])
+            ? (((entry as { questions?: QuizAttemptQuestion[] }).questions ?? []).map((question) => ({
+                ...question,
+                options: Array.isArray(question?.options) ? question.options : [],
+              })) as QuizAttemptQuestion[])
             : [];
 
           if (!time || !playerName || !playerEmail) {
