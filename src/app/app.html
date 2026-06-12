@@ -103,10 +103,50 @@
     <section class="profile-strip">
       <div class="profile-summary">
         <p class="eyebrow">Signed in</p>
-        <strong>{{ profile()?.firstName }} {{ profile()?.lastName }}</strong>
+        <strong>{{ profileDisplayName() }}</strong>
         <span>{{ profile()?.country }}</span>
       </div>
-      <button type="button" class="tab-chip" (click)="signOutProfile()">Sign out</button>
+      <div class="profile-menu-wrap" style="position:relative;margin-left:auto;">
+        <button
+          type="button"
+          class="profile-avatar-button"
+          style="width:46px;height:46px;border-radius:50%;border:1px solid rgba(104,128,164,.22);background:linear-gradient(135deg,rgba(231,240,255,.95),rgba(227,247,236,.95));color:#324c63;display:grid;place-items:center;font-weight:800;font-size:.9rem;box-shadow:0 12px 28px rgba(80,103,117,.1);"
+          [class.open]="profileMenuOpen()"
+          (click)="toggleProfileMenu()"
+          [attr.aria-expanded]="profileMenuOpen()"
+          aria-label="Open profile menu"
+        >
+          {{ profileInitials() }}
+        </button>
+
+        @if (profileMenuOpen()) {
+          <div
+            class="profile-menu"
+            role="menu"
+            aria-label="Profile menu"
+            style="position:absolute;right:0;top:calc(100% + 10px);width:min(320px,86vw);display:grid;gap:12px;padding:14px;border-radius:18px;border:1px solid rgba(150,171,185,.2);background:rgba(255,255,255,.95);backdrop-filter:blur(16px);box-shadow:0 20px 48px rgba(80,103,117,.14);z-index:5;"
+          >
+            <div class="profile-menu-header" style="display:flex;gap:10px;align-items:center;">
+              <div class="profile-menu-avatar" style="width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-weight:800;background:linear-gradient(135deg,#cfe7df,#dbe7ff);color:#25404c;">
+                {{ profileInitials() }}
+              </div>
+              <div style="display:grid;gap:2px;">
+                <strong>{{ profileDisplayName() }}</strong>
+                <span>{{ profile()?.country }}</span>
+              </div>
+            </div>
+
+            <div style="padding:10px 0 2px;border-top:1px solid rgba(150,171,185,.14);border-bottom:1px solid rgba(150,171,185,.14);">
+              <p style="margin:0 0 2px;text-transform:uppercase;letter-spacing:.12em;font-size:.68rem;color:#7f92a7;">Signed in as</p>
+              <p style="margin:0;color:#3f556a;word-break:break-word;">{{ profile()?.google?.email }}</p>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;">
+              <button type="button" class="tab-chip profile-signout" (click)="signOutProfile()">Sign out</button>
+            </div>
+          </div>
+        }
+      </div>
     </section>
 
     <section class="hero">

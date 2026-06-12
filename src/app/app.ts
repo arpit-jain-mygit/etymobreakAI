@@ -172,6 +172,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly authMessage = signal('');
   protected readonly authError = signal('');
   protected readonly authGateLoading = signal(false);
+  protected readonly profileMenuOpen = signal(false);
   protected readonly googleClientId = signal('');
   protected readonly googleButtonRendered = signal(false);
   protected readonly inventoryEntries = signal<unknown[]>([]);
@@ -314,6 +315,22 @@ export class App implements OnInit, AfterViewInit {
       this.profileLastName().trim().length > 0 &&
       this.profileCountry().trim().length > 0
   );
+  protected readonly profileInitials = computed(() => {
+    const profile = this.profile();
+    const first = String(profile?.firstName || '').trim().charAt(0);
+    const last = String(profile?.lastName || '').trim().charAt(0);
+    const fallback = String(profile?.google?.name || '')
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part.charAt(0))
+      .join('');
+    return (first + last || fallback || 'U').toUpperCase().slice(0, 2);
+  });
+  protected readonly profileDisplayName = computed(() => {
+    const profile = this.profile();
+    return [profile?.firstName, profile?.lastName].map((part) => String(part || '').trim()).filter(Boolean).join(' ');
+  });
   private normalizeForMatch(value: string): string {
     return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
@@ -433,6 +450,7 @@ export class App implements OnInit, AfterViewInit {
   }
 
   protected signOutProfile(): void {
+    this.profileMenuOpen.set(false);
     this.profile.set(null);
     this.googleIdentity.set(null);
     this.profileFirstName.set('');
@@ -448,6 +466,10 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
     setTimeout(() => this.tryRenderGoogleButton(), 0);
+  }
+
+  protected toggleProfileMenu(): void {
+    this.profileMenuOpen.update((open) => !open);
   }
 
   protected startGoogleSignIn(): void {
@@ -753,6 +775,7 @@ export class App implements OnInit, AfterViewInit {
       this.profileFirstName.set(firstName);
       this.profileLastName.set(lastName);
       this.profileCountry.set(country);
+      this.profileMenuOpen.set(false);
       localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
       this.authGateLoading.set(false);
@@ -797,6 +820,7 @@ export class App implements OnInit, AfterViewInit {
       this.authMessage.set('Profile created. Welcome to EtymoBreak.');
       this.authError.set('');
       this.authGateLoading.set(false);
+      this.profileMenuOpen.set(false);
 
       localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
@@ -809,6 +833,7 @@ export class App implements OnInit, AfterViewInit {
       this.authMessage.set('Profile saved locally. Welcome to EtymoBreak.');
       this.authError.set(error instanceof Error ? error.message : 'Your profile could not be created.');
       this.authGateLoading.set(false);
+      this.profileMenuOpen.set(false);
 
       try {
         localStorage.setItem(this.profileStorageKey, JSON.stringify(fallbackProfile));
