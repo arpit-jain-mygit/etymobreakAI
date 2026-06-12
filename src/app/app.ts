@@ -77,7 +77,7 @@ interface CreatedProfileResponse {
 
 type BreakdownRow = AnalysisPart[];
 type AppTab = 'search' | 'experiment' | 'quiz';
-type AuthStage = 'home' | 'profile' | 'app';
+type AuthStage = 'home' | 'loading' | 'profile' | 'app';
 type QuizQuestionType = 'meaning' | 'root' | 'family' | 'literal';
 
 interface QuizQuestion {
@@ -171,6 +171,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly profileCountry = signal('');
   protected readonly authMessage = signal('');
   protected readonly authError = signal('');
+  protected readonly authGateLoading = signal(false);
   protected readonly googleClientId = signal('');
   protected readonly googleButtonRendered = signal(false);
   protected readonly inventoryEntries = signal<unknown[]>([]);
@@ -294,6 +295,10 @@ export class App implements OnInit, AfterViewInit {
   protected readonly authStage = computed<AuthStage>(() => {
     if (this.profileComplete()) {
       return 'app';
+    }
+
+    if (this.authGateLoading()) {
+      return 'loading';
     }
 
     if (this.googleIdentity()) {
@@ -679,7 +684,8 @@ export class App implements OnInit, AfterViewInit {
       this.googleIdentity.set(identity);
       this.profileFirstName.set(identity.given_name || identity.name.split(/\s+/)[0] || '');
       this.profileLastName.set(identity.family_name || identity.name.split(/\s+/).slice(1).join(' ') || '');
-      this.authMessage.set('Google account connected. Finish your profile and continue.');
+      this.authGateLoading.set(true);
+      this.authMessage.set('Checking your saved profile...');
       void this.loadProfileFromServer(identity);
     } catch {
       return;
@@ -702,6 +708,8 @@ export class App implements OnInit, AfterViewInit {
 
       const response = await fetch(`${getApiBaseUrl()}/profile?${params.toString()}`);
       if (!response.ok) {
+        this.authGateLoading.set(false);
+        this.authMessage.set('Google account connected. Finish your profile and continue.');
         return;
       }
 
@@ -711,6 +719,8 @@ export class App implements OnInit, AfterViewInit {
       const country = String(payload?.country || '').trim();
       const google = payload?.google || identity;
       if (!firstName || !lastName || !country) {
+        this.authGateLoading.set(false);
+        this.authMessage.set('Google account connected. Finish your profile and continue.');
         return;
       }
 
@@ -727,9 +737,12 @@ export class App implements OnInit, AfterViewInit {
       this.profileCountry.set(country);
       localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
+      this.authGateLoading.set(false);
       this.authMessage.set('Welcome back. Your profile is ready.');
       this.authError.set('');
     } catch {
+      this.authGateLoading.set(false);
+      this.authMessage.set('Google account connected. Finish your profile and continue.');
       return;
     }
   }
@@ -765,6 +778,7 @@ export class App implements OnInit, AfterViewInit {
       this.profile.set(normalizedProfile);
       this.authMessage.set('Profile created. Welcome to EtymoBreak.');
       this.authError.set('');
+      this.authGateLoading.set(false);
 
       localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
@@ -776,6 +790,7 @@ export class App implements OnInit, AfterViewInit {
       this.profile.set(fallbackProfile);
       this.authMessage.set('Profile saved locally. Welcome to EtymoBreak.');
       this.authError.set(error instanceof Error ? error.message : 'Your profile could not be created.');
+      this.authGateLoading.set(false);
 
       try {
         localStorage.setItem(this.profileStorageKey, JSON.stringify(fallbackProfile));

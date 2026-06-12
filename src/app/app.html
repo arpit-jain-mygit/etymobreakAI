@@ -21,6 +21,23 @@
         <p class="auth-hint">After sign-in, you’ll be taken to the profile page automatically.</p>
       </div>
     </section>
+  } @else if (authStage() === 'loading') {
+    <section class="auth-panel">
+      <div class="hero-copy">
+        <p class="eyebrow">EtymoBreak AI</p>
+        <h1>Loading your vibe.</h1>
+        <p class="lead">We’re checking your saved profile and getting your space ready.</p>
+      </div>
+
+      <div class="auth-card loading-card" aria-live="polite">
+        <div class="pulse-loader" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <p class="loading-copy">{{ authMessage() || 'Checking your saved profile...' }}</p>
+      </div>
+    </section>
   } @else if (authStage() === 'profile') {
     <section class="auth-panel">
       <div class="hero-copy">
