@@ -758,6 +758,7 @@
                       class="quiz-summary-option"
                       [class.selected]="question.selectedIndex === optionIndex"
                       [class.correct]="optionIndex === question.correctIndex"
+                      [class.skipped-correct]="question.status === 'skipped' && optionIndex === question.correctIndex"
                       [class.wrong]="question.selectedIndex === optionIndex && optionIndex !== question.correctIndex"
                     >
                       <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>

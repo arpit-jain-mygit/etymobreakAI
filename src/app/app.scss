@@ -891,6 +891,11 @@ input::placeholder {
   background: rgba(227, 245, 234, 0.96);
 }
 
+.quiz-summary-option.skipped-correct {
+  border-color: rgba(169, 210, 179, 0.55);
+  background: rgba(241, 250, 243, 0.98);
+}
+
 .quiz-summary-option.selected.correct {
   border-color: rgba(109, 173, 138, 0.75);
   background: rgba(227, 245, 234, 0.96);
