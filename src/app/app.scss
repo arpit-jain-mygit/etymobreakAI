@@ -739,6 +739,19 @@ input::placeholder {
   gap: 8px;
 }
 
+.quiz-picker-group {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.quiz-count-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .quiz-difficulty-chip {
   width: 40px;
   height: 40px;
@@ -750,6 +763,23 @@ input::placeholder {
 }
 
 .quiz-difficulty-chip.active {
+  border-color: rgba(126, 156, 214, 0.52);
+  background: rgba(232, 239, 255, 0.96);
+  color: #28465a;
+}
+
+.quiz-count-chip {
+  min-width: 42px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(158, 177, 184, 0.2);
+  background: rgba(255, 255, 255, 0.82);
+  color: #526372;
+  font-weight: 800;
+}
+
+.quiz-count-chip.active {
   border-color: rgba(126, 156, 214, 0.52);
   background: rgba(232, 239, 255, 0.96);
   color: #28465a;
@@ -961,6 +991,12 @@ input::placeholder {
   .quiz-summary-hero,
   .quiz-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .quiz-picker-group,
+  .quiz-count-row {
+    justify-items: start;
+    justify-content: flex-start;
   }
 
   .auth-grid {

@@ -230,6 +230,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly quizFlowStage = signal<QuizFlowStage>('setup');
   protected readonly quizType = signal<QuizBankType>('word');
   protected readonly quizDifficulty = signal(1);
+  protected readonly quizQuestionTarget = signal(50);
   protected readonly quizIndex = signal(0);
   protected readonly quizQuestions = signal<QuizQuestion[]>([]);
   protected readonly quizTimeRemaining = signal(25 * 60);
@@ -270,6 +271,7 @@ export class App implements OnInit, AfterViewInit {
     }
   });
   protected readonly quizDifficultyLabel = computed(() => `Level ${this.quizDifficulty()}`);
+  protected readonly quizQuestionTargetLabel = computed(() => `${this.quizQuestionTarget()} questions`);
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
   private quizBankLoadPromise: Promise<void> | null = null;
@@ -629,6 +631,11 @@ export class App implements OnInit, AfterViewInit {
     this.quizDifficulty.set(Math.min(5, Math.max(1, Math.floor(level))));
   }
 
+  protected selectQuizQuestionCount(count: number): void {
+    const normalized = Math.min(50, Math.max(5, Math.floor(count / 5) * 5));
+    this.quizQuestionTarget.set(normalized || 5);
+  }
+
   protected async startQuiz(): Promise<void> {
     if (this.quizFlowStage() === 'taking' || this.quizPreparing()) {
       return;
@@ -643,7 +650,11 @@ export class App implements OnInit, AfterViewInit {
     this.quizTimeRemaining.set(25 * 60);
     this.quizQuestions.set([]);
 
-    const deck = await this.buildQuizDeck(this.quizType(), this.quizDifficulty());
+    const deck = await this.buildQuizDeck(
+      this.quizType(),
+      this.quizDifficulty(),
+      this.quizQuestionTarget()
+    );
     if (!deck.length) {
       this.quizFlowStage.set('setup');
       this.quizNotice.set('That quiz bank could not be loaded yet. Please try again in a moment.');
@@ -853,6 +864,7 @@ export class App implements OnInit, AfterViewInit {
     this.quizIndex.set(0);
     this.quizTimeRemaining.set(25 * 60);
     this.quizPreparing.set(false);
+    this.quizQuestionTarget.set(50);
     this.quizNotice.set('');
     this.quizHistorySaved.set(false);
     this.quizHistoryError.set('');
@@ -1369,7 +1381,11 @@ export class App implements OnInit, AfterViewInit {
     return 'meaning';
   }
 
-  private async buildQuizDeck(type: QuizBankType, difficulty: number): Promise<QuizQuestion[]> {
+  private async buildQuizDeck(
+    type: QuizBankType,
+    difficulty: number,
+    targetCount: number
+  ): Promise<QuizQuestion[]> {
     this.quizAttemptCounter += 1;
     const bank = await this.loadQuizBank(type);
     if (!bank) {
@@ -1380,8 +1396,9 @@ export class App implements OnInit, AfterViewInit {
       const normalizedDifficulty = Math.min(5, Math.max(1, Math.floor(Number(question.difficulty || question.level || 1))));
       return normalizedDifficulty === difficulty;
     });
-    const source = eligible.length >= 50 ? eligible : bank.questions;
-    const selected = this.shuffle(source).slice(0, 50);
+    const target = Math.min(50, Math.max(5, Math.floor(targetCount / 5) * 5));
+    const source = eligible.length >= target ? eligible : bank.questions;
+    const selected = this.shuffle(source).slice(0, target);
 
     return selected
       .map((record, index) => this.normalizeQuizQuestion(record, index))

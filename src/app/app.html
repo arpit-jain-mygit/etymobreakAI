@@ -579,20 +579,35 @@
             <div class="quiz-config-copy">
               <p class="section-label">Difficulty</p>
               <strong>{{ quizTypeLabel() }}</strong>
-              <span>Pick a level, then we’ll build a random 50-question deck from that bank.</span>
+              <span>Pick a level and question count, then we’ll build a random deck from that bank.</span>
             </div>
 
-            <div class="quiz-difficulty-row" role="radiogroup" aria-label="Quiz difficulty">
-              @for (level of [1, 2, 3, 4, 5]; track level) {
-                <button
-                  type="button"
-                  class="quiz-difficulty-chip"
-                  [class.active]="quizDifficulty() === level"
-                  (click)="selectQuizDifficulty(level)"
-                >
-                  {{ level }}
-                </button>
-              }
+            <div class="quiz-picker-group">
+              <div class="quiz-difficulty-row" role="radiogroup" aria-label="Quiz difficulty">
+                @for (level of [1, 2, 3, 4, 5]; track level) {
+                  <button
+                    type="button"
+                    class="quiz-difficulty-chip"
+                    [class.active]="quizDifficulty() === level"
+                    (click)="selectQuizDifficulty(level)"
+                  >
+                    {{ level }}
+                  </button>
+                }
+              </div>
+
+              <div class="quiz-count-row" role="radiogroup" aria-label="Quiz question count">
+                @for (count of [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]; track count) {
+                  <button
+                    type="button"
+                    class="quiz-count-chip"
+                    [class.active]="quizQuestionTarget() === count"
+                    (click)="selectQuizQuestionCount(count)"
+                  >
+                    {{ count }}
+                  </button>
+                }
+              </div>
             </div>
           </div>
 
