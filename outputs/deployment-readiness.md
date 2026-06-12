@@ -46,6 +46,8 @@ This file collects the current deployment steps for the frontend on Vercel and t
 - `MISTRAL_MODEL` (current default: `mistral-small-latest`)
 - `GOOGLE_CLIENT_ID`
 - `DATABASE_URL`
+- `BROKER_URL`
+- `BROKER_SHARED_SECRET`
 
 ### Backend Checklist
 1. Create or import the `etymobreak-ai-api` service on Render.
@@ -54,17 +56,53 @@ This file collects the current deployment steps for the frontend on Vercel and t
 4. Add `GOOGLE_CLIENT_ID` in the Render service environment.
 5. Add `MISTRAL_API_KEY` in the Render service environment.
 6. Keep `MISTRAL_MODEL` set to `mistral-small-latest` unless you intentionally change models.
-7. Deploy the service.
-8. Verify `GET /health` returns `{"status":"ok"}`.
-9. Verify `GET /config` returns a non-empty `googleClientId`.
-10. Verify `POST /profile` can create a profile and persist it in Postgres.
-11. Verify `POST /quiz-history` can save a completed quiz attempt.
-12. Verify `GET /quiz-history` returns prior quiz attempts for the signed-in Google account.
+7. Add the GCS bucket environment variables listed below.
+8. Deploy the service.
+9. Verify `GET /health` returns `{"status":"ok"}`.
+10. Verify `GET /config` returns a non-empty `googleClientId`.
+11. Verify `POST /profile` can create a profile and persist it in Postgres.
+12. Verify `POST /quiz-history` forwards the full quiz attempt JSON to the broker and returns a bucket path.
+13. Verify `GET /quiz-history` reads the signed-in user’s prior attempts from the broker-backed bucket.
 
 ### Postgres Checklist
-- The backend currently uses two tables: `profiles` and `quiz_history`.
-- The backend can create these tables automatically on startup.
-- You can also create them manually with the SQL stored in `outputs/postgres-schema.md`.
+- The backend now stores only `profiles` in Postgres.
+- Quiz attempts are no longer persisted in Postgres.
+- The backend can create the `profiles` table automatically on startup.
+- You can also create it manually with the SQL stored in `outputs/postgres-schema.md`.
+
+### GCS Quiz Storage Checklist
+- Create a bucket for quiz attempts, for example `etymobreak-ai-quizzes`.
+- Deploy the broker to Cloud Run with a service account attached to the service.
+- Give that service account `Storage Object Admin` on the bucket, or at minimum `Storage Object Creator` plus `Storage Object Viewer`.
+- Set `GCP_QUIZ_BUCKET` on the Cloud Run broker service to that bucket name.
+- Set `BROKER_SHARED_SECRET` on the Cloud Run broker and mirror the same secret in the Render backend service.
+- The broker stores attempts under `users/{google_sub}/quiz-attempts/YYYY/MM/DD/quiz-<attempt-id>.json`.
+- Use a user-level folder keyed by the Google subject ID so each signed-in user stays isolated.
+
+### Cloud Run Broker Checklist
+1. Create a tiny FastAPI service from `broker/`.
+2. Deploy it to Cloud Run with a service account attached.
+3. Assign the service account bucket write/list access.
+4. Set `GCP_QUIZ_BUCKET` and `BROKER_SHARED_SECRET` on the broker service.
+5. Copy the broker URL into `BROKER_URL` on Render.
+6. Confirm the broker accepts `POST /quiz-history` and `GET /quiz-history`.
+
+### Example Cloud Run Deploy Command
+Use the command below after signing in with the Google Cloud CLI and selecting the right project:
+
+```bash
+gcloud run deploy etymobreak-ai-quiz-broker \
+  --source broker \
+  --region asia-south1 \
+  --service-account etymobreak-ai-broker@etymobreak-ai.iam.gserviceaccount.com \
+  --allow-unauthenticated \
+  --set-env-vars GCP_QUIZ_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=replace-with-a-long-random-secret
+```
+
+Notes:
+- Cloud Run uses the attached service account through Application Default Credentials, so no JSON key file is needed.
+- Give the broker service account `Storage Object Admin` on the quiz bucket, or at minimum `Storage Object Creator` plus `Storage Object Viewer`.
+- Keep the broker service public only if you are protecting it with the shared secret header from the Render backend.
 
 ### Render CLI Option
 If you want to create the table manually from your terminal, use the Render CLI and run the SQL against your database.
@@ -78,7 +116,7 @@ render login
 2. Open a SQL session or run the create-table statement directly against your Render Postgres database:
 
 ```bash
-render psql <your-postgres-database-name-or-id> -c "CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, google_sub TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, first_name TEXT NOT NULL, last_name TEXT NOT NULL, country TEXT NOT NULL, google_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS quiz_history (id TEXT PRIMARY KEY, profile_id TEXT NOT NULL, google_sub TEXT NOT NULL, email TEXT NOT NULL, first_name TEXT NOT NULL, last_name TEXT NOT NULL, country TEXT NOT NULL, quiz_scope TEXT NOT NULL, correct_count INTEGER NOT NULL, wrong_count INTEGER NOT NULL, marks INTEGER NOT NULL, percentage INTEGER NOT NULL, total_possible INTEGER NOT NULL, attempt_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);"
+render psql <your-postgres-database-name-or-id> -c "CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, google_sub TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, first_name TEXT NOT NULL, last_name TEXT NOT NULL, country TEXT NOT NULL, google_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);"
 ```
 
 3. Confirm the table exists in Render Postgres after the command runs.
@@ -94,25 +132,6 @@ CREATE TABLE IF NOT EXISTS profiles (
     last_name TEXT NOT NULL,
     country TEXT NOT NULL,
     google_json TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS quiz_history (
-    id TEXT PRIMARY KEY,
-    profile_id TEXT NOT NULL,
-    google_sub TEXT NOT NULL,
-    email TEXT NOT NULL,
-    first_name TEXT NOT NULL,
-    last_name TEXT NOT NULL,
-    country TEXT NOT NULL,
-    quiz_scope TEXT NOT NULL,
-    correct_count INTEGER NOT NULL,
-    wrong_count INTEGER NOT NULL,
-    marks INTEGER NOT NULL,
-    percentage INTEGER NOT NULL,
-    total_possible INTEGER NOT NULL,
-    attempt_json TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -151,4 +170,5 @@ CREATE TABLE IF NOT EXISTS quiz_history (
 - Keep the frontend and backend deployed separately.
 - Keep the backend CORS policy open only if needed for current Vercel domains.
 - Keep `DATABASE_URL` private and sourced from Render Postgres.
+- Keep GCS credentials private and sourced from Render environment variables.
 - Keep Google credentials and Mistral credentials in environment variables, not in source control.
