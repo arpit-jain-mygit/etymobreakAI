@@ -145,10 +145,11 @@ https://etymobreak-ai-quiz-broker-562528323498.asia-south1.run.app
 ### Broker Auto-Deploy on Every Change
 Use Cloud Build to redeploy the broker whenever files under `broker/` change.
 
-1. Keep the broker deployment config in the repository root at `cloudbuild-broker.yaml`.
+1. Keep the broker deployment config in the repository root at `cloudbuild.yaml`.
+   - If you prefer a custom filename, it must still be configured explicitly in the trigger, but `cloudbuild.yaml` is the safest default.
 2. Create a Cloud Build trigger on the `main` branch.
 3. Restrict the trigger to changes under `broker/**` so frontend-only commits do not redeploy the broker.
-4. Point the trigger at `cloudbuild-broker.yaml`.
+4. Point the trigger at `cloudbuild.yaml`.
 5. Make sure the Cloud Build service account can:
    - push images to Artifact Registry (`roles/artifactregistry.writer`)
    - deploy Cloud Run revisions (`roles/run.admin`)
@@ -169,7 +170,7 @@ When creating the trigger in Google Cloud Console, use these values:
 - **Branch:** `main`
 - **Included files:** `broker/**`
 - **Configuration:** Cloud Build configuration file
-- **Cloud Build config file path:** `cloudbuild-broker.yaml`
+- **Cloud Build config file path:** `cloudbuild.yaml`
 - **Service account:** default Cloud Build service account is fine if it has the roles listed above
 
 ### Cloud Build IAM Commands
