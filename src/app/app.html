@@ -752,6 +752,19 @@
                   <span>{{ question.status === 'correct' ? 'Correct' : question.status === 'skipped' ? 'Skipped' : 'Wrong' }}</span>
                 </div>
                 <p class="quiz-prompt">{{ question.prompt }}</p>
+                <div class="quiz-summary-options" aria-label="Reviewed quiz answers">
+                  @for (option of question.options; track option; let optionIndex = $index) {
+                    <div
+                      class="quiz-summary-option"
+                      [class.selected]="question.selectedIndex === optionIndex"
+                      [class.correct]="optionIndex === question.correctIndex"
+                      [class.wrong]="question.selectedIndex === optionIndex && optionIndex !== question.correctIndex"
+                    >
+                      <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>
+                      <span class="quiz-option-text">{{ option }}</span>
+                    </div>
+                  }
+                </div>
                 <div class="quiz-summary-grid">
                   <div>
                     <small>Your answer</small>
