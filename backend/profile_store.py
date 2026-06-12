@@ -33,7 +33,10 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 
 def database_url() -> str:
-    return os.getenv("DATABASE_URL", "").strip()
+    primary = os.getenv("DATABASE_URL", "").strip()
+    if primary:
+        return primary
+    return os.getenv("DATABASE_URL_EXTERNAL", "").strip()
 
 
 def _connect():
@@ -42,7 +45,10 @@ def _connect():
         raise ProfileStoreError("DATABASE_URL is not configured.")
     if psycopg is None:
         raise ProfileStoreError("psycopg is not installed.")
-    return psycopg.connect(url)
+    try:
+        return psycopg.connect(url)
+    except Exception as exc:  # pragma: no cover - network/runtime dependent
+        raise ProfileStoreError(f"Could not connect to Postgres: {exc}") from exc
 
 
 def ensure_schema() -> None:
