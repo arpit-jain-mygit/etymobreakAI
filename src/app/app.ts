@@ -450,6 +450,23 @@ export class App implements OnInit, AfterViewInit {
     setTimeout(() => this.tryRenderGoogleButton(), 0);
   }
 
+  protected startGoogleSignIn(): void {
+    if (!this.googleClientId()) {
+      this.authError.set('Google sign-in is not configured yet.');
+      return;
+    }
+
+    this.tryRenderGoogleButton();
+
+    const google = (window as Window & { google?: any }).google;
+    if (!google?.accounts?.id) {
+      this.authError.set('Google sign-in is still loading. Please try again in a moment.');
+      return;
+    }
+
+    google.accounts.id.prompt();
+  }
+
   protected chooseExperimentLetter(letter: string): void {
     this.experimentLetter.set(letter);
     this.experimentIndex.set(0);
@@ -698,6 +715,7 @@ export class App implements OnInit, AfterViewInit {
     }
 
     try {
+      this.authGateLoading.set(true);
       const params = new URLSearchParams();
       if (identity.sub) {
         params.set('sub', identity.sub);
@@ -851,6 +869,10 @@ export class App implements OnInit, AfterViewInit {
     const fullName = String(payload.name || '').trim();
     const fallbackParts = fullName.split(/\s+/).filter(Boolean);
 
+    this.authGateLoading.set(true);
+    this.authMessage.set('Checking your saved profile...');
+    this.authError.set('');
+
     this.googleIdentity.set({
       sub: String(payload.sub || '').trim(),
       email: String(payload.email || '').trim(),
@@ -877,7 +899,6 @@ export class App implements OnInit, AfterViewInit {
     }
     void this.loadProfileFromServer(this.googleIdentity()!);
     this.authError.set('');
-    this.authMessage.set('Google account connected. Finish your profile and continue.');
   }
 
   private decodeJwtPayload(token: string): GoogleIdentity | null {

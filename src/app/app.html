@@ -8,6 +8,10 @@
       </div>
 
       <div class="auth-card">
+        <button type="button" class="primary" (click)="startGoogleSignIn()">
+          Continue with Google
+        </button>
+
         <div #googleButtonHost class="google-button-host" aria-label="Google sign in"></div>
 
         @if (authMessage()) {
