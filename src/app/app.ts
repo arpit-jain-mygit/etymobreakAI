@@ -87,6 +87,14 @@ interface QuizHistoryEntry {
   marks: number;
   percentage: number;
   total: number;
+  quizType: string;
+  difficulty: number;
+  questionCount: number;
+  timeLimitMinutes: number;
+  timeSpentSeconds: number;
+  questions: QuizAttemptQuestion[];
+  bucketObjectName?: string;
+  bucketUri?: string;
 }
 
 interface QuizAttemptQuestion {
@@ -254,6 +262,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly quizHistorySubmitting = signal(false);
   protected readonly quizHistorySaved = signal(false);
   protected readonly quizHistoryError = signal('');
+  protected readonly selectedQuizHistoryId = signal('');
   protected readonly quizTimeLabel = computed(() => {
     const remaining = Math.max(0, this.quizTimeRemaining());
     const minutes = Math.floor(remaining / 60);
@@ -446,6 +455,9 @@ export class App implements OnInit, AfterViewInit {
     return [profile?.firstName, profile?.lastName].map((part) => String(part || '').trim()).filter(Boolean).join(' ');
   });
   protected readonly quizHistoryCount = computed(() => this.quizHistory().length);
+  protected readonly selectedQuizHistory = computed(() =>
+    this.quizHistory().find((item) => item.id === this.selectedQuizHistoryId()) ?? null
+  );
   private normalizeForMatch(value: string): string {
     return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
@@ -576,6 +588,7 @@ export class App implements OnInit, AfterViewInit {
     this.quizHistory.set([]);
     this.quizHistoryError.set('');
     this.quizHistorySaved.set(false);
+    this.selectedQuizHistoryId.set('');
     try {
       localStorage.removeItem(this.profileStorageKey);
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
@@ -598,8 +611,15 @@ export class App implements OnInit, AfterViewInit {
   protected setProfileMenuView(view: 'profile' | 'history'): void {
     this.profileMenuView.set(view);
     if (view === 'history') {
+      if (!this.selectedQuizHistoryId() && this.quizHistory().length) {
+        this.selectedQuizHistoryId.set(this.quizHistory()[0]!.id);
+      }
       void this.loadQuizHistoryFromServer();
     }
+  }
+
+  protected selectQuizHistory(id: string): void {
+    this.selectedQuizHistoryId.set(id);
   }
 
   protected startGoogleSignIn(): void {
@@ -1472,6 +1492,14 @@ export class App implements OnInit, AfterViewInit {
           const total = Number(entry.total || 0);
           const correct = Number(entry.correct || 0);
           const wrong = Number(entry.wrong || 0);
+          const quizType = String(entry.quizType || '').trim();
+          const difficulty = Number(entry.difficulty || 0);
+          const questionCount = Number(entry.questionCount || 0);
+          const timeLimitMinutes = Number(entry.timeLimitMinutes || 0);
+          const timeSpentSeconds = Number(entry.timeSpentSeconds || 0);
+          const questions = Array.isArray((entry as { questions?: unknown }).questions)
+            ? ((entry as { questions?: QuizAttemptQuestion[] }).questions ?? [])
+            : [];
 
           if (!time || !playerName || !playerEmail) {
             return null;
@@ -1489,12 +1517,23 @@ export class App implements OnInit, AfterViewInit {
             marks,
             percentage,
             total,
+            quizType,
+            difficulty,
+            questionCount,
+            timeLimitMinutes,
+            timeSpentSeconds,
+            questions,
+            bucketObjectName: String((entry as { bucketObjectName?: string }).bucketObjectName || '').trim(),
+            bucketUri: String((entry as { bucketUri?: string }).bucketUri || '').trim(),
           };
         })
         .filter((entry): entry is QuizHistoryEntry => entry !== null)
         .sort((a, b) => b.time.localeCompare(a.time));
 
       this.quizHistory.set(history);
+      if (history.length && !history.some((item) => item.id === this.selectedQuizHistoryId())) {
+        this.selectedQuizHistoryId.set(history[0]!.id);
+      }
     } catch {
       this.quizHistory.set([]);
       this.quizHistoryError.set('Quiz history could not be loaded.');

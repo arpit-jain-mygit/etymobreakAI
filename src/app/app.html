@@ -101,11 +101,6 @@
     </section>
   } @else {
     <section class="profile-strip">
-      <div class="profile-summary">
-        <p class="eyebrow">Signed in</p>
-        <strong>{{ profileDisplayName() }}</strong>
-        <span>{{ profile()?.country }}</span>
-      </div>
       <div class="profile-menu-wrap" style="position:relative;margin-left:auto;">
         <button
           type="button"
@@ -172,7 +167,7 @@
 
                 @if (quizHistoryCount()) {
                   @for (item of quizHistory(); track item.id) {
-                    <article class="history-item">
+                    <button type="button" class="history-item" [class.active]="selectedQuizHistoryId() === item.id" (click)="selectQuizHistory(item.id)">
                       <div class="history-top">
                         <strong>{{ item.playerName }}</strong>
                         <span>{{ item.percentage }}%</span>
@@ -180,12 +175,70 @@
                       <p>{{ item.playerEmail }}</p>
                       <small>{{ item.country }} • {{ item.quizScope }} • {{ item.marks }} / {{ item.total }}</small>
                       <em>{{ formatHistoryTime(item.time) }}</em>
-                    </article>
+                    </button>
                   }
                 } @else {
                   <p class="history-empty">No quiz history yet. Finish a quiz to see your score here.</p>
                 }
               </div>
+
+              @if (selectedQuizHistory(); as historyItem) {
+                <div class="history-detail" aria-label="Selected quiz history">
+                  <div class="history-detail-head">
+                    <div>
+                      <p class="section-label">Attempt detail</p>
+                      <strong>{{ historyItem.quizType || historyItem.quizScope }}</strong>
+                    </div>
+                    <span>{{ historyItem.percentage }}%</span>
+                  </div>
+                  <div class="history-detail-meta">
+                    <span>{{ historyItem.questionCount }} questions</span>
+                    <span>Level {{ historyItem.difficulty || 1 }}</span>
+                    <span>{{ historyItem.timeLimitMinutes }} mins</span>
+                    <span>{{ historyItem.quizScope }}</span>
+                  </div>
+                  <div class="history-detail-summary">
+                    <div>
+                      <small>Score</small>
+                      <p>{{ historyItem.marks }} / {{ historyItem.questionCount * 3 }}</p>
+                    </div>
+                    <div>
+                      <small>Time spent</small>
+                      <p>{{ historyItem.timeSpentSeconds }}s</p>
+                    </div>
+                  </div>
+
+                  @if (historyItem.questions?.length) {
+                    <div class="history-question-list">
+                      @for (question of historyItem.questions; track question.id; let index = $index) {
+                        <article class="history-question">
+                          <div class="history-question-top">
+                            <strong>{{ index + 1 }}. {{ question.sourceTitle }}</strong>
+                            <span>
+                              {{ question.isCorrect ? 'Correct' : question.skipped ? 'Skipped' : 'Wrong' }}
+                            </span>
+                          </div>
+                          <p>{{ question.prompt }}</p>
+                          <div class="history-question-grid" aria-label="Reviewed answers">
+                            @for (option of question.options; track option; let optionIndex = $index) {
+                              <div
+                                class="history-question-option"
+                                [class.selected]="question.selectedIndex === optionIndex"
+                                [class.correct]="optionIndex === question.correctIndex"
+                                [class.skipped-correct]="question.skipped && optionIndex === question.correctIndex"
+                                [class.wrong]="question.selectedIndex === optionIndex && optionIndex !== question.correctIndex"
+                              >
+                                <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>
+                                <span class="quiz-option-text">{{ option }}</span>
+                              </div>
+                            }
+                          </div>
+                        </article>
+                      }
+                    </div>
+                  }
+                </div>
+              }
             }
 
             <div style="display:flex;justify-content:flex-end;">
