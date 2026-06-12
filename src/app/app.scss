@@ -25,6 +25,17 @@
   max-width: 920px;
 }
 
+.tab-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.tab-row .tab-chip:last-child {
+  margin-left: auto;
+}
+
 .lead {
   margin: 0;
   max-width: 64ch;
