@@ -95,10 +95,15 @@ interface QuizAttemptQuestion {
   prompt: string;
   sourceTitle: string;
   selectedIndex: number | null;
+  selectedText: string;
   correctIndex: number;
+  correctText: string;
   submitted: boolean;
   isCorrect: boolean | null;
 }
+
+type QuizBankType = 'word' | 'root_prefix_suffix' | 'mixed';
+type QuizFlowStage = 'setup' | 'taking' | 'summary';
 
 type BreakdownRow = AnalysisPart[];
 type AppTab = 'search' | 'experiment' | 'quiz';
@@ -116,6 +121,41 @@ interface QuizQuestion {
   isCorrect: boolean | null;
   sourceTitle: string;
   explanation: string;
+}
+
+interface QuizBankOption {
+  id: string;
+  text: string;
+}
+
+interface QuizBankQuestion {
+  id: string;
+  bankType: QuizBankType;
+  difficulty: number;
+  level: number;
+  questionType: string;
+  question: string;
+  options: QuizBankOption[];
+  answer: string;
+  answerText: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface QuizBankFile {
+  metadata?: {
+    bankName?: string;
+    bankType?: QuizBankType;
+    difficultyScale?: Record<string, string>;
+    optionCount?: number;
+  };
+  questions: QuizBankQuestion[];
+}
+
+interface QuizSummaryQuestion extends QuizQuestion {
+  userAnswer: string;
+  userAnswerLabel: string;
+  correctAnswerLabel: string;
+  status: 'correct' | 'wrong';
 }
 
 interface RootFamily {
@@ -185,9 +225,13 @@ export class App implements OnInit, AfterViewInit {
   protected readonly autocompleteOpen = signal(false);
   protected readonly experimentLetter = signal('');
   protected readonly experimentIndex = signal(0);
-  protected readonly quizLetter = signal('');
+  protected readonly quizFlowStage = signal<QuizFlowStage>('setup');
+  protected readonly quizType = signal<QuizBankType>('word');
+  protected readonly quizDifficulty = signal(1);
   protected readonly quizIndex = signal(0);
   protected readonly quizQuestions = signal<QuizQuestion[]>([]);
+  protected readonly quizTimeRemaining = signal(25 * 60);
+  protected readonly quizPreparing = signal(false);
   protected readonly quizNotice = signal('');
   protected readonly googleIdentity = signal<GoogleIdentity | null>(null);
   protected readonly profile = signal<StoredProfile | null>(null);
@@ -207,8 +251,28 @@ export class App implements OnInit, AfterViewInit {
   protected readonly quizHistorySubmitting = signal(false);
   protected readonly quizHistorySaved = signal(false);
   protected readonly quizHistoryError = signal('');
+  protected readonly quizTimeLabel = computed(() => {
+    const remaining = Math.max(0, this.quizTimeRemaining());
+    const minutes = Math.floor(remaining / 60);
+    const seconds = remaining % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  });
+  protected readonly quizTypeLabel = computed(() => {
+    switch (this.quizType()) {
+      case 'root_prefix_suffix':
+        return 'Root / Prefix / Suffix quiz';
+      case 'mixed':
+        return 'Mixed quiz';
+      default:
+        return 'Words quiz';
+    }
+  });
+  protected readonly quizDifficultyLabel = computed(() => `Level ${this.quizDifficulty()}`);
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
+  private quizBankLoadPromise: Promise<void> | null = null;
+  private quizBankCache = new Map<QuizBankType, QuizBankFile>();
+  private quizTimerHandle: number | null = null;
   private readonly profileStorageKey = 'etymobreak-profile';
   private readonly pendingGoogleStorageKey = 'etymobreak-google-identity';
   private quizAttemptCounter = 0;
@@ -279,11 +343,6 @@ export class App implements OnInit, AfterViewInit {
 
     return Math.min(Math.max(this.experimentIndex(), 0), total - 1) + 1;
   });
-  protected readonly quizSlides = computed(() => {
-    const letter = this.quizLetter().trim().toLowerCase();
-    const slides = this.getInventoryAnalyses(letter);
-    return slides.length ? slides.slice(0, 10) : [];
-  });
   protected readonly quizQuestion = computed(() => {
     const questions = this.quizQuestions();
     if (!questions.length) {
@@ -319,6 +378,22 @@ export class App implements OnInit, AfterViewInit {
   );
   protected readonly quizCompleted = computed(
     () => this.quizQuestions().length > 0 && this.quizQuestions().every((question) => question.submitted)
+  );
+  protected readonly quizSummaryItems = computed<QuizSummaryQuestion[]>(() =>
+    this.quizQuestions().map((question) => {
+      const selectedIndex = question.selectedIndex;
+      const selectedText = selectedIndex === null ? '' : question.options[selectedIndex] ?? '';
+      const correctText = question.options[question.correctIndex] ?? '';
+      const userAnswerLabel = selectedText || 'Unanswered';
+      const isCorrect = selectedIndex !== null && selectedIndex === question.correctIndex;
+      return {
+        ...question,
+        userAnswer: selectedText,
+        userAnswerLabel,
+        correctAnswerLabel: correctText,
+        status: isCorrect ? 'correct' : 'wrong',
+      };
+    })
   );
   protected readonly quizCurrentQuestionSubmitted = computed(() => this.quizQuestion()?.submitted ?? false);
   protected readonly profileComplete = computed(() => {
@@ -438,6 +513,7 @@ export class App implements OnInit, AfterViewInit {
 
   public ngOnInit(): void {
     this.inventoryLoadPromise = this.loadRootAutocomplete();
+    void this.loadQuizBanks();
     void this.loadAuthConfig();
     this.loadStoredProfile();
   }
@@ -448,9 +524,6 @@ export class App implements OnInit, AfterViewInit {
 
   protected setActiveTab(tab: AppTab): void {
     this.activeTab.set(tab);
-    if (tab === 'quiz') {
-      void this.ensureQuizDeck();
-    }
   }
 
   protected completeProfile(): void {
@@ -545,10 +618,40 @@ export class App implements OnInit, AfterViewInit {
     this.activeTab.set('experiment');
   }
 
-  protected chooseQuizLetter(letter: string): void {
-    this.quizLetter.set(letter);
-    this.activeTab.set('quiz');
-    void this.ensureQuizDeck(letter);
+  protected selectQuizType(type: QuizBankType): void {
+    this.quizType.set(type);
+  }
+
+  protected selectQuizDifficulty(level: number): void {
+    this.quizDifficulty.set(Math.min(5, Math.max(1, Math.floor(level))));
+  }
+
+  protected async startQuiz(): Promise<void> {
+    if (this.quizFlowStage() === 'taking' || this.quizPreparing()) {
+      return;
+    }
+
+    this.quizPreparing.set(true);
+    this.quizHistorySaved.set(false);
+    this.quizHistorySubmitting.set(false);
+    this.quizHistoryError.set('');
+    this.quizNotice.set('');
+    this.quizIndex.set(0);
+    this.quizTimeRemaining.set(25 * 60);
+    this.quizQuestions.set([]);
+
+    const deck = await this.buildQuizDeck(this.quizType(), this.quizDifficulty());
+    if (!deck.length) {
+      this.quizFlowStage.set('setup');
+      this.quizNotice.set('That quiz bank could not be loaded yet. Please try again in a moment.');
+      this.quizPreparing.set(false);
+      return;
+    }
+
+    this.quizQuestions.set(deck);
+    this.quizFlowStage.set('taking');
+    this.quizPreparing.set(false);
+    this.startQuizTimer();
   }
 
   protected previousExperimentSlide(): void {
@@ -617,44 +720,14 @@ export class App implements OnInit, AfterViewInit {
     this.quizNotice.set('');
   }
 
-  protected submitCurrentQuizQuestion(): void {
-    if (this.quizCurrentQuestionSubmitted()) {
-      return;
-    }
-
-    const questions = this.quizQuestions();
-    const currentIndex = this.quizIndex();
-    const question = questions[currentIndex];
-    if (!question || question.selectedIndex === null) {
-      this.quizNotice.set('Pick one answer before submitting this question.');
-      return;
-    }
-
-    const isCorrect = question.selectedIndex === question.correctIndex;
-    const updated = [...questions];
-    updated[currentIndex] = {
-      ...question,
-      submitted: true,
-      isCorrect,
-    };
-    this.quizQuestions.set(updated);
-
-    const correctAnswer = question.options[question.correctIndex] ?? '';
-    this.quizNotice.set(
-      isCorrect
-        ? `Correct! +3 marks.`
-        : `Wrong. -1 mark. Correct answer: ${correctAnswer}.`
-    );
-  }
-
   protected async submitQuizAttempt(): Promise<void> {
     if (!this.profile()) {
       this.quizHistoryError.set('Sign in first to save quiz history.');
       return;
     }
 
-    if (!this.quizCompleted()) {
-      this.quizNotice.set('Finish all questions before submitting the quiz.');
+    if (!this.quizQuestions().length) {
+      this.quizNotice.set('Start a quiz first.');
       return;
     }
 
@@ -667,19 +740,33 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
+    const finalizedQuestions = this.quizQuestions().map((question) => {
+      const isCorrect = question.selectedIndex !== null && question.selectedIndex === question.correctIndex;
+      return {
+        ...question,
+        submitted: true,
+        isCorrect,
+      };
+    });
+
+    this.quizQuestions.set(finalizedQuestions);
+    this.quizFlowStage.set('summary');
+    this.stopQuizTimer();
     this.quizHistorySubmitting.set(true);
     this.quizHistoryError.set('');
 
     const totalPossible = this.quizQuestionCount() * 3;
     const marks = this.quizTotalMarks();
     const percentage = totalPossible > 0 ? Math.max(0, Math.round((marks / totalPossible) * 100)) : 0;
-    const questionHistory: QuizAttemptQuestion[] = this.quizQuestions().map((question) => ({
+    const questionHistory: QuizAttemptQuestion[] = finalizedQuestions.map((question) => ({
       id: question.id,
       type: question.type,
       prompt: question.prompt,
       sourceTitle: question.sourceTitle,
       selectedIndex: question.selectedIndex,
+      selectedText: question.selectedIndex === null ? '' : question.options[question.selectedIndex] ?? '',
       correctIndex: question.correctIndex,
+      correctText: question.options[question.correctIndex] ?? '',
       submitted: question.submitted,
       isCorrect: question.isCorrect,
     }));
@@ -692,13 +779,22 @@ export class App implements OnInit, AfterViewInit {
         },
         body: JSON.stringify({
           profile,
-          quizScope: this.quizLetter().trim() ? this.quizLetter().trim().toUpperCase() : 'ALL',
+          quizScope: this.quizType(),
+          quizType: this.quizType(),
+          difficulty: this.quizDifficulty(),
+          questionCount: this.quizQuestionCount(),
+          timeLimitMinutes: 25,
           correctCount: this.quizCorrectCount(),
           wrongCount: this.quizWrongCount(),
           marks,
           percentage,
           totalPossible,
+          timeSpentSeconds: 25 * 60 - this.quizTimeRemaining(),
           attempt: {
+            quizType: this.quizType(),
+            difficulty: this.quizDifficulty(),
+            questionCount: this.quizQuestionCount(),
+            timeLimitMinutes: 25,
             questions: questionHistory,
           },
         }),
@@ -732,8 +828,15 @@ export class App implements OnInit, AfterViewInit {
   }
 
   protected resetQuiz(): void {
-    const letter = this.quizLetter();
-    this.buildQuizDeck(letter);
+    this.stopQuizTimer();
+    this.quizFlowStage.set('setup');
+    this.quizQuestions.set([]);
+    this.quizIndex.set(0);
+    this.quizTimeRemaining.set(25 * 60);
+    this.quizPreparing.set(false);
+    this.quizNotice.set('');
+    this.quizHistorySaved.set(false);
+    this.quizHistoryError.set('');
   }
 
   protected formatHistoryTime(value: string): string {
@@ -1143,156 +1246,149 @@ export class App implements OnInit, AfterViewInit {
     return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
   }
 
-  private getQuizAnswerPool(entries: AnalysisResult[], type: QuizQuestionType): string[] {
-    const answers = entries.flatMap((entry) => {
-      switch (type) {
-        case 'meaning':
-          return [entry.actualMeaning, entry.summary, entry.literalMeaning]
-            .map((value) => value.trim())
-            .filter(Boolean);
-        case 'root':
-          return [
-            entry.rootFamily.meaning,
-            ...(entry.breakdown ?? []).filter((part) => part.type === 'root').map((part) => part.meaning),
-          ]
-            .map((value) => value.trim())
-            .filter(Boolean);
-        case 'family':
-          return [
-            ...(entry.familyMemory ?? []).map((item) => item.term),
-            ...(entry.wordFamily ?? []).map((item) => item.word),
-          ]
-            .map((value) => value.trim())
-            .filter(Boolean);
-        case 'literal':
-          return [entry.literalMeaningArrow, entry.literalMeaningFormula, entry.literalMeaning]
-            .map((value) => value.trim())
-            .filter(Boolean);
-        default:
-          return [];
-      }
-    });
+  private async loadQuizBanks(): Promise<void> {
+    if (this.quizBankLoadPromise) {
+      await this.quizBankLoadPromise;
+      return;
+    }
 
-    return this.uniqueStrings(answers);
+    this.quizBankLoadPromise = Promise.all(
+      (['word', 'root_prefix_suffix', 'mixed'] as QuizBankType[]).map(async (bankType) => {
+        const bank = await this.loadQuizBank(bankType);
+        if (bank) {
+          this.quizBankCache.set(bankType, bank);
+        }
+      })
+    ).then(() => undefined);
+
+    await this.quizBankLoadPromise;
   }
 
-  private createQuizQuestion(
-    entry: AnalysisResult,
-    index: number,
-    type: QuizQuestionType,
-    pool: AnalysisResult[]
-  ): QuizQuestion | null {
-    const meaningFallback = entry.actualMeaning || entry.summary || entry.literalMeaning;
-    const rootPart = entry.breakdown.find((part) => part.type === 'root') ?? entry.breakdown[0];
-    const rootLabel = entry.rootFamily.root || rootPart?.label || entry.query;
-    const rootMeaning = entry.rootFamily.meaning || rootPart?.meaning || meaningFallback;
-    const familyWord =
-      entry.familyMemory[0]?.term || entry.wordFamily[0]?.word || entry.title || entry.query;
-    const literalAnswer =
-      entry.literalMeaningArrow || entry.literalMeaningFormula || entry.literalMeaning || meaningFallback;
-
-    let prompt = '';
-    let correctAnswer = '';
-    let explanation = '';
-
-    switch (type) {
-      case 'meaning':
-        prompt = `What is the best meaning of "${entry.title}"?`;
-        correctAnswer = meaningFallback;
-        explanation = entry.summary || entry.actualMeaning || meaningFallback;
-        break;
-      case 'root':
-        prompt = `What does the root "${rootLabel}" mean?`;
-        correctAnswer = rootMeaning;
-        explanation = `${rootLabel} means ${rootMeaning}.`;
-        break;
-      case 'family':
-        prompt = `Which word belongs to the "${rootLabel}" family?`;
-        correctAnswer = familyWord;
-        explanation = `${familyWord} belongs to the ${rootLabel} family.`;
-        break;
-      case 'literal':
-        prompt = `What is the literal breakdown of "${entry.title}"?`;
-        correctAnswer = literalAnswer;
-        explanation = entry.literalMeaningFormula || entry.literalMeaningArrow || entry.literalMeaning || meaningFallback;
-        break;
+  private async loadQuizBank(bankType: QuizBankType): Promise<QuizBankFile | null> {
+    const cached = this.quizBankCache.get(bankType);
+    if (cached) {
+      return cached;
     }
 
-    if (!prompt || !correctAnswer) {
-      return null;
-    }
+    const fileMap: Record<QuizBankType, string> = {
+      word: '/question_bank_words.json',
+      root_prefix_suffix: '/question_bank_roots_prefixes_suffixes.json',
+      mixed: '/question_bank_mixed.json',
+    };
 
-    const distractors = this.shuffle(
-      this.getQuizAnswerPool(pool, type).filter(
-        (option) => option.toLowerCase() !== correctAnswer.trim().toLowerCase()
-      )
-    ).slice(0, 3);
-
-    const options = this.shuffle(this.uniqueStrings([correctAnswer, ...distractors]));
-    while (options.length < 4) {
-      const filler = this.uniqueStrings(pool.map((item) => item.title).filter(Boolean)).find(
-        (option) => !options.includes(option)
-      );
-      if (!filler) {
-        break;
+    try {
+      const response = await fetch(fileMap[bankType]);
+      if (!response.ok) {
+        return null;
       }
-      options.push(filler);
-    }
 
-    const correctIndex = options.findIndex(
-      (option) => option.trim().toLowerCase() === correctAnswer.trim().toLowerCase()
-    );
+      const payload = (await response.json().catch(() => null)) as QuizBankFile | null;
+      if (!payload || !Array.isArray(payload.questions)) {
+        return null;
+      }
 
-    if (correctIndex < 0 || options.length < 4) {
+      this.quizBankCache.set(bankType, payload);
+      return payload;
+    } catch {
       return null;
     }
+  }
+
+  private normalizeQuizQuestion(record: QuizBankQuestion, index: number): QuizQuestion | null {
+    const options = Array.isArray(record.options)
+      ? this.shuffle(
+          record.options
+            .map((option) => ({
+              id: String(option?.id || '').trim(),
+              text: String(option?.text || '').trim(),
+            }))
+            .filter((option) => option.id && option.text)
+        )
+      : [];
+
+    if (options.length < 4) {
+      return null;
+    }
+
+    const answerKey = String(record.answer || '').trim().toUpperCase();
+    const correctIndex = options.findIndex((option) => option.id.toUpperCase() === answerKey);
+    if (correctIndex < 0) {
+      return null;
+    }
+
+    const metadata = record.metadata ?? {};
+    const sourceTitle = String(
+      metadata['word'] || metadata['part'] || metadata['root'] || record.questionType || record.id
+    ).trim();
 
     return {
-      id: `${entry.query}-${index}-${type}`,
-      type,
-      prompt,
-      options: options.slice(0, 4),
+      id: `${record.id}-${index}`,
+      type: this.mapQuizQuestionType(record.questionType),
+      prompt: String(record.question || '').trim(),
+      options: options.map((option) => option.text),
       correctIndex,
       selectedIndex: null,
       submitted: false,
       isCorrect: null,
-      sourceTitle: entry.title,
-      explanation,
+      sourceTitle: sourceTitle || 'Quiz item',
+      explanation: String(record.answerText || '').trim() || 'Review the highlighted answer.',
     };
   }
 
-  private async ensureQuizDeck(letter = this.quizLetter()): Promise<void> {
-    if (this.inventoryLoadPromise) {
-      await this.inventoryLoadPromise;
+  private mapQuizQuestionType(questionType: string): QuizQuestionType {
+    const value = String(questionType || '').toLowerCase();
+    if (value.includes('root') || value.includes('part')) {
+      return 'root';
     }
-
-    if (!this.inventoryEntries().length) {
-      this.quizQuestions.set([]);
-      this.quizNotice.set('');
-      return;
+    if (value.includes('family') || value.includes('belongs') || value.includes('contains')) {
+      return 'family';
     }
-
-    this.buildQuizDeck(letter);
+    if (value.includes('literal')) {
+      return 'literal';
+    }
+    return 'meaning';
   }
 
-  private buildQuizDeck(letter = ''): void {
+  private async buildQuizDeck(type: QuizBankType, difficulty: number): Promise<QuizQuestion[]> {
     this.quizAttemptCounter += 1;
-    this.quizHistorySaved.set(false);
-    this.quizHistoryError.set('');
-    const allEntries = this.getInventoryAnalyses();
-    const filteredEntries = letter.trim() ? this.getInventoryAnalyses(letter) : allEntries;
-    const sourceEntries = filteredEntries.length >= 10 ? filteredEntries : allEntries;
-    const selectedEntries = sourceEntries.slice(0, 10);
+    const bank = await this.loadQuizBank(type);
+    if (!bank) {
+      return [];
+    }
 
-    const types: QuizQuestionType[] = ['meaning', 'root', 'family', 'literal'];
-    const questions = selectedEntries
-      .map((entry, index) => this.createQuizQuestion(entry, index, types[index % types.length], sourceEntries))
-      .filter((question): question is QuizQuestion => question !== null)
-      .slice(0, 10);
+    const eligible = bank.questions.filter((question) => {
+      const normalizedDifficulty = Math.min(5, Math.max(1, Math.floor(Number(question.difficulty || question.level || 1))));
+      return normalizedDifficulty === difficulty;
+    });
+    const source = eligible.length >= 50 ? eligible : bank.questions;
+    const selected = this.shuffle(source).slice(0, 50);
 
-    this.quizQuestions.set(questions);
-    this.quizIndex.set(0);
-    this.quizNotice.set('');
+    return selected
+      .map((record, index) => this.normalizeQuizQuestion(record, index))
+      .filter((question): question is QuizQuestion => question !== null);
+  }
+
+  private startQuizTimer(): void {
+    this.stopQuizTimer();
+    this.quizTimerHandle = window.setInterval(() => {
+      if (this.quizFlowStage() !== 'taking') {
+        this.stopQuizTimer();
+        return;
+      }
+
+      const next = Math.max(0, this.quizTimeRemaining() - 1);
+      this.quizTimeRemaining.set(next);
+      if (next === 0) {
+        void this.submitQuizAttempt();
+      }
+    }, 1000);
+  }
+
+  private stopQuizTimer(): void {
+    if (this.quizTimerHandle !== null) {
+      window.clearInterval(this.quizTimerHandle);
+      this.quizTimerHandle = null;
+    }
   }
 
   private async loadQuizHistoryFromServer(): Promise<void> {

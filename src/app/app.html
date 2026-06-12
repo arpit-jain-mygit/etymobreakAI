@@ -525,113 +525,235 @@
 
     @if (activeTab() === 'quiz') {
       <section class="experiment-panel quiz-panel">
-        <div class="experiment-toolbar">
-          <div class="alphabet-row" aria-label="Quiz position">
-            <span class="quiz-counter">{{ quizQuestionPosition() || 0 }} / {{ quizQuestionCount() }}</span>
-          </div>
-        </div>
-
-        @if (quizQuestion(); as question) {
-          <div class="flash-stage">
-            <button
-              type="button"
-              class="nav-button"
-              aria-label="Previous question"
-              (click)="previousQuizQuestion()"
-              [disabled]="!quizQuestionCount() || quizQuestionPosition() <= 1"
-              style="position:absolute; left:12px; top:50%; transform:translateY(-50%); z-index:2;"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-            </button>
-
-            <button
-              type="button"
-              class="nav-button"
-              aria-label="Next question"
-              (click)="nextQuizQuestion()"
-              [disabled]="!quizQuestionCount() || quizQuestionPosition() >= quizQuestionCount()"
-              style="position:absolute; right:12px; top:50%; transform:translateY(-50%); z-index:2;"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m9 6 6 6-6 6" />
-              </svg>
-            </button>
-
-            <div class="flash-card-shell quiz-shell">
-              <div class="quiz-card">
-                <div class="panel-head">
-                  <p class="section-label">Question</p>
-                  <span>{{ quizAnsweredCount() }}/{{ quizQuestionCount() }} answered</span>
-                </div>
-
-                <h2>{{ question.sourceTitle }}</h2>
-                <p class="quiz-prompt">{{ question.prompt }}</p>
-
-                <div class="quiz-options" role="list" aria-label="Quiz answers">
-                  @for (option of question.options; track option; let optionIndex = $index) {
-                    <button
-                      type="button"
-                      class="quiz-option"
-                      [class.selected]="question.selectedIndex === optionIndex"
-                      [class.correct]="question.submitted && optionIndex === question.correctIndex"
-                      [class.wrong]="question.submitted && question.selectedIndex === optionIndex && optionIndex !== question.correctIndex"
-                      [disabled]="question.submitted"
-                      (click)="selectQuizOption(optionIndex)"
-                    >
-                      <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>
-                      <span class="quiz-option-text">{{ option }}</span>
-                    </button>
-                  }
-                </div>
-
-                @if (quizNotice()) {
-                  <section class="notice calm-notice quiz-result">
-                    {{ quizNotice() }}
-                  </section>
-                }
-
-                @if (question.submitted) {
-                  <section class="notice calm-notice quiz-result">
-                    <strong>Current score: {{ quizTotalMarks() }} / 30</strong>
-                    <span>{{ quizCorrectCount() }} right × 3 - {{ quizWrongCount() }} wrong × 1</span>
-                  </section>
-                  <p class="quiz-explanation">{{ question.explanation }}</p>
-                }
-
-                <div class="quiz-actions">
-                  <button type="button" class="primary" (click)="resetQuiz()">Reset Quiz</button>
-                  <button type="button" class="primary" (click)="skipCurrentQuizQuestion()">Skip</button>
-                  <button
-                    type="button"
-                    class="primary"
-                    [disabled]="question.submitted || question.selectedIndex === null"
-                    (click)="submitCurrentQuizQuestion()"
-                  >
-                    Submit Answer
-                  </button>
-                  <button
-                    type="button"
-                    class="primary"
-                    [disabled]="!quizCompleted() || quizHistorySubmitting() || quizHistorySaved()"
-                    (click)="submitQuizAttempt()"
-                  >
-                    {{ historyActionLabel() }}
-                  </button>
-                </div>
-
-                @if (quizCompleted()) {
-                  <section class="notice calm-notice quiz-result">
-                    <strong>Final score: {{ quizTotalMarks() }} / 30</strong>
-                    <span>{{ quizCorrectCount() }} right × 3 - {{ quizWrongCount() }} wrong × 1</span>
-                  </section>
-                }
-              </div>
+        @if (quizFlowStage() === 'setup') {
+          <div class="experiment-toolbar">
+            <div class="alphabet-row">
+              <span class="quiz-counter">Quiz setup</span>
+            </div>
+            <div class="quiz-meta">
+              <span>50 questions</span>
+              <span>25 mins</span>
+              <span>4 options each</span>
             </div>
           </div>
+
+          <div class="quiz-setup-grid" role="list" aria-label="Quiz types">
+            <button
+              type="button"
+              class="quiz-setup-card"
+              [class.active]="quizType() === 'word'"
+              (click)="selectQuizType('word')"
+            >
+              <span class="section-label">Type 1</span>
+              <strong>Words quiz</strong>
+              <p>Choose from the words bank and play at the selected difficulty.</p>
+              <em>Level 1 to Level 5</em>
+            </button>
+
+            <button
+              type="button"
+              class="quiz-setup-card"
+              [class.active]="quizType() === 'root_prefix_suffix'"
+              (click)="selectQuizType('root_prefix_suffix')"
+            >
+              <span class="section-label">Type 2</span>
+              <strong>Root / Prefix / Suffix quiz</strong>
+              <p>Focus on word parts, meaning, and family roots.</p>
+              <em>Level 1 to Level 5</em>
+            </button>
+
+            <button
+              type="button"
+              class="quiz-setup-card"
+              [class.active]="quizType() === 'mixed'"
+              (click)="selectQuizType('mixed')"
+            >
+              <span class="section-label">Type 3</span>
+              <strong>Mixed quiz</strong>
+              <p>A blended quiz with words and word parts together.</p>
+              <em>Level 1 to Level 5</em>
+            </button>
+          </div>
+
+          <div class="quiz-config-row">
+            <div class="quiz-config-copy">
+              <p class="section-label">Difficulty</p>
+              <strong>{{ quizTypeLabel() }}</strong>
+              <span>Pick a level, then we’ll build a random 50-question deck from that bank.</span>
+            </div>
+
+            <div class="quiz-difficulty-row" role="radiogroup" aria-label="Quiz difficulty">
+              @for (level of [1, 2, 3, 4, 5]; track level) {
+                <button
+                  type="button"
+                  class="quiz-difficulty-chip"
+                  [class.active]="quizDifficulty() === level"
+                  (click)="selectQuizDifficulty(level)"
+                >
+                  {{ level }}
+                </button>
+              }
+            </div>
+          </div>
+
+          @if (quizNotice()) {
+            <section class="notice calm-notice">{{ quizNotice() }}</section>
+          }
+
+          <div class="quiz-actions">
+            <button type="button" class="primary" [disabled]="quizPreparing()" (click)="startQuiz()">
+              {{ quizPreparing() ? 'Building quiz...' : 'Start Quiz' }}
+            </button>
+          </div>
+        } @else if (quizFlowStage() === 'taking') {
+          @if (quizQuestion(); as question) {
+            <div class="experiment-toolbar">
+              <div class="alphabet-row">
+                <span class="quiz-counter">{{ quizQuestionPosition() }} / {{ quizQuestionCount() }}</span>
+              </div>
+              <div class="quiz-meta">
+                <span>{{ quizTypeLabel() }}</span>
+                <span>{{ quizDifficultyLabel() }}</span>
+                <span>{{ quizTimeLabel() }} left</span>
+                <span>{{ quizAnsweredCount() }} answered</span>
+              </div>
+            </div>
+
+            <div class="flash-stage quiz-stage">
+              <button
+                type="button"
+                class="nav-button"
+                aria-label="Previous question"
+                (click)="previousQuizQuestion()"
+                [disabled]="!quizQuestionCount() || quizQuestionPosition() <= 1"
+                style="position:absolute; left:12px; top:50%; transform:translateY(-50%); z-index:2;"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                class="nav-button"
+                aria-label="Next question"
+                (click)="nextQuizQuestion()"
+                [disabled]="!quizQuestionCount() || quizQuestionPosition() >= quizQuestionCount()"
+                style="position:absolute; right:12px; top:50%; transform:translateY(-50%); z-index:2;"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m9 6 6 6-6 6" />
+                </svg>
+              </button>
+
+              <div class="flash-card-shell quiz-shell">
+                <div class="quiz-card">
+                  <div class="panel-head">
+                    <p class="section-label">Question</p>
+                    <span>{{ quizAnsweredCount() }}/{{ quizQuestionCount() }} answered</span>
+                  </div>
+
+                  <h2>{{ question.sourceTitle }}</h2>
+                  <p class="quiz-prompt">{{ question.prompt }}</p>
+
+                  <div class="quiz-options" role="list" aria-label="Quiz answers">
+                    @for (option of question.options; track option; let optionIndex = $index) {
+                      <button
+                        type="button"
+                        class="quiz-option"
+                        [class.selected]="question.selectedIndex === optionIndex"
+                        (click)="selectQuizOption(optionIndex)"
+                      >
+                        <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>
+                        <span class="quiz-option-text">{{ option }}</span>
+                      </button>
+                    }
+                  </div>
+
+                  @if (quizNotice()) {
+                    <section class="notice calm-notice quiz-result">
+                      {{ quizNotice() }}
+                    </section>
+                  }
+
+                  <div class="quiz-actions">
+                    <button type="button" class="primary" (click)="skipCurrentQuizQuestion()">Skip Que</button>
+                    <button
+                      type="button"
+                      class="primary"
+                      [disabled]="quizHistorySubmitting()"
+                      (click)="submitQuizAttempt()"
+                    >
+                      Submit Quiz
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
         } @else {
-          <section class="notice calm-notice">Pick a letter or use All to generate a 10-question quiz.</section>
+          <div class="experiment-toolbar">
+            <div class="alphabet-row">
+              <span class="quiz-counter">Quiz summary</span>
+            </div>
+            <div class="quiz-meta">
+              <span>{{ quizTypeLabel() }}</span>
+              <span>{{ quizDifficultyLabel() }}</span>
+              <span>{{ quizQuestionCount() }} questions</span>
+              <span>{{ quizTotalMarks() }} marks</span>
+            </div>
+          </div>
+
+          <div class="quiz-summary-hero">
+            <article class="info-card summary-metric summary-metric-primary">
+              <p class="card-label">Score</p>
+              <p class="card-value formula">{{ quizTotalMarks() }}</p>
+              <p class="card-arrow">{{ quizCorrectCount() }} right • {{ quizWrongCount() }} wrong</p>
+            </article>
+            <article class="info-card summary-metric summary-metric-secondary">
+              <p class="card-label">Time</p>
+              <p class="card-value formula">{{ quizTimeLabel() }}</p>
+              <p class="card-arrow">Saved attempt with your answer sheet.</p>
+            </article>
+          </div>
+
+          @if (quizHistorySubmitting()) {
+            <section class="notice calm-notice">Saving your result to history...</section>
+          }
+
+          @if (quizHistorySaved()) {
+            <section class="notice calm-notice">Quiz saved to your history.</section>
+          }
+
+          @if (quizHistoryError()) {
+            <section class="notice">{{ quizHistoryError() }}</section>
+          }
+
+          <div class="quiz-summary-list">
+            @for (question of quizSummaryItems(); track question.id; let index = $index) {
+              <article class="info-card quiz-summary-item" [class.correct]="question.status === 'correct'" [class.wrong]="question.status === 'wrong'">
+                <div class="quiz-summary-top">
+                  <strong>{{ index + 1 }}. {{ question.sourceTitle }}</strong>
+                  <span>{{ question.status === 'correct' ? 'Correct' : 'Wrong' }}</span>
+                </div>
+                <p class="quiz-prompt">{{ question.prompt }}</p>
+                <div class="quiz-summary-grid">
+                  <div>
+                    <small>Your answer</small>
+                    <p>{{ question.userAnswerLabel }}</p>
+                  </div>
+                  <div>
+                    <small>Correct answer</small>
+                    <p>{{ question.correctAnswerLabel }}</p>
+                  </div>
+                </div>
+              </article>
+            }
+          </div>
+
+          <div class="quiz-actions">
+            <button type="button" class="primary" (click)="resetQuiz()">New Quiz</button>
+          </div>
         }
       </section>
     }
