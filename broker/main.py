@@ -32,7 +32,7 @@ class QuizHistoryRequest(BaseModel):
     totalPossible: int = Field(ge=0)
     attempt: dict = Field(default_factory=dict)
 
-
+# test message for cloud build trigger
 class ConfidentWordRequest(BaseModel):
     id: str = Field(default="")
     profile: dict
