@@ -117,18 +117,10 @@
           <button
             type="button"
             class="tab-chip"
-            [class.active]="activeTab() === 'search'"
-            (click)="setActiveTab('search')"
-          >
-            Search
-          </button>
-          <button
-            type="button"
-            class="tab-chip"
             [class.active]="activeTab() === 'experiment'"
             (click)="setActiveTab('experiment')"
           >
-            Experiment
+            all. words
           </button>
           <button
             type="button"
@@ -136,7 +128,15 @@
             [class.active]="activeTab() === 'quiz'"
             (click)="setActiveTab('quiz')"
           >
-            Quiz
+            Play Quiz
+          </button>
+          <button
+            type="button"
+            class="tab-chip"
+            [class.active]="activeTab() === 'search'"
+            (click)="setActiveTab('search')"
+          >
+            Search
           </button>
         </div>
       </div>
