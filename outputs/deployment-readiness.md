@@ -46,7 +46,7 @@ This file collects the current deployment steps for the frontend on Vercel and t
 - `MISTRAL_MODEL` (current default: `mistral-small-latest`)
 - `GOOGLE_CLIENT_ID`
 - `DATABASE_URL`
-- `BROKER_URL`
+- `BROKER_URL` (example broker URL: `https://etymobreak-ai-quiz-broker-562528323498.asia-south1.run.app`)
 - `BROKER_SHARED_SECRET`
 
 ### Backend Checklist
@@ -130,10 +130,15 @@ gcloud run deploy etymobreak-ai-quiz-broker \
   --region asia-south1 \
   --service-account etymobreak-ai-broker@etymobreak-ai.iam.gserviceaccount.com \
   --allow-unauthenticated \
-  --set-env-vars GCP_QUIZ_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=replace-with-a-long-random-secret
+  --set-env-vars GCP_QUIZ_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=<your-broker-secret>
 ```
 
-9. Copy the Cloud Run service URL into `BROKER_URL` on the Render backend service.
+9. Copy the Cloud Run service URL into `BROKER_URL` on the Render backend service. The working service URL is:
+
+```text
+https://etymobreak-ai-quiz-broker-562528323498.asia-south1.run.app
+```
+
 10. Put the same secret into `BROKER_SHARED_SECRET` on Render.
 11. Confirm the broker accepts `POST /quiz-history` and `GET /quiz-history`.
 
@@ -155,7 +160,7 @@ gcloud run deploy etymobreak-ai-quiz-broker \
   --region asia-south1 \
   --service-account etymobreak-ai-broker@etymobreak-ai.iam.gserviceaccount.com \
   --allow-unauthenticated \
-  --set-env-vars GCP_QUIZ_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=replace-with-a-long-random-secret
+  --set-env-vars GCP_QUIZ_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=<your-broker-secret>
 ```
 
 Notes:
