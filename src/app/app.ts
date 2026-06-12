@@ -1475,7 +1475,7 @@ export class App implements OnInit, AfterViewInit {
       }
 
       const payload = (await response.json().catch(() => null)) as { items?: Partial<QuizHistoryEntry>[] } | null;
-      const history = (payload?.items ?? [])
+      const history: QuizHistoryEntry[] = (payload?.items ?? [])
         .map((item) => {
           if (!item || typeof item !== 'object') {
             return null;
