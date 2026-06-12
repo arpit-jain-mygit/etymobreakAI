@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any
+from urllib import error, parse, request
 
 try:
     import psycopg
@@ -11,6 +13,13 @@ try:
 except ImportError:  # pragma: no cover - dependency is installed in deployment
     psycopg = None  # type: ignore[assignment]
     dict_row = None  # type: ignore[assignment]
+
+try:
+    from google.cloud import storage
+    from google.oauth2 import service_account
+except ImportError:  # pragma: no cover - dependency is installed in deployment
+    storage = None  # type: ignore[assignment]
+    service_account = None  # type: ignore[assignment]
 
 
 class ProfileStoreError(Exception):
@@ -26,27 +35,6 @@ CREATE TABLE IF NOT EXISTS profiles (
     last_name TEXT NOT NULL,
     country TEXT NOT NULL,
     google_json TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-"""
-
-QUIZ_HISTORY_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS quiz_history (
-    id TEXT PRIMARY KEY,
-    profile_id TEXT NOT NULL,
-    google_sub TEXT NOT NULL,
-    email TEXT NOT NULL,
-    first_name TEXT NOT NULL,
-    last_name TEXT NOT NULL,
-    country TEXT NOT NULL,
-    quiz_scope TEXT NOT NULL,
-    correct_count INTEGER NOT NULL,
-    wrong_count INTEGER NOT NULL,
-    marks INTEGER NOT NULL,
-    percentage INTEGER NOT NULL,
-    total_possible INTEGER NOT NULL,
-    attempt_json TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -76,7 +64,6 @@ def ensure_schema() -> None:
     with _connect() as conn:
         with conn.cursor() as cursor:
             cursor.execute(PROFILE_TABLE_SQL)
-            cursor.execute(QUIZ_HISTORY_TABLE_SQL)
         conn.commit()
 
 
@@ -107,6 +94,103 @@ def _profile_row_to_payload(row: dict[str, Any]) -> dict[str, Any]:
         "createdAt": row.get("created_at", ""),
         "updatedAt": row.get("updated_at", ""),
     }
+
+
+def _sanitize_path_segment(value: str) -> str:
+    cleaned = re.sub(r"[^a-zA-Z0-9._=-]+", "_", value.strip())
+    return cleaned.strip("._-") or "unknown"
+
+
+def _bucket_name() -> str:
+    return (
+        os.getenv("GCP_QUIZ_BUCKET", "").strip()
+        or os.getenv("GCS_BUCKET_NAME", "").strip()
+        or os.getenv("QUIZ_BUCKET_NAME", "").strip()
+    )
+
+
+def _bucket_client() -> tuple[Any, str]:
+    bucket_name = _bucket_name()
+    if not bucket_name:
+        raise ProfileStoreError("GCP quiz bucket is not configured.")
+    if storage is None:
+        raise ProfileStoreError("google-cloud-storage is not installed.")
+
+    raw_credentials = (
+        os.getenv("GCP_SERVICE_ACCOUNT_JSON", "").strip()
+        or os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON", "").strip()
+    )
+    if raw_credentials:
+        if service_account is None:
+            raise ProfileStoreError("google-auth is not installed.")
+        try:
+            credentials_info = json.loads(raw_credentials)
+        except Exception as exc:
+            raise ProfileStoreError(f"Invalid GCP service account JSON: {exc}") from exc
+
+        credentials = service_account.Credentials.from_service_account_info(credentials_info)
+        project_id = str(credentials_info.get("project_id", "")).strip() or os.getenv("GCP_PROJECT_ID", "").strip()
+        return storage.Client(project=project_id or None, credentials=credentials), bucket_name
+
+    return storage.Client(), bucket_name
+
+
+def _broker_url() -> str:
+    return os.getenv("BROKER_URL", "").strip().rstrip("/")
+
+
+def _broker_secret() -> str:
+    return os.getenv("BROKER_SHARED_SECRET", "").strip()
+
+
+def _broker_is_configured() -> bool:
+    return bool(_broker_url() and _broker_secret())
+
+
+def _call_broker(
+    method: str,
+    path: str,
+    *,
+    payload: dict[str, Any] | None = None,
+    params: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    base_url = _broker_url()
+    secret = _broker_secret()
+    if not base_url:
+        raise ProfileStoreError("Quiz history broker URL is not configured.")
+    if not secret:
+        raise ProfileStoreError("Quiz history broker secret is not configured.")
+
+    url = f"{base_url}{path}"
+    if params:
+        query = parse.urlencode({key: value for key, value in params.items() if value})
+        if query:
+            url = f"{url}?{query}"
+    data = None if payload is None else json.dumps(payload).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "X-EtymoBreak-Broker-Secret": secret,
+    }
+    http_request = request.Request(url, data=data, headers=headers, method=method.upper())
+
+    try:
+        with request.urlopen(http_request, timeout=45) as response:
+            raw = response.read().decode("utf-8")
+    except error.HTTPError as exc:
+        details = exc.read().decode("utf-8", errors="replace") if exc.fp else str(exc)
+        raise ProfileStoreError(f"Quiz history broker request failed: {details[:400]}") from exc
+    except Exception as exc:
+        raise ProfileStoreError(f"Quiz history broker request failed: {exc}") from exc
+
+    try:
+        parsed = json.loads(raw) if raw.strip() else {}
+    except Exception as exc:
+        raise ProfileStoreError(f"Quiz history broker returned invalid JSON: {exc}") from exc
+
+    if not isinstance(parsed, dict):
+        raise ProfileStoreError("Quiz history broker returned an unexpected response.")
+
+    return parsed
 
 
 def upsert_profile(payload: dict[str, Any]) -> dict[str, Any]:
@@ -200,6 +284,63 @@ def get_profile_by_google_identity(google_sub: str | None, email: str | None) ->
     return _profile_row_to_payload(row)
 
 
+def _write_quiz_attempt_to_bucket(
+    *,
+    quiz_history_id: str,
+    profile_id: str,
+    google_sub: str,
+    profile_data: dict[str, Any],
+    payload: dict[str, Any],
+    created_at: str,
+) -> tuple[str, str]:
+    client, bucket_name = _bucket_client()
+    bucket = client.bucket(bucket_name)
+    profile_folder = _sanitize_path_segment(google_sub)
+    day_stamp = datetime.now(timezone.utc)
+    object_name = (
+        f"users/{profile_folder}/quiz-attempts/"
+        f"{day_stamp:%Y/%m/%d}/quiz-{_sanitize_path_segment(quiz_history_id)}.json"
+    )
+
+    bucket_payload = {
+        "id": quiz_history_id,
+        "profileId": profile_id,
+        "googleSub": google_sub,
+        "createdAt": created_at,
+        "player": {
+            "firstName": str(profile_data.get("firstName", "")).strip(),
+            "lastName": str(profile_data.get("lastName", "")).strip(),
+            "country": str(profile_data.get("country", "")).strip(),
+            "email": str(profile_data.get("google", {}).get("email", "")).strip()
+            if isinstance(profile_data.get("google", {}), dict)
+            else "",
+        },
+        "attempt": payload.get("attempt", {}),
+        "metadata": {
+            "quizScope": str(payload.get("quizScope", "")).strip().upper() or "ALL",
+            "correctCount": int(payload.get("correctCount", 0) or 0),
+            "wrongCount": int(payload.get("wrongCount", 0) or 0),
+            "marks": int(payload.get("marks", 0) or 0),
+            "percentage": int(payload.get("percentage", 0) or 0),
+            "totalPossible": int(payload.get("totalPossible", 0) or 0),
+        },
+        "summary": {
+            "quizType": str(payload.get("quizType", "")).strip(),
+            "difficulty": int(payload.get("difficulty", 0) or 0),
+            "questionCount": int(payload.get("questionCount", 0) or 0),
+            "timeLimitMinutes": int(payload.get("timeLimitMinutes", 0) or 0),
+            "timeSpentSeconds": int(payload.get("timeSpentSeconds", 0) or 0),
+        },
+    }
+
+    blob = bucket.blob(object_name)
+    blob.upload_from_string(
+        json.dumps(bucket_payload, ensure_ascii=False, indent=2),
+        content_type="application/json",
+    )
+    return object_name, f"gs://{bucket_name}/{object_name}"
+
+
 def insert_quiz_history(payload: dict[str, Any]) -> dict[str, Any]:
     profile = payload.get("profile", {})
     profile_data = profile if isinstance(profile, dict) else {}
@@ -224,63 +365,32 @@ def insert_quiz_history(payload: dict[str, Any]) -> dict[str, Any]:
 
     profile_id = f"profile-{google_sub}"
     quiz_history_id = str(payload.get("id", "")).strip() or f"quiz-{google_sub}-{now}"
-    attempt_json = json.dumps(attempt_data, ensure_ascii=False)
 
-    ensure_schema()
-    with _connect() as conn:
-        with conn.cursor(row_factory=dict_row) as cursor:
-            cursor.execute(
-                """
-                INSERT INTO quiz_history (
-                    id, profile_id, google_sub, email, first_name, last_name, country,
-                    quiz_scope, correct_count, wrong_count, marks, percentage, total_possible,
-                    attempt_json, created_at, updated_at
-                ) VALUES (
-                    %(id)s, %(profile_id)s, %(google_sub)s, %(email)s, %(first_name)s, %(last_name)s, %(country)s,
-                    %(quiz_scope)s, %(correct_count)s, %(wrong_count)s, %(marks)s, %(percentage)s, %(total_possible)s,
-                    %(attempt_json)s, %(created_at)s, %(updated_at)s
-                )
-                RETURNING id, profile_id, google_sub, email, first_name, last_name, country, quiz_scope,
-                          correct_count, wrong_count, marks, percentage, total_possible, attempt_json,
-                          created_at, updated_at
-                """,
-                {
-                    "id": quiz_history_id,
-                    "profile_id": profile_id,
-                    "google_sub": google_sub,
-                    "email": email,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "country": country,
-                    "quiz_scope": quiz_scope,
-                    "correct_count": int(payload.get("correctCount", 0) or 0),
-                    "wrong_count": int(payload.get("wrongCount", 0) or 0),
-                    "marks": int(payload.get("marks", 0) or 0),
-                    "percentage": int(payload.get("percentage", 0) or 0),
-                    "total_possible": int(payload.get("totalPossible", 0) or 0),
-                    "attempt_json": attempt_json,
-                    "created_at": now,
-                    "updated_at": now,
-                },
-            )
-            row = cursor.fetchone()
-        conn.commit()
+    if _broker_is_configured():
+        return _call_broker("POST", "/quiz-history", payload=payload)
 
-    if not row:
-        raise ProfileStoreError("Quiz history could not be saved.")
-
+    bucket_object_name, bucket_uri = _write_quiz_attempt_to_bucket(
+        quiz_history_id=quiz_history_id,
+        profile_id=profile_id,
+        google_sub=google_sub,
+        profile_data=profile_data,
+        payload=payload,
+        created_at=now,
+    )
     return {
-        "id": row.get("id", ""),
-        "time": row.get("created_at", ""),
-        "playerName": f"{row.get('first_name', '')} {row.get('last_name', '')}".strip(),
-        "playerEmail": row.get("email", ""),
-        "country": row.get("country", ""),
-        "quizScope": row.get("quiz_scope", ""),
-        "correct": row.get("correct_count", 0),
-        "wrong": row.get("wrong_count", 0),
-        "marks": row.get("marks", 0),
-        "percentage": row.get("percentage", 0),
-        "total": row.get("total_possible", 0),
+        "id": quiz_history_id,
+        "time": now,
+        "playerName": f"{first_name} {last_name}".strip(),
+        "playerEmail": email,
+        "country": country,
+        "quizScope": quiz_scope,
+        "correct": int(payload.get("correctCount", 0) or 0),
+        "wrong": int(payload.get("wrongCount", 0) or 0),
+        "marks": int(payload.get("marks", 0) or 0),
+        "percentage": int(payload.get("percentage", 0) or 0),
+        "total": int(payload.get("totalPossible", 0) or 0),
+        "bucketObjectName": bucket_object_name,
+        "bucketUri": bucket_uri,
     }
 
 
@@ -290,49 +400,63 @@ def list_quiz_history_by_google_identity(google_sub: str | None, email: str | No
     if not sub and not mail:
         return []
 
-    ensure_schema()
-    with _connect() as conn:
-        with conn.cursor(row_factory=dict_row) as cursor:
-            if sub:
-                cursor.execute(
-                    """
-                    SELECT id, first_name, last_name, email, country, quiz_scope, correct_count, wrong_count,
-                           marks, percentage, total_possible, created_at
-                    FROM quiz_history
-                    WHERE google_sub = %s
-                    ORDER BY created_at DESC
-                    """,
-                    (sub,),
-                )
-            else:
-                cursor.execute(
-                    """
-                    SELECT id, first_name, last_name, email, country, quiz_scope, correct_count, wrong_count,
-                           marks, percentage, total_possible, created_at
-                    FROM quiz_history
-                    WHERE email = %s
-                    ORDER BY created_at DESC
-                    """,
-                    (mail,),
-                )
-            rows = cursor.fetchall() or []
+    resolved_sub = sub
+    if not resolved_sub and mail:
+        profile = get_profile_by_google_identity(None, mail)
+        resolved_sub = str((profile or {}).get("google", {}).get("sub", "")).strip()
+
+    if not resolved_sub:
+        return []
+
+    if _broker_is_configured():
+        broker_payload = _call_broker("GET", "/quiz-history", params={"sub": resolved_sub, "email": mail})
+        items = broker_payload.get("items", [])
+        return items if isinstance(items, list) else []
+
+    client, bucket_name = _bucket_client()
+    bucket = client.bucket(bucket_name)
+    prefix = f"users/{_sanitize_path_segment(resolved_sub)}/quiz-attempts/"
 
     history: list[dict[str, Any]] = []
-    for row in rows:
+    for blob in client.list_blobs(bucket, prefix=prefix):
+        try:
+            raw = blob.download_as_text()
+            payload = json.loads(raw)
+        except Exception:
+            continue
+
+        if not isinstance(payload, dict):
+            continue
+
+        metadata = payload.get("metadata", {})
+        summary = payload.get("summary", {})
+        player = payload.get("player", {})
+        attempt = payload.get("attempt", {})
         history.append(
             {
-                "id": row.get("id", ""),
-                "time": row.get("created_at", ""),
-                "playerName": f"{row.get('first_name', '')} {row.get('last_name', '')}".strip(),
-                "playerEmail": row.get("email", ""),
-                "country": row.get("country", ""),
-                "quizScope": row.get("quiz_scope", ""),
-                "correct": row.get("correct_count", 0),
-                "wrong": row.get("wrong_count", 0),
-                "marks": row.get("marks", 0),
-                "percentage": row.get("percentage", 0),
-                "total": row.get("total_possible", 0),
+                "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
+                "time": str(payload.get("createdAt", "")).strip() or (
+                    blob.updated.isoformat() if getattr(blob, "updated", None) else ""
+                ),
+                "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
+                "playerEmail": str(player.get("email", "")).strip() or mail,
+                "country": str(player.get("country", "")).strip(),
+                "quizScope": str(metadata.get("quizScope", "")).strip(),
+                "correct": int(metadata.get("correctCount", 0) or 0),
+                "wrong": int(metadata.get("wrongCount", 0) or 0),
+                "marks": int(metadata.get("marks", 0) or 0),
+                "percentage": int(metadata.get("percentage", 0) or 0),
+                "total": int(metadata.get("totalPossible", 0) or 0),
+                "bucketObjectName": blob.name,
+                "bucketUri": f"gs://{bucket_name}/{blob.name}",
+                "quizType": str(summary.get("quizType", "")).strip(),
+                "difficulty": int(summary.get("difficulty", 0) or 0),
+                "questionCount": int(summary.get("questionCount", 0) or 0),
+                "timeLimitMinutes": int(summary.get("timeLimitMinutes", 0) or 0),
+                "timeSpentSeconds": int(summary.get("timeSpentSeconds", 0) or 0),
+                "questions": attempt.get("questions", []),
             }
         )
 
+    history.sort(key=lambda item: item.get("time", ""), reverse=True)
     return history

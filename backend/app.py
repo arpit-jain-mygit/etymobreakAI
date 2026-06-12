@@ -40,8 +40,14 @@ class ProfileRequest(BaseModel):
 
 
 class QuizHistoryRequest(BaseModel):
+    id: str = Field(default="")
     profile: dict
     quizScope: str = Field(min_length=1)
+    quizType: str = Field(default="")
+    difficulty: int = Field(default=0, ge=0)
+    questionCount: int = Field(default=0, ge=0)
+    timeLimitMinutes: int = Field(default=25, ge=0)
+    timeSpentSeconds: int = Field(default=0, ge=0)
     correctCount: int = Field(ge=0)
     wrongCount: int = Field(ge=0)
     marks: int = Field()
