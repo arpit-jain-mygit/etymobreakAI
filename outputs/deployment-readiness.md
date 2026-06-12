@@ -115,11 +115,18 @@ gcloud storage buckets add-iam-policy-binding gs://etymobreak-ai-quizzes \
   --role="roles/storage.objectAdmin"
 ```
 
-8. Deploy the broker from the `broker/` folder. Cloud Run will use the `broker/Dockerfile` for a deterministic build:
+8. Deploy the broker as a container image. Cloud Run source deploys can still route through buildpacks, so the most predictable path is to build an image first and deploy that image:
 
 ```bash
+gcloud artifacts repositories create etymobreak-ai-broker-images \
+  --repository-format=docker \
+  --location=asia-south1
+
+gcloud builds submit ./broker \
+  --tag asia-south1-docker.pkg.dev/etymobreak-ai/etymobreak-ai-broker-images/etymobreak-ai-quiz-broker:latest
+
 gcloud run deploy etymobreak-ai-quiz-broker \
-  --source ./broker \
+  --image asia-south1-docker.pkg.dev/etymobreak-ai/etymobreak-ai-broker-images/etymobreak-ai-quiz-broker:latest \
   --region asia-south1 \
   --service-account etymobreak-ai-broker@etymobreak-ai.iam.gserviceaccount.com \
   --allow-unauthenticated \
@@ -136,12 +143,15 @@ gcloud run deploy etymobreak-ai-quiz-broker \
 3. Keep `DATABASE_URL` pointed at Render Postgres for profiles only.
 4. Keep quiz attempts out of Postgres.
 
-### Example Cloud Run Deploy Command
+### Example Cloud Build + Cloud Run Commands
 Use the command below after signing in with the Google Cloud CLI and selecting the right project:
 
 ```bash
+gcloud builds submit ./broker \
+  --tag asia-south1-docker.pkg.dev/etymobreak-ai/etymobreak-ai-broker-images/etymobreak-ai-quiz-broker:latest
+
 gcloud run deploy etymobreak-ai-quiz-broker \
-  --source broker \
+  --image asia-south1-docker.pkg.dev/etymobreak-ai/etymobreak-ai-broker-images/etymobreak-ai-quiz-broker:latest \
   --region asia-south1 \
   --service-account etymobreak-ai-broker@etymobreak-ai.iam.gserviceaccount.com \
   --allow-unauthenticated \
@@ -152,7 +162,7 @@ Notes:
 - Cloud Run uses the attached service account through Application Default Credentials, so no JSON key file is needed.
 - Give the broker service account `Storage Object Admin` on the quiz bucket, or at minimum `Storage Object Creator` plus `Storage Object Viewer`.
 - Keep the broker service public only if you are protecting it with the shared secret header from the Render backend.
-- If a buildpacks deploy fails, keep the Dockerfile path and redeploy from the same command above.
+- `gcloud builds submit` streams the build output directly, which is easier to debug than the Cloud Run source build wrapper.
 
 ### Render CLI Option
 If you want to create the table manually from your terminal, use the Render CLI and run the SQL against your database.
