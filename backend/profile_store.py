@@ -568,7 +568,10 @@ def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
 
     if not bool(payload.get("confident", True)):
         if _broker_is_configured():
-            return _call_broker("POST", "/confident-words", payload=payload)
+            try:
+                return _call_broker("POST", "/confident-words", payload=payload)
+            except ProfileStoreError:
+                pass
 
         _delete_confident_word_from_bucket(google_sub, query, mode)
         return {
@@ -579,7 +582,10 @@ def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
         }
 
     if _broker_is_configured():
-        return _call_broker("POST", "/confident-words", payload=payload)
+        try:
+            return _call_broker("POST", "/confident-words", payload=payload)
+        except ProfileStoreError:
+            pass
 
     bucket_object_name, bucket_uri = _write_confident_word_to_bucket(
         confident_id=confident_id,
@@ -620,9 +626,12 @@ def list_confident_words_by_google_identity(google_sub: str | None, email: str |
         return []
 
     if _broker_is_configured():
-        broker_payload = _call_broker("GET", "/confident-words", params={"sub": resolved_sub, "email": mail})
-        items = broker_payload.get("items", [])
-        return items if isinstance(items, list) else []
+        try:
+            broker_payload = _call_broker("GET", "/confident-words", params={"sub": resolved_sub, "email": mail})
+            items = broker_payload.get("items", [])
+            return items if isinstance(items, list) else []
+        except ProfileStoreError:
+            pass
 
     client, bucket_name = _bucket_client()
     bucket = client.bucket(bucket_name)
