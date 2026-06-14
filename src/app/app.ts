@@ -300,6 +300,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly error = signal('');
   protected readonly notice = signal('');
   protected readonly result = signal<AnalysisResult | null>(null);
+  protected readonly searchResults = signal<RootInventoryEntry[]>([]);
   protected readonly rootAutocomplete = signal<string[]>([]);
   protected readonly autocompleteOpen = signal(false);
   protected readonly experimentLetter = signal('');
@@ -373,7 +374,7 @@ export class App implements OnInit, AfterViewInit {
     const current = this.query().trim().toLowerCase();
     const unique = [
       ...new Set(
-      this.rootAutocomplete()
+        this.rootAutocomplete()
           .map((item) => item.trim().toLowerCase())
           .filter(Boolean)
       ),
@@ -1556,7 +1557,7 @@ export class App implements OnInit, AfterViewInit {
       this.inventoryIndex.clear();
 
       const inventoryTerms = roots.flatMap((item) => {
-        const terms = [item.root, ...item.alternateForms];
+        const terms = this.collectAutocompleteTerms(item);
         this.inventoryIndex.set(item.root.trim().toLowerCase(), item);
         for (const assembled of item.assembledWords) {
           this.inventoryIndex.set(assembled.word.trim().toLowerCase(), item);
@@ -2126,6 +2127,59 @@ export class App implements OnInit, AfterViewInit {
       .map((item) => item.analysis)
       .filter((analysis) => !this.isEmptyAnalysis(analysis))
       .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  }
+
+  private collectAutocompleteTerms(entry: RootInventoryEntry): string[] {
+    const terms = [
+      entry.root,
+      ...entry.alternateForms,
+      entry.type,
+      entry.meaning,
+      entry.origin,
+      entry.source,
+      entry.exampleSentence,
+      ...entry.familyMemory.flatMap((item) => [item.term, item.meaning, item.exampleSentence || '']),
+      ...entry.assembledWords.flatMap((word) => [
+        word.word,
+        word.meaning,
+        word.breakdown,
+        word.exampleSentence || '',
+        ...word.breakdownParts,
+        ...word.otherRootWords.flatMap((part) => [
+          part.root,
+          part.type,
+          part.meaning,
+          ...(part.examples || []).flatMap((example) => [example.word, example.meaning]),
+        ]),
+      ]),
+    ];
+
+    return this.uniqueStrings(terms);
+  }
+
+  private searchRootInventoryEntries(query: string): RootInventoryEntry[] {
+    const normalizedQuery = this.normalizeForMatch(query);
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    const ranked = this.getRootInventoryEntries().map((entry) => {
+      const terms = this.collectAutocompleteTerms(entry).map((term) => this.normalizeForMatch(term));
+      const exactRoot = this.normalizeForMatch(entry.root) === normalizedQuery ? 0 : 1;
+      const prefixHit = terms.some((term) => term.startsWith(normalizedQuery)) ? 0 : 1;
+      const containsHit = terms.some((term) => term.includes(normalizedQuery)) ? 0 : 1;
+      return {
+        entry,
+        score: exactRoot + prefixHit + containsHit,
+      };
+    });
+
+    return ranked
+      .filter((item) => item.score < 3)
+      .sort((a, b) =>
+        a.score - b.score || a.entry.root.localeCompare(b.entry.root, undefined, { sensitivity: 'base' })
+      )
+      .map((item) => item.entry);
   }
 
   private getSavedWordInventoryEntries(letter = '', source: 'confident' | 'needs_focus'): RootInventoryEntry[] {
@@ -3669,6 +3723,7 @@ export class App implements OnInit, AfterViewInit {
       this.error.set('Enter a word or root to continue.');
       this.notice.set('');
       this.result.set(null);
+      this.searchResults.set([]);
       return;
     }
 
@@ -3676,59 +3731,30 @@ export class App implements OnInit, AfterViewInit {
     this.error.set('');
     this.notice.set('');
     this.confidentWordNotice.set('');
+    this.searchResults.set([]);
 
     try {
       if (this.inventoryLoadPromise) {
         await this.inventoryLoadPromise;
       }
 
-      const inventoryHit = this.inventoryIndex.get(normalized);
-      if (inventoryHit && typeof inventoryHit === 'object') {
-        const analysis = this.normalizeAnalysisResult(inventoryHit, normalized);
-        if (this.isEmptyAnalysis(analysis)) {
-          this.result.set(null);
-          this.notice.set(`I’m not aware of "${normalized}" yet. Try another word or root.`);
-          return;
-        }
-
-        this.result.set(analysis);
-        return;
-      }
-
-      const response = await fetch(`${getApiBaseUrl()}/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: normalized,
-        }),
-      });
-
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as
-          | { error?: string; details?: string }
-          | null;
-        throw new Error(
-          payload?.details || payload?.error || `Request failed with status ${response.status}`
-        );
-      }
-
-      const payload = (await response.json().catch(() => null)) as unknown;
-      const analysis = this.hydrateFromInventory(
-        normalized,
-        this.normalizeAnalysisResult(payload, normalized)
-      );
-      if (this.isEmptyAnalysis(analysis)) {
+      const localMatches = this.searchRootInventoryEntries(normalized);
+      if (localMatches.length) {
+        this.searchResults.set(localMatches);
         this.result.set(null);
-        this.notice.set(`I’m not aware of "${normalized}" yet. Try another word or root.`);
+        this.notice.set(
+          `Showing ${localMatches.length} match${localMatches.length === 1 ? '' : 'es'} from the word inventory.`
+        );
         return;
       }
-
-      this.result.set(analysis);
-      return;
+      this.result.set(null);
+      this.searchResults.set([]);
+      this.notice.set(`I’m not aware of "${normalized}" in the inventory yet. Try another word or root.`);
     } catch (error) {
       const message =
-        error instanceof Error && error.message ? error.message : 'Unable to reach the backend.';
+        error instanceof Error && error.message ? error.message : 'Unable to load the inventory.';
       this.result.set(null);
+      this.searchResults.set([]);
       this.notice.set('');
       this.error.set(message);
     } finally {
