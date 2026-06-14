@@ -704,6 +704,38 @@ export class App implements OnInit, AfterViewInit {
     await this.toggleNeedsFocusForAnalysis(this.quizQuestionRootAnalysis(question));
   }
 
+  protected exportActiveSavedWordsAsPdf(): void {
+    const entries = this.activeSavedWordEntries();
+    if (!entries.length || typeof window === 'undefined') {
+      return;
+    }
+
+    const title = this.activeTab() === 'confident_words' ? 'My Confident Words' : 'Words need more Focus';
+    const popup = window.open('', '_blank', 'noopener,noreferrer,width=1200,height=900');
+    if (!popup) {
+      return;
+    }
+
+    popup.document.open();
+    popup.document.write(this.buildSavedWordsPdfHtml(title, entries));
+    popup.document.close();
+    popup.focus();
+
+    const runPrint = (): void => {
+      popup.print();
+    };
+
+    if (popup.document.readyState === 'complete') {
+      runPrint();
+    } else {
+      popup.onload = runPrint;
+    }
+
+    popup.onafterprint = () => {
+      popup.close();
+    };
+  }
+
   private normalizeForMatch(value: string): string {
     return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
@@ -2157,6 +2189,203 @@ export class App implements OnInit, AfterViewInit {
     }
 
     return result;
+  }
+
+  private buildSavedWordsPdfHtml(title: string, entries: RootInventoryEntry[]): string {
+    const cards = entries.map((entry) => this.buildSavedWordPdfCardHtml(entry)).join('');
+
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${this.escapeHtml(title)}</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 28px;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #264653;
+        background: #fff;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+      .subhead {
+        margin: 0 0 18px;
+        color: #60748d;
+        font-size: 13px;
+      }
+      .list {
+        display: grid;
+        gap: 14px;
+      }
+      .card {
+        border: 1px solid rgba(158, 177, 184, 0.32);
+        border-radius: 16px;
+        padding: 14px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .card-head h2 {
+        margin: 4px 0 0;
+        font-size: 22px;
+      }
+      .tag {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(96, 116, 141, 0.1);
+        color: #60748d;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .meaning {
+        margin: 0 0 10px;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      .meta,
+      .example,
+      .assembled,
+      .root-list {
+        margin-top: 10px;
+      }
+      .muted {
+        color: #60748d;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: rgba(244, 247, 243, 0.95);
+        color: #526372;
+        font-size: 13px;
+      }
+      .assembled-card {
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(158, 177, 184, 0.18);
+        background: rgba(250, 252, 249, 0.92);
+      }
+      .assembled-card strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 15px;
+      }
+      .assembled-card p,
+      .assembled-card em {
+        display: block;
+        margin: 0;
+        color: #516576;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      @media print {
+        body { padding: 18px; }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${this.escapeHtml(title)}</h1>
+    <p class="subhead">Exported from EtymoBreak AI</p>
+    <div class="list">${cards}</div>
+  </body>
+</html>`;
+  }
+
+  private buildSavedWordPdfCardHtml(entry: RootInventoryEntry): string {
+    const alternateForms = entry.alternateForms.length
+      ? `<div class="pill-row" aria-label="Alternate forms">${entry.alternateForms
+          .map((form) => `<span class="pill">${this.escapeHtml(form)}</span>`)
+          .join('')}</div>`
+      : '';
+
+    const assembledWords = entry.assembledWords.length
+      ? `<div class="assembled" aria-label="Assembled words">${entry.assembledWords
+          .map((word) => this.buildSavedWordPdfAssembledWordHtml(word))
+          .join('')}</div>`
+      : '';
+
+    return `<article class="card">
+      <div class="card-head">
+        <div>
+          <span class="tag">${this.escapeHtml(entry.type)}</span>
+          <h2>${this.escapeHtml(entry.root)}</h2>
+        </div>
+        <span class="tag">${entry.assembledWords.length} examples</span>
+      </div>
+      <p class="meaning">${this.escapeHtml(entry.meaning)}</p>
+      ${entry.source ? `<p class="muted">${this.escapeHtml(entry.source)}</p>` : ''}
+      ${entry.exampleSentence ? `<p class="muted example"><em>${this.escapeHtml(entry.exampleSentence)}</em></p>` : ''}
+      ${alternateForms}
+      ${assembledWords}
+    </article>`;
+  }
+
+  private buildSavedWordPdfAssembledWordHtml(word: RootAssembledWord): string {
+    const breakdown = word.breakdownParts.length
+      ? `<div class="pill-row" aria-label="Breakdown parts">${word.breakdownParts
+          .map((part) => `<span class="pill">${this.escapeHtml(part)}</span>`)
+          .join('')}</div>`
+      : '';
+
+    const roots = word.otherRootWords.length
+      ? `<div class="root-list" aria-label="Other root words">${word.otherRootWords
+          .map((part) => {
+            const examples = part.examples?.length
+              ? `<div class="pill-row" aria-label="Examples from root inventory">${part.examples
+                  .map((example) => `<span class="pill">${this.escapeHtml(example.word)} • ${this.escapeHtml(example.meaning)}</span>`)
+                  .join('')}</div>`
+              : '';
+
+            return `<div class="assembled-card">
+              <strong>${this.escapeHtml(part.root)}</strong>
+              <p>${this.escapeHtml(part.meaning)}</p>
+              ${examples}
+            </div>`;
+          })
+          .join('')}</div>`
+      : '';
+
+    return `<div class="assembled-card">
+      <strong>${this.escapeHtml(word.word)}</strong>
+      <p>${this.escapeHtml(word.meaning)}</p>
+      ${breakdown}
+      ${roots}
+      ${word.exampleSentence ? `<em>${this.escapeHtml(word.exampleSentence)}</em>` : ''}
+    </div>`;
+  }
+
+  private escapeHtml(value: string): string {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   private shuffle<T>(items: T[]): T[] {
