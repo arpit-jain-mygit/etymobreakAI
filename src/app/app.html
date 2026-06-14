@@ -224,6 +224,14 @@
                               <span class="tab-chip active">Confident</span>
                             } @else if (isHistoryQuestionNeedsFocus(question)) {
                               <span class="tab-chip active">Needs Focus</span>
+                              <button
+                                type="button"
+                                class="tab-chip"
+                                [disabled]="confidentWordsSaving()"
+                                (click)="toggleConfidentForHistoryQuestion(question)"
+                              >
+                                Mark Confident
+                              </button>
                             } @else {
                               <button
                                 type="button"
@@ -388,6 +396,14 @@
               <span class="tab-chip active">Confident</span>
             } @else if (isAnalysisNeedsFocus(analysis)) {
               <span class="tab-chip active">Needs Focus</span>
+              <button
+                type="button"
+                class="tab-chip"
+                [disabled]="confidentWordsSaving()"
+                (click)="toggleConfidentForAnalysis(analysis)"
+              >
+                Mark Confident
+              </button>
             } @else {
               <button
                 type="button"
@@ -551,6 +567,14 @@
                     <span class="tab-chip active">Confident</span>
                   } @else if (isAnalysisNeedsFocus(analysis)) {
                     <span class="tab-chip active">Needs Focus</span>
+                    <button
+                      type="button"
+                      class="tab-chip"
+                      [disabled]="confidentWordsSaving()"
+                      (click)="toggleConfidentForAnalysis(analysis)"
+                    >
+                      Mark Confident
+                    </button>
                   } @else {
                     <button
                       type="button"
