@@ -135,7 +135,7 @@ type QuizFlowStage = 'setup' | 'taking' | 'summary';
 type QuizReviewFilter = 'all' | 'correct' | 'wrong' | 'skipped';
 
 type BreakdownRow = AnalysisPart[];
-type AppTab = 'search' | 'all_words' | 'root_suffix' | 'quiz' | 'history';
+type AppTab = 'search' | 'all_words' | 'root_suffix' | 'confident_words' | 'needs_focus_words' | 'quiz' | 'history';
 type AuthStage = 'home' | 'loading' | 'profile' | 'app';
 type QuizQuestionType = 'meaning' | 'root' | 'family' | 'literal';
 
@@ -353,8 +353,20 @@ export class App implements OnInit, AfterViewInit {
   protected readonly alphabet = computed(() => 'abcdefghijklmnopqrstuvwxyz'.split(''));
   protected readonly allWordSlides = computed(() => this.getInventoryAnalyses(this.experimentLetter(), 'all'));
   protected readonly rootSuffixSlides = computed(() => this.getInventoryAnalyses(this.experimentLetter(), 'root_suffix'));
+  protected readonly confidentWordSlides = computed(() =>
+    this.getSavedWordAnalyses(this.experimentLetter(), 'confident')
+  );
+  protected readonly needsFocusWordSlides = computed(() =>
+    this.getSavedWordAnalyses(this.experimentLetter(), 'needs_focus')
+  );
   protected readonly activeWordSlides = computed(() =>
-    this.activeTab() === 'root_suffix' ? this.rootSuffixSlides() : this.allWordSlides()
+    this.activeTab() === 'root_suffix'
+      ? this.rootSuffixSlides()
+      : this.activeTab() === 'confident_words'
+        ? this.confidentWordSlides()
+        : this.activeTab() === 'needs_focus_words'
+          ? this.needsFocusWordSlides()
+          : this.allWordSlides()
   );
   protected readonly experimentSlide = computed(() => {
     const slides = this.activeWordSlides();
@@ -491,6 +503,8 @@ export class App implements OnInit, AfterViewInit {
     return [profile?.firstName, profile?.lastName].map((part) => String(part || '').trim()).filter(Boolean).join(' ');
   });
   protected readonly quizHistoryCount = computed(() => this.quizHistory().length);
+  protected readonly confidentWordsCount = computed(() => this.confidentWords().length);
+  protected readonly needsFocusWordsCount = computed(() => this.needsFocusWords().length);
   protected readonly selectedQuizHistory = computed(() =>
     this.quizHistory().find((item) => item.id === this.selectedQuizHistoryId()) ?? null
   );
@@ -602,6 +616,12 @@ export class App implements OnInit, AfterViewInit {
     this.activeTab.set(tab);
     if (tab === 'history' && !this.selectedQuizHistoryId() && this.quizHistory().length) {
       this.selectedQuizHistoryId.set(this.quizHistory()[0]!.id);
+    }
+    if (tab === 'confident_words') {
+      void this.loadConfidentWordsFromServer();
+    }
+    if (tab === 'needs_focus_words') {
+      void this.loadNeedsFocusWordsFromServer();
     }
   }
 
@@ -1651,6 +1671,24 @@ export class App implements OnInit, AfterViewInit {
         return this.normalizeAnalysisResult(item, query);
       })
       .filter((item) => !this.isEmptyAnalysis(item))
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  }
+
+  private getSavedWordAnalyses(letter = '', source: 'confident' | 'needs_focus'): AnalysisResult[] {
+    const normalizedLetter = letter.trim().toLowerCase();
+    const entries = source === 'confident' ? this.confidentWords() : this.needsFocusWords();
+
+    return entries
+      .filter((item) => {
+        const query = String(item.query || item.title || '').trim().toLowerCase();
+        if (!query) {
+          return false;
+        }
+
+        return !normalizedLetter || query.startsWith(normalizedLetter);
+      })
+      .map((item) => item.analysis)
+      .filter((analysis) => !this.isEmptyAnalysis(analysis))
       .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
   }
 

@@ -36,6 +36,31 @@
   margin-left: auto;
 }
 
+.tab-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.tab-count {
+  min-width: 1.9rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(96, 116, 141, 0.09);
+  color: #60748d;
+  text-align: center;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.tab-chip.active .tab-count {
+  background: rgba(255, 255, 255, 0.62);
+  color: #36506b;
+}
+
 .lead {
   margin: 0;
   max-width: 64ch;

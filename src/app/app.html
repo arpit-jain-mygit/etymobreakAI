@@ -168,7 +168,8 @@
             [class.active]="activeTab() === 'all_words'"
             (click)="setActiveTab('all_words')"
           >
-            all. words
+            <span>all. words</span>
+            <span class="tab-count">{{ inventoryEntries().length }}</span>
           </button>
           <button
             type="button"
@@ -176,7 +177,26 @@
             [class.active]="activeTab() === 'root_suffix'"
             (click)="setActiveTab('root_suffix')"
           >
-            root/suffix words
+            <span>root/suffix words</span>
+            <span class="tab-count">{{ rootSuffixSlides().length }}</span>
+          </button>
+          <button
+            type="button"
+            class="tab-chip"
+            [class.active]="activeTab() === 'confident_words'"
+            (click)="setActiveTab('confident_words')"
+          >
+            <span>My Confident Words</span>
+            <span class="tab-count">{{ confidentWordsCount() }}</span>
+          </button>
+          <button
+            type="button"
+            class="tab-chip"
+            [class.active]="activeTab() === 'needs_focus_words'"
+            (click)="setActiveTab('needs_focus_words')"
+          >
+            <span>Words need more Focus</span>
+            <span class="tab-count">{{ needsFocusWordsCount() }}</span>
           </button>
           <button
             type="button"
@@ -576,7 +596,7 @@
       }
     }
 
-    @if (activeTab() === 'all_words' || activeTab() === 'root_suffix') {
+    @if (activeTab() === 'all_words' || activeTab() === 'root_suffix' || activeTab() === 'confident_words' || activeTab() === 'needs_focus_words') {
       <section class="experiment-panel">
       <div class="experiment-toolbar">
         <div class="alphabet-row" aria-label="Select letter">
@@ -592,7 +612,13 @@
           }
         </div>
         <span class="tab-chip active" style="justify-self:start; align-self:center;">
-          {{ activeTab() === 'root_suffix' ? 'root/suffix words' : 'all. words' }}
+          {{ activeTab() === 'root_suffix'
+            ? 'root/suffix words'
+            : activeTab() === 'confident_words'
+              ? 'My Confident Words'
+              : activeTab() === 'needs_focus_words'
+                ? 'Words need more Focus'
+                : 'all. words' }}
         </span>
         <span style="justify-self:end; align-self:center; color:#708395; font-size:.8rem;">
           {{ experimentSlidePosition() || 0 }} / {{ experimentSlideCount() }}
