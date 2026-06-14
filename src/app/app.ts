@@ -46,12 +46,17 @@ interface RootAssembledRoot {
   root: string;
   type: string;
   meaning: string;
+  examples?: Array<{
+    word: string;
+    meaning: string;
+  }>;
 }
 
 interface RootAssembledWord {
   word: string;
   meaning: string;
   breakdown: string;
+  breakdownParts: string[];
   otherRootWords: RootAssembledRoot[];
   exampleSentence?: string;
   slideNumber?: number;
@@ -1448,7 +1453,7 @@ export class App implements OnInit, AfterViewInit {
 
   private async loadRootAutocomplete(): Promise<void> {
     try {
-      const response = await fetch('/root-inventory.json');
+      const response = await fetch('/aaptprep_root_centric_final.json');
       if (!response.ok) {
         return;
       }
@@ -1459,7 +1464,6 @@ export class App implements OnInit, AfterViewInit {
         return;
       }
 
-      this.inventoryEntries.set(roots as unknown[]);
       this.inventoryIndex.clear();
 
       const inventoryTerms = roots.flatMap((item) => {
@@ -1470,6 +1474,9 @@ export class App implements OnInit, AfterViewInit {
         }
         return terms;
       });
+
+      const enrichedRoots = roots.map((item) => this.enrichRootInventoryEntry(item));
+      this.inventoryEntries.set(enrichedRoots as unknown[]);
 
       this.rootAutocomplete.set([...new Set(inventoryTerms.map((term) => term.trim().toLowerCase()).filter(Boolean))]);
     } catch {
@@ -1934,6 +1941,83 @@ export class App implements OnInit, AfterViewInit {
         (value): value is number => Number.isFinite(value)
       ),
     };
+  }
+
+  private enrichRootInventoryEntry(entry: RootInventoryEntry): RootInventoryEntry {
+    return {
+      ...entry,
+      assembledWords: entry.assembledWords.map((word) => this.enrichRootAssembledWord(word)),
+    };
+  }
+
+  private enrichRootAssembledWord(word: RootAssembledWord): RootAssembledWord {
+    return {
+      ...word,
+      breakdownParts: this.parseBreakdownParts(word.breakdown),
+      otherRootWords: word.otherRootWords.map((part) => ({
+        ...part,
+        examples: this.lookupRootExamples(part.root, word.word),
+      })),
+    };
+  }
+
+  private parseBreakdownParts(breakdown: string): string[] {
+    return this.uniqueStrings(
+      String(breakdown || '')
+        .split('+')
+        .map((part) => part.replace(/[-–—]/g, ' ').trim())
+        .map((part) => part.trim())
+        .filter(Boolean)
+    );
+  }
+
+  private lookupRootExamples(root: string, excludeWord = ''): Array<{ word: string; meaning: string }> {
+    const normalizedRoot = root.trim().toLowerCase();
+    if (!normalizedRoot) {
+      return [];
+    }
+
+    const entry = this.inventoryIndex.get(normalizedRoot);
+    if (!entry || typeof entry !== 'object') {
+      return [];
+    }
+
+    const rootEntry = entry as RootInventoryEntry;
+    const excluded = excludeWord.trim().toLowerCase();
+    const words = rootEntry.assembledWords
+      .map((item) => ({
+        word: item.word.trim(),
+        meaning: item.meaning.trim(),
+      }))
+      .filter((item) => item.word && item.meaning)
+      .filter((item) => item.word.toLowerCase() !== excluded);
+
+    const familyFallback = rootEntry.familyMemory
+      .map((item) => ({
+        word: item.term.trim(),
+        meaning: item.meaning.trim(),
+      }))
+      .filter((item) => item.word && item.meaning)
+      .filter((item) => item.word.toLowerCase() !== excluded);
+
+    return this.uniqueWordMeaningPairs([...words, ...familyFallback]).slice(0, 3);
+  }
+
+  private uniqueWordMeaningPairs(items: Array<{ word: string; meaning: string }>): Array<{ word: string; meaning: string }> {
+    const seen = new Set<string>();
+    const result: Array<{ word: string; meaning: string }> = [];
+
+    for (const item of items) {
+      const key = `${item.word.trim().toLowerCase()}|${item.meaning.trim().toLowerCase()}`;
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      result.push(item);
+    }
+
+    return result;
   }
 
   private getSavedWordAnalyses(letter = '', source: 'confident' | 'needs_focus'): AnalysisResult[] {

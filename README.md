@@ -60,7 +60,7 @@ For more information on using the Angular CLI, including detailed command refere
 
 ## Inventory Contract
 
-The app reads `public/root-inventory.json` as an array of analysis records. Each record should be self-contained and match the structure below.
+The app reads `public/aaptprep_root_centric_final.json` as an array of analysis records. Each record should be self-contained and match the structure below.
 
 Required shape:
 

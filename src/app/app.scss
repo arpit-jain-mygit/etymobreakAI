@@ -597,6 +597,17 @@ h1 {
   background: rgba(255, 255, 255, 0.74);
 }
 
+.root-assembled-roots {
+  display: grid;
+  gap: 8px;
+}
+
+.root-assembled-root {
+  display: grid;
+  gap: 4px;
+  padding-top: 2px;
+}
+
 .root-assembled-card strong {
   color: #28465a;
   font-size: 0.96rem;

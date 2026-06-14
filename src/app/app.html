@@ -617,6 +617,32 @@
                       <article class="root-assembled-card">
                         <strong>{{ word.word }}</strong>
                         <p>{{ word.meaning }}</p>
+                        @if (word.breakdownParts.length) {
+                          <div class="examples-row root-pill-row" aria-label="Breakdown parts">
+                            @for (part of word.breakdownParts; track part) {
+                              <span class="example-pill">{{ part }}</span>
+                            }
+                          </div>
+                        }
+                        @if (word.otherRootWords.length) {
+                          <div class="root-assembled-roots" aria-label="Other root words">
+                            @for (part of word.otherRootWords; track part.root) {
+                              <div class="root-assembled-root">
+                                <strong>{{ part.root }}</strong>
+                                <p>{{ part.meaning }}</p>
+                                @if (part.examples?.length) {
+                                  <div class="examples-row root-pill-row" aria-label="Examples from root inventory">
+                                    @for (example of part.examples; track example.word) {
+                                      <span class="example-pill">
+                                        {{ example.word }} • {{ example.meaning }}
+                                      </span>
+                                    }
+                                  </div>
+                                }
+                              </div>
+                            }
+                          </div>
+                        }
                         @if (word.exampleSentence) {
                           <em>{{ word.exampleSentence }}</em>
                         }
