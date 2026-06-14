@@ -412,6 +412,17 @@ export class App implements OnInit, AfterViewInit {
 
     return [];
   });
+  protected readonly activeSavedWordEntries = computed(() => {
+    if (this.activeTab() === 'confident_words') {
+      return this.getSavedWordInventoryEntries('', 'confident');
+    }
+
+    if (this.activeTab() === 'needs_focus_words') {
+      return this.getSavedWordInventoryEntries('', 'needs_focus');
+    }
+
+    return [];
+  });
   protected readonly activeWordSlides = computed(() =>
     this.activeTab() === 'root_suffix'
       ? this.rootSuffixSlides()
@@ -554,7 +565,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly quizHistoryCount = computed(() => this.quizHistory().length);
   protected readonly confidentWordsCount = computed(() => this.confidentWords().length);
   protected readonly needsFocusWordsCount = computed(() => this.needsFocusWords().length);
-  protected readonly activeSavedWordCount = computed(() => this.activeSavedWordAnalyses().length);
+  protected readonly activeSavedWordCount = computed(() => this.activeSavedWordEntries().length);
   protected readonly selectedQuizHistory = computed(() =>
     this.quizHistory().find((item) => item.id === this.selectedQuizHistoryId()) ?? null
   );
@@ -2077,6 +2088,76 @@ export class App implements OnInit, AfterViewInit {
       .map((item) => item.analysis)
       .filter((analysis) => !this.isEmptyAnalysis(analysis))
       .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  }
+
+  private getSavedWordInventoryEntries(letter = '', source: 'confident' | 'needs_focus'): RootInventoryEntry[] {
+    const normalizedLetter = letter.trim().toLowerCase();
+    const analyses = this.getSavedWordAnalyses(normalizedLetter, source);
+    const entries = analyses
+      .map((analysis) => this.findRootInventoryEntryForAnalysis(analysis))
+      .filter((entry): entry is RootInventoryEntry => entry !== null);
+
+    return this.uniqueRootInventoryEntries(entries).sort((a, b) =>
+      a.root.localeCompare(b.root, undefined, { sensitivity: 'base' })
+    );
+  }
+
+  private findRootInventoryEntryForAnalysis(analysis: AnalysisResult | null): RootInventoryEntry | null {
+    if (!analysis) {
+      return null;
+    }
+
+    const candidates = [
+      analysis.rootFamily?.root,
+      analysis.query,
+      analysis.title,
+    ]
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean);
+
+    if (!candidates.length) {
+      return null;
+    }
+
+    for (const candidate of candidates) {
+      const indexed = this.inventoryIndex.get(candidate);
+      if (indexed && typeof indexed === 'object') {
+        const indexedEntry = indexed as RootInventoryEntry;
+        const root = String(indexedEntry.root || '').trim().toLowerCase();
+        if (root) {
+          const match = this.inventoryEntries().find(
+            (entry) => entry.root.trim().toLowerCase() === root
+          );
+          if (match) {
+            return match;
+          }
+        }
+      }
+
+      const direct = this.inventoryEntries().find((entry) => entry.root.trim().toLowerCase() === candidate);
+      if (direct) {
+        return direct;
+      }
+    }
+
+    return null;
+  }
+
+  private uniqueRootInventoryEntries(items: RootInventoryEntry[]): RootInventoryEntry[] {
+    const seen = new Set<string>();
+    const result: RootInventoryEntry[] = [];
+
+    for (const item of items) {
+      const key = item.root.trim().toLowerCase();
+      if (!key || seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      result.push(item);
+    }
+
+    return result;
   }
 
   private shuffle<T>(items: T[]): T[] {

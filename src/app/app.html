@@ -702,42 +702,110 @@
           </div>
           <div class="quiz-meta">
             <span>{{ activeSavedWordCount() }} words</span>
-            <span>Flat list</span>
+            <span>Same root cards</span>
           </div>
         </div>
 
-        @if (activeSavedWordAnalyses().length) {
-          <div class="saved-word-list">
-            @for (analysis of activeSavedWordAnalyses(); track analysis.query + '|' + analysis.title) {
-              <article class="saved-word-card">
-                <div class="saved-word-head">
-                  <div>
-                    <p class="section-label">{{ analysis.mode }}</p>
-                    <h2>{{ analysis.title }}</h2>
+        @if (activeSavedWordEntries().length) {
+          <div class="root-list">
+            @for (entry of activeSavedWordEntries(); track entry.root + '|' + entry.type) {
+              <article class="root-card" [class.prefix-card]="entry.type === 'prefix'" [class.suffix-card]="entry.type === 'suffix'">
+                <div class="root-card-head">
+                  <div class="root-card-title">
+                    <p class="section-label">{{ entry.type }}</p>
+                    <h2>{{ entry.root }}</h2>
                   </div>
-                  <span>{{ analysis.rootFamily.root }}</span>
+                  <span>{{ entry.assembledWords.length }} examples</span>
                 </div>
 
-                <p class="saved-word-meaning">{{ analysis.actualMeaning || analysis.summary }}</p>
+                <p class="root-card-meaning">{{ entry.meaning }}</p>
+                @if (entry.source) {
+                  <p class="root-card-source">{{ entry.source }}</p>
+                }
+                @if (entry.exampleSentence) {
+                  <em class="root-card-example">{{ entry.exampleSentence }}</em>
+                }
 
-                @if (analysis.literalMeaningFormula || analysis.literalMeaningArrow) {
-                  <div class="saved-word-quote">
-                    @if (analysis.literalMeaningFormula) {
-                      <strong>{{ analysis.literalMeaningFormula }}</strong>
-                    }
-                    @if (analysis.literalMeaningArrow) {
-                      <em>{{ analysis.literalMeaningArrow }}</em>
+                @if (entry.alternateForms.length) {
+                  <div class="examples-row root-pill-row" aria-label="Alternate forms">
+                    @for (form of entry.alternateForms; track form) {
+                      <span class="example-pill">{{ form }}</span>
                     }
                   </div>
                 }
 
-                @if (analysis.familyMemory.length) {
-                  <div class="examples-row" aria-label="Family memory">
-                    @for (item of analysis.familyMemory; track item.term) {
-                      <span class="example-pill">{{ item.term }} • {{ item.meaning }}</span>
+                @if (entry.assembledWords.length) {
+                  <div class="root-assembled-list" aria-label="Assembled words">
+                    @for (word of entry.assembledWords; track word.word) {
+                      <article class="root-assembled-card">
+                        <strong>{{ word.word }}</strong>
+                        <p>{{ word.meaning }}</p>
+                        @if (word.breakdownParts.length) {
+                          <div class="examples-row root-pill-row" aria-label="Breakdown parts">
+                            @for (part of word.breakdownParts; track part) {
+                              <span class="example-pill">{{ part }}</span>
+                            }
+                          </div>
+                        }
+                        @if (word.otherRootWords.length) {
+                          <div class="root-assembled-roots" aria-label="Other root words">
+                            @for (part of word.otherRootWords; track part.root) {
+                              <div class="root-assembled-root">
+                                <strong>{{ part.root }}</strong>
+                                <p>{{ part.meaning }}</p>
+                                @if (part.examples?.length) {
+                                  <div class="examples-row root-pill-row" aria-label="Examples from root inventory">
+                                    @for (example of part.examples; track example.word) {
+                                      <span class="example-pill">
+                                        {{ example.word }} • {{ example.meaning }}
+                                      </span>
+                                    }
+                                  </div>
+                                }
+                              </div>
+                            }
+                          </div>
+                        }
+                        @if (word.exampleSentence) {
+                          <em>{{ word.exampleSentence }}</em>
+                        }
+                      </article>
                     }
                   </div>
                 }
+
+                <div class="root-card-actions">
+                  @if (isRootEntryConfident(entry)) {
+                    <span class="status-chip confident">Confident</span>
+                  } @else if (isRootEntryNeedsFocus(entry)) {
+                    <span class="status-chip needs-focus">Needs Focus</span>
+                    <button
+                      type="button"
+                      class="tab-chip"
+                      [disabled]="confidentWordsSaving()"
+                      (click)="toggleConfidentForRootEntry(entry)"
+                    >
+                      Mark Confident
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="tab-chip"
+                      [disabled]="confidentWordsSaving()"
+                      (click)="toggleConfidentForRootEntry(entry)"
+                    >
+                      Mark Confident
+                    </button>
+                    <button
+                      type="button"
+                      class="tab-chip"
+                      [disabled]="needsFocusWordsSaving()"
+                      (click)="toggleNeedsFocusForRootEntry(entry)"
+                    >
+                      Mark Needs Focus
+                    </button>
+                  }
+                </div>
               </article>
             }
           </div>
