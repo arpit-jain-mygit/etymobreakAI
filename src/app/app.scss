@@ -625,6 +625,65 @@ h1 {
   font-style: normal;
 }
 
+.saved-word-list {
+  display: grid;
+  gap: 12px;
+}
+
+.saved-word-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(158, 177, 184, 0.18);
+  background: linear-gradient(180deg, rgba(249, 252, 247, 0.98), rgba(242, 248, 242, 0.96));
+  box-shadow:
+    0 16px 42px rgba(80, 103, 117, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.saved-word-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.saved-word-head h2 {
+  margin: 4px 0 0;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  font-size: 1.4rem;
+  line-height: 1.1;
+  color: #264653;
+}
+
+.saved-word-head span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(96, 116, 141, 0.1);
+  color: #60748d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.saved-word-meaning {
+  margin: 0;
+  color: #516576;
+  line-height: 1.5;
+}
+
+.saved-word-quote {
+  display: grid;
+  gap: 4px;
+  color: #4d6272;
+}
+
+.saved-word-quote strong {
+  font-weight: 800;
+}
+
 .root-card-actions,
 .quiz-root-actions,
 .history-question-actions {

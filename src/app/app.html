@@ -692,6 +692,63 @@
       </section>
     }
 
+    @if (activeTab() === 'confident_words' || activeTab() === 'needs_focus_words') {
+      <section class="experiment-panel saved-words-panel">
+        <div class="experiment-toolbar">
+          <div class="alphabet-row">
+            <span class="quiz-counter">
+              {{ activeTab() === 'confident_words' ? 'My Confident Words' : 'Words need more Focus' }}
+            </span>
+          </div>
+          <div class="quiz-meta">
+            <span>{{ activeSavedWordCount() }} words</span>
+            <span>Flat list</span>
+          </div>
+        </div>
+
+        @if (activeSavedWordAnalyses().length) {
+          <div class="saved-word-list">
+            @for (analysis of activeSavedWordAnalyses(); track analysis.query + '|' + analysis.title) {
+              <article class="saved-word-card">
+                <div class="saved-word-head">
+                  <div>
+                    <p class="section-label">{{ analysis.mode }}</p>
+                    <h2>{{ analysis.title }}</h2>
+                  </div>
+                  <span>{{ analysis.rootFamily.root }}</span>
+                </div>
+
+                <p class="saved-word-meaning">{{ analysis.actualMeaning || analysis.summary }}</p>
+
+                @if (analysis.literalMeaningFormula || analysis.literalMeaningArrow) {
+                  <div class="saved-word-quote">
+                    @if (analysis.literalMeaningFormula) {
+                      <strong>{{ analysis.literalMeaningFormula }}</strong>
+                    }
+                    @if (analysis.literalMeaningArrow) {
+                      <em>{{ analysis.literalMeaningArrow }}</em>
+                    }
+                  </div>
+                }
+
+                @if (analysis.familyMemory.length) {
+                  <div class="examples-row" aria-label="Family memory">
+                    @for (item of analysis.familyMemory; track item.term) {
+                      <span class="example-pill">{{ item.term }} • {{ item.meaning }}</span>
+                    }
+                  </div>
+                }
+              </article>
+            }
+          </div>
+        } @else {
+          <section class="notice calm-notice">
+            {{ activeTab() === 'confident_words' ? 'No confident words yet.' : 'No focus words yet.' }}
+          </section>
+        }
+      </section>
+    }
+
     @if (activeTab() === 'quiz') {
       <section class="experiment-panel quiz-panel">
         @if (quizFlowStage() === 'setup') {
