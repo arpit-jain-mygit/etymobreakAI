@@ -221,23 +221,9 @@
                           <p>{{ question.prompt }}</p>
                           <div class="history-question-actions">
                             @if (isHistoryQuestionConfident(question)) {
-                              <button
-                                type="button"
-                                class="tab-chip active"
-                                [disabled]="needsFocusWordsSaving()"
-                                (click)="toggleNeedsFocusForHistoryQuestion(question)"
-                              >
-                                Mark Needs Focus
-                              </button>
+                              <span class="tab-chip active">Confident</span>
                             } @else if (isHistoryQuestionNeedsFocus(question)) {
-                              <button
-                                type="button"
-                                class="tab-chip active"
-                                [disabled]="confidentWordsSaving()"
-                                (click)="toggleConfidentForHistoryQuestion(question)"
-                              >
-                                Mark Confident
-                              </button>
+                              <span class="tab-chip active">Needs Focus</span>
                             } @else {
                               <button
                                 type="button"
@@ -399,23 +385,9 @@
           <h2>{{ analysis.title }}</h2>
           <div class="result-actions">
             @if (isAnalysisConfident(analysis)) {
-              <button
-                type="button"
-                class="tab-chip active"
-                [disabled]="needsFocusWordsSaving()"
-                (click)="toggleNeedsFocusForAnalysis(analysis)"
-              >
-                Mark Needs Focus
-              </button>
+              <span class="tab-chip active">Confident</span>
             } @else if (isAnalysisNeedsFocus(analysis)) {
-              <button
-                type="button"
-                class="tab-chip active"
-                [disabled]="confidentWordsSaving()"
-                (click)="toggleConfidentForAnalysis(analysis)"
-              >
-                Mark Confident
-              </button>
+              <span class="tab-chip active">Needs Focus</span>
             } @else {
               <button
                 type="button"
@@ -576,23 +548,9 @@
                 <h2>{{ analysis.title }}</h2>
                 <div class="result-actions">
                   @if (isAnalysisConfident(analysis)) {
-                    <button
-                      type="button"
-                      class="tab-chip active"
-                      [disabled]="needsFocusWordsSaving()"
-                      (click)="toggleNeedsFocusForAnalysis(analysis)"
-                    >
-                      Mark Needs Focus
-                    </button>
+                    <span class="tab-chip active">Confident</span>
                   } @else if (isAnalysisNeedsFocus(analysis)) {
-                    <button
-                      type="button"
-                      class="tab-chip active"
-                      [disabled]="confidentWordsSaving()"
-                      (click)="toggleConfidentForAnalysis(analysis)"
-                    >
-                      Mark Confident
-                    </button>
+                    <span class="tab-chip active">Needs Focus</span>
                   } @else {
                     <button
                       type="button"
