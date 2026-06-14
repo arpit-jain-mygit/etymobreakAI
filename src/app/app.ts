@@ -316,23 +316,6 @@ export class App implements OnInit, AfterViewInit {
   });
   protected readonly quizDifficultyLabel = computed(() => `Level ${this.quizDifficulty()}`);
   protected readonly quizQuestionTargetLabel = computed(() => `${this.quizQuestionTarget()} questions`);
-  protected readonly revisionOtherCount = computed(() => {
-    const confident = new Set(
-      this.confidentWords().map((item) => this.confidentKey(item.query, item.mode)).filter(Boolean)
-    );
-    const focus = new Set(
-      this.needsFocusWords().map((item) => this.needsFocusKey(item.query, item.mode)).filter(Boolean)
-    );
-
-    return this.getInventoryAnalyses('', 'all').filter((analysis) => {
-      if (this.isEmptyAnalysis(analysis)) {
-        return false;
-      }
-
-      const key = this.confidentKey(analysis.query, analysis.mode);
-      return !confident.has(key) && !focus.has(key);
-    }).length;
-  });
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
   private quizBankLoadPromise: Promise<void> | null = null;
