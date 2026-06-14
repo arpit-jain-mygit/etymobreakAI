@@ -56,6 +56,29 @@ svg {
   border-color: rgba(126, 156, 214, 0.4);
 }
 
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(150, 171, 185, 0.14);
+  background: rgba(244, 247, 243, 0.94);
+  color: #526372;
+  font-weight: 700;
+  font-size: 0.86rem;
+  line-height: 1;
+  cursor: default;
+  user-select: none;
+  box-shadow: none;
+}
+
+.status-chip.active {
+  background: rgba(235, 243, 252, 0.98);
+  color: #28465a;
+  border-color: rgba(126, 156, 214, 0.22);
+}
+
 .experiment-panel {
   max-width: 1400px;
   width: 100%;

@@ -221,9 +221,9 @@
                           <p>{{ question.prompt }}</p>
                           <div class="history-question-actions">
                             @if (isHistoryQuestionConfident(question)) {
-                              <span class="tab-chip active">Confident</span>
+                              <span class="status-chip active">Confident</span>
                             } @else if (isHistoryQuestionNeedsFocus(question)) {
-                              <span class="tab-chip active">Needs Focus</span>
+                              <span class="status-chip active">Needs Focus</span>
                               <button
                                 type="button"
                                 class="tab-chip"
@@ -393,9 +393,9 @@
           <h2>{{ analysis.title }}</h2>
           <div class="result-actions">
             @if (isAnalysisConfident(analysis)) {
-              <span class="tab-chip active">Confident</span>
+              <span class="status-chip active">Confident</span>
             } @else if (isAnalysisNeedsFocus(analysis)) {
-              <span class="tab-chip active">Needs Focus</span>
+              <span class="status-chip active">Needs Focus</span>
               <button
                 type="button"
                 class="tab-chip"
@@ -564,9 +564,9 @@
                 <h2>{{ analysis.title }}</h2>
                 <div class="result-actions">
                   @if (isAnalysisConfident(analysis)) {
-                    <span class="tab-chip active">Confident</span>
+                    <span class="status-chip active">Confident</span>
                   } @else if (isAnalysisNeedsFocus(analysis)) {
-                    <span class="tab-chip active">Needs Focus</span>
+                    <span class="status-chip active">Needs Focus</span>
                     <button
                       type="button"
                       class="tab-chip"
