@@ -1555,20 +1555,19 @@ export class App implements OnInit, AfterViewInit {
       }
 
       this.inventoryIndex.clear();
-
-      const inventoryTerms = roots.flatMap((item) => {
-        const terms = this.collectAutocompleteTerms(item);
-        this.inventoryIndex.set(item.root.trim().toLowerCase(), item);
-        for (const assembled of item.assembledWords) {
-          this.inventoryIndex.set(assembled.word.trim().toLowerCase(), item);
-        }
-        return terms;
-      });
+      const rootTerms = roots.map((item) => item.root.trim().toLowerCase()).filter(Boolean);
 
       const enrichedRoots = roots.map((item) => this.enrichRootInventoryEntry(item));
       this.inventoryEntries.set(enrichedRoots as unknown[]);
 
-      this.rootAutocomplete.set([...new Set(inventoryTerms.map((term) => term.trim().toLowerCase()).filter(Boolean))]);
+      for (const item of roots) {
+        this.inventoryIndex.set(item.root.trim().toLowerCase(), item);
+        for (const assembled of item.assembledWords) {
+          this.inventoryIndex.set(assembled.word.trim().toLowerCase(), item);
+        }
+      }
+
+      this.rootAutocomplete.set([...new Set(rootTerms)]);
     } catch {
       return;
     }
@@ -2164,18 +2163,17 @@ export class App implements OnInit, AfterViewInit {
     }
 
     const ranked = this.getRootInventoryEntries().map((entry) => {
-      const terms = this.collectAutocompleteTerms(entry).map((term) => this.normalizeForMatch(term));
-      const exactRoot = this.normalizeForMatch(entry.root) === normalizedQuery ? 0 : 1;
-      const prefixHit = terms.some((term) => term.startsWith(normalizedQuery)) ? 0 : 1;
-      const containsHit = terms.some((term) => term.includes(normalizedQuery)) ? 0 : 1;
+      const root = this.normalizeForMatch(entry.root);
+      const exactRoot = root === normalizedQuery ? 0 : 1;
+      const prefixHit = root.startsWith(normalizedQuery) ? 0 : 1;
       return {
         entry,
-        score: exactRoot + prefixHit + containsHit,
+        score: exactRoot + prefixHit,
       };
     });
 
     return ranked
-      .filter((item) => item.score < 3)
+      .filter((item) => item.score < 2)
       .sort((a, b) =>
         a.score - b.score || a.entry.root.localeCompare(b.entry.root, undefined, { sensitivity: 'base' })
       )
