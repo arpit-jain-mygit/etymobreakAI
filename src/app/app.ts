@@ -2259,7 +2259,7 @@ export class App implements OnInit, AfterViewInit {
     const totalTarget = Math.min(50, Math.max(5, Math.floor(targetCount / 5) * 5)) || 5;
     const confidentTarget = Math.max(1, Math.round(totalTarget * 0.6));
     const focusTarget = Math.max(1, Math.round(totalTarget * 0.2));
-    const otherTarget = Math.max(1, totalTarget - confidentTarget - focusTarget);
+    const newTarget = Math.max(1, totalTarget - confidentTarget - focusTarget);
 
     const confidentCandidates = this.shuffle(this.buildRevisionCandidates(confidentAnalyses, difficulty));
     const focusCandidates = this.shuffle(this.buildRevisionCandidates(focusAnalyses, difficulty));
@@ -2287,7 +2287,7 @@ export class App implements OnInit, AfterViewInit {
 
     takeFrom(confidentCandidates, confidentTarget);
     takeFrom(focusCandidates, focusTarget);
-    takeFrom(otherCandidates, otherTarget);
+    takeFrom(otherCandidates, newTarget);
 
     if (selected.length < totalTarget) {
       const fallbackPool = this.shuffle([...confidentCandidates, ...focusCandidates, ...otherCandidates]);

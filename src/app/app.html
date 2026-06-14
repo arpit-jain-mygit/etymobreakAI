@@ -174,6 +174,24 @@
           <button
             type="button"
             class="tab-chip"
+            [class.active]="activeTab() === 'confident_words'"
+            (click)="setActiveTab('confident_words')"
+          >
+            <span>My Confident Words</span>
+            <span class="tab-count">{{ confidentWordsCount() }}</span>
+          </button>
+          <button
+            type="button"
+            class="tab-chip"
+            [class.active]="activeTab() === 'needs_focus_words'"
+            (click)="setActiveTab('needs_focus_words')"
+          >
+            <span>Words need more Focus</span>
+            <span class="tab-count">{{ needsFocusWordsCount() }}</span>
+          </button>
+          <button
+            type="button"
+            class="tab-chip"
             [class.active]="activeTab() === 'quiz'"
             (click)="setActiveTab('quiz')"
           >
@@ -660,6 +678,11 @@
               <span>25 mins</span>
               <span>4 options each</span>
             </div>
+            <div class="quiz-meta">
+              <span>{{ confidentWordsCount() }} confident</span>
+              <span>{{ needsFocusWordsCount() }} focus</span>
+              <span>Revision deck mixes saved words with new inventory words</span>
+            </div>
           </div>
 
           <div class="quiz-setup-grid" role="list" aria-label="Root quiz setup">
@@ -674,7 +697,10 @@
             <div class="quiz-config-copy">
               <p class="section-label">Difficulty</p>
               <strong>{{ quizTypeLabel() }}</strong>
-              <span>Pick a level and question count, then we’ll build a random root deck from the inventory.</span>
+              <span>
+                Pick a level and question count, then we’ll build a revision deck with about 60% confident words,
+                20% needs-focus words, and 20% new inventory words.
+              </span>
             </div>
 
             <div class="quiz-picker-group">
