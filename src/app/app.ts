@@ -636,7 +636,10 @@ export class App implements OnInit, AfterViewInit {
     }
 
     const meaning = String((question as { sourceRootMeaning?: string }).sourceRootMeaning || '').trim();
-    return this.buildRootAnalysis(root, meaning, root, [question.prompt, question.explanation].filter(Boolean));
+    const notes = [question.prompt, question.explanation].filter(
+      (value): value is string => typeof value === 'string' && value.trim().length > 0
+    );
+    return this.buildRootAnalysis(root, meaning, root, notes);
   }
 
   protected isRootEntryConfident(entry: RootInventoryEntry | null): boolean {
