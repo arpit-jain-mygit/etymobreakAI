@@ -1819,17 +1819,17 @@ export class App implements OnInit, AfterViewInit {
 
   private getRootInventoryEntries(): RootInventoryEntry[] {
     return this.inventoryEntries()
-      .map((item) => this.normalizeRootInventoryEntry(item))
-      .filter((item): item is RootInventoryEntry => item !== null)
+      .map((item: unknown) => this.normalizeRootInventoryEntry(item))
+      .filter((item: RootInventoryEntry | null): item is RootInventoryEntry => item !== null)
       .sort((a, b) => a.root.localeCompare(b.root, undefined, { sensitivity: 'base' }));
   }
 
   private extractRootInventoryEntries(payload: unknown): RootInventoryEntry[] {
     const data: any = payload && typeof payload === 'object' ? payload : {};
-    const entries = Array.isArray(data.roots) ? data.roots : Array.isArray(payload) ? payload : [];
+    const entries: unknown[] = Array.isArray(data.roots) ? data.roots : Array.isArray(payload) ? payload : [];
     return entries
-      .map((item) => this.normalizeRootInventoryEntry(item))
-      .filter((item): item is RootInventoryEntry => item !== null);
+      .map((item: unknown) => this.normalizeRootInventoryEntry(item))
+      .filter((item: RootInventoryEntry | null): item is RootInventoryEntry => item !== null);
   }
 
   private normalizeRootInventoryEntry(item: unknown): RootInventoryEntry | null {
