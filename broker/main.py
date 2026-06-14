@@ -64,6 +64,7 @@ app.add_middleware(
 def _bucket_name() -> str:
     return (
         os.getenv("GCP_ETYMOBREAK_BUCKET", "").strip()
+        or os.getenv("GCP_QUIZ_BUCKET", "").strip()
         or os.getenv("GCS_BUCKET_NAME", "").strip()
         or os.getenv("QUIZ_BUCKET_NAME", "").strip()
     )
