@@ -303,162 +303,183 @@
         }
 
         @if (quizHistoryCount()) {
-          <div class="root-list history-root-list">
-            @for (item of quizHistory(); track item.id) {
-              <article
-                class="root-card history-root-card"
-                [class.history-active]="selectedQuizHistoryId() === item.id"
-                (click)="selectQuizHistory(item.id)"
-                role="button"
-                tabindex="0"
-              >
-                <div class="root-card-head">
-                  <div class="root-card-title">
-                    <p class="section-label">{{ item.quizType || item.quizScope }}</p>
-                    <h2>{{ item.playerName }}</h2>
+          <div class="history-layout">
+            <div class="root-list history-root-list">
+              @for (item of quizHistory(); track item.id) {
+                <article
+                  class="root-card history-root-card"
+                  [class.history-active]="selectedQuizHistoryId() === item.id"
+                  (click)="selectQuizHistory(item.id)"
+                  role="button"
+                  tabindex="0"
+                >
+                  <div class="root-card-head">
+                    <div class="root-card-title">
+                      <p class="section-label">{{ item.quizType || item.quizScope }}</p>
+                      <h2>{{ item.playerName }}</h2>
+                    </div>
+                    <span>{{ item.percentage }}%</span>
                   </div>
-                  <span>{{ item.percentage }}%</span>
-                </div>
 
-                <p class="root-card-meaning">{{ item.playerEmail }}</p>
-                <p class="root-card-source">
-                  {{ item.country }} • {{ item.quizScope }} • {{ item.marks }} / {{ item.total }}
-                </p>
-                <em class="root-card-example">{{ formatHistoryTime(item.time) }}</em>
-              </article>
-            }
-          </div>
-        } @else {
-          <section class="notice calm-notice">No quiz history yet. Finish a quiz to see your score here.</section>
-        }
-
-        @if (selectedQuizHistory(); as historyItem) {
-          <div class="history-detail" aria-label="Selected quiz history">
-            <div class="history-detail-head">
-              <div>
-                <p class="section-label">Attempt detail</p>
-                <strong>{{ historyItem.quizType || historyItem.quizScope }}</strong>
-              </div>
-              <span>{{ historyItem.percentage }}%</span>
-            </div>
-            <div class="history-detail-meta">
-              <span>{{ historyItem.questionCount }} questions</span>
-              <span>Level {{ historyItem.difficulty || 1 }}</span>
-              <span>{{ historyItem.timeLimitMinutes }} mins</span>
-              <span>{{ historyItem.quizScope }}</span>
-            </div>
-            <div class="history-detail-summary">
-              <div>
-                <small>Score</small>
-                <p>{{ historyItem.marks }} / {{ historyItem.questionCount * 3 }}</p>
-              </div>
-              <div>
-                <small>Time spent</small>
-                <p>{{ historyItem.timeSpentSeconds }}s</p>
-              </div>
+                  <p class="root-card-meaning">{{ item.playerEmail }}</p>
+                  <p class="root-card-source">
+                    {{ item.country }} • {{ item.quizScope }} • {{ item.marks }} / {{ item.total }}
+                  </p>
+                  <em class="root-card-example">{{ formatHistoryTime(item.time) }}</em>
+                </article>
+              }
             </div>
 
-            @if (historyItem.questions?.length) {
-              <div class="quiz-review-filters" aria-label="Filter quiz history questions by category">
-                <button
-                  type="button"
-                  class="quiz-review-filter"
-                  [class.active]="historyReviewFilter() === 'all'"
-                  (click)="historyReviewFilter.set('all')"
-                >
-                  All
-                  <span>{{ historyReviewFilterCounts().all }}</span>
-                </button>
-                <button
-                  type="button"
-                  class="quiz-review-filter"
-                  [class.active]="historyReviewFilter() === 'correct'"
-                  (click)="historyReviewFilter.set('correct')"
-                >
-                  Correct
-                  <span>{{ historyReviewFilterCounts().correct }}</span>
-                </button>
-                <button
-                  type="button"
-                  class="quiz-review-filter"
-                  [class.active]="historyReviewFilter() === 'wrong'"
-                  (click)="historyReviewFilter.set('wrong')"
-                >
-                  Wrong
-                  <span>{{ historyReviewFilterCounts().wrong }}</span>
-                </button>
-                <button
-                  type="button"
-                  class="quiz-review-filter"
-                  [class.active]="historyReviewFilter() === 'skipped'"
-                  (click)="historyReviewFilter.set('skipped')"
-                >
-                  Skipped
-                  <span>{{ historyReviewFilterCounts().skipped }}</span>
-                </button>
-              </div>
-
-              <div class="history-question-list">
-                @for (question of historyReviewFilteredQuestions(); track question.id; let index = $index) {
-                  <article class="history-question">
-                    <div class="history-question-top">
-                      <strong>{{ index + 1 }}. {{ question.sourceTitle }}</strong>
-                      <span>
-                        {{ question.isCorrect ? 'Correct' : question.skipped ? 'Skipped' : 'Wrong' }}
-                      </span>
+            @if (selectedQuizHistory(); as historyItem) {
+              <div class="history-detail" aria-label="Selected quiz history">
+                <article class="info-card history-summary-card">
+                  <div class="history-detail-head">
+                    <div>
+                      <p class="section-label">Attempt detail</p>
+                      <strong>{{ historyItem.quizType || historyItem.quizScope }}</strong>
                     </div>
-                    <p>{{ question.prompt }}</p>
-                    <div class="history-question-actions">
-                      @if (isHistoryQuestionConfident(question)) {
-                        <span class="status-chip confident">Confident</span>
-                      } @else if (isHistoryQuestionNeedsFocus(question)) {
-                        <span class="status-chip needs-focus">Needs Focus</span>
-                        <button
-                          type="button"
-                          class="tab-chip"
-                          [disabled]="confidentWordsSaving()"
-                          (click)="toggleConfidentForHistoryQuestion(question)"
+                    <span>{{ historyItem.percentage }}%</span>
+                  </div>
+                  <div class="history-detail-meta">
+                    <span>{{ historyItem.questionCount }} questions</span>
+                    <span>Level {{ historyItem.difficulty || 1 }}</span>
+                    <span>{{ historyItem.timeLimitMinutes }} mins</span>
+                    <span>{{ historyItem.quizScope }}</span>
+                  </div>
+                  <div class="history-detail-summary">
+                    <div>
+                      <small>Score</small>
+                      <p>{{ historyItem.marks }} / {{ historyItem.questionCount * 3 }}</p>
+                    </div>
+                    <div>
+                      <small>Time spent</small>
+                      <p>{{ historyItem.timeSpentSeconds }}s</p>
+                    </div>
+                  </div>
+                </article>
+
+                @if (historyItem.questions?.length) {
+                  <div class="history-review-column">
+                    <div class="quiz-review-filters" aria-label="Filter quiz history questions by category">
+                      <button
+                        type="button"
+                        class="quiz-review-filter"
+                        [class.active]="historyReviewFilter() === 'all'"
+                        (click)="historyReviewFilter.set('all')"
+                      >
+                        All
+                        <span>{{ historyReviewFilterCounts().all }}</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="quiz-review-filter"
+                        [class.active]="historyReviewFilter() === 'correct'"
+                        (click)="historyReviewFilter.set('correct')"
+                      >
+                        Correct
+                        <span>{{ historyReviewFilterCounts().correct }}</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="quiz-review-filter"
+                        [class.active]="historyReviewFilter() === 'wrong'"
+                        (click)="historyReviewFilter.set('wrong')"
+                      >
+                        Wrong
+                        <span>{{ historyReviewFilterCounts().wrong }}</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="quiz-review-filter"
+                        [class.active]="historyReviewFilter() === 'skipped'"
+                        (click)="historyReviewFilter.set('skipped')"
+                      >
+                        Skipped
+                        <span>{{ historyReviewFilterCounts().skipped }}</span>
+                      </button>
+                    </div>
+
+                    <div class="history-question-list">
+                      @for (question of historyReviewFilteredQuestions(); track question.id; let index = $index) {
+                        <article
+                          class="info-card quiz-summary-item history-question-card"
+                          [class.correct]="question.isCorrect"
+                          [class.wrong]="!question.isCorrect && !question.skipped"
+                          [class.skipped]="question.skipped"
                         >
-                          Mark Confident
-                        </button>
-                      } @else {
-                        <button
-                          type="button"
-                          class="tab-chip"
-                          [disabled]="confidentWordsSaving()"
-                          (click)="toggleConfidentForHistoryQuestion(question)"
-                        >
-                          Mark Confident
-                        </button>
-                        <button
-                          type="button"
-                          class="tab-chip"
-                          [disabled]="needsFocusWordsSaving()"
-                          (click)="toggleNeedsFocusForHistoryQuestion(question)"
-                        >
-                          Mark Needs Focus
-                        </button>
+                          <div class="quiz-summary-top">
+                            <strong>{{ index + 1 }}. {{ question.sourceTitle }}</strong>
+                            <span>
+                              {{ question.isCorrect ? 'Correct' : question.skipped ? 'Skipped' : 'Wrong' }}
+                            </span>
+                          </div>
+                          <p class="quiz-prompt">{{ question.prompt }}</p>
+                          <div class="quiz-summary-options" aria-label="Reviewed answers">
+                            @for (option of question.options; track option; let optionIndex = $index) {
+                              <div
+                                class="quiz-summary-option"
+                                [class.selected]="question.selectedIndex === optionIndex"
+                                [class.correct]="optionIndex === question.correctIndex"
+                                [class.skipped-correct]="question.skipped && optionIndex === question.correctIndex"
+                                [class.wrong]="question.selectedIndex === optionIndex && optionIndex !== question.correctIndex"
+                              >
+                                <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>
+                                <span class="quiz-option-text">{{ option }}</span>
+                              </div>
+                            }
+                          </div>
+                          <div class="quiz-summary-grid">
+                            <div>
+                              <small>Your answer</small>
+                              <p>{{ question.userAnswerLabel }}</p>
+                            </div>
+                            <div>
+                              <small>Correct answer</small>
+                              <p>{{ question.correctAnswerLabel }}</p>
+                            </div>
+                          </div>
+                          <div class="history-question-actions">
+                            @if (isHistoryQuestionConfident(question)) {
+                              <span class="status-chip confident">Confident</span>
+                            } @else if (isHistoryQuestionNeedsFocus(question)) {
+                              <span class="status-chip needs-focus">Needs Focus</span>
+                              <button
+                                type="button"
+                                class="tab-chip"
+                                [disabled]="confidentWordsSaving()"
+                                (click)="toggleConfidentForHistoryQuestion(question)"
+                              >
+                                Mark Confident
+                              </button>
+                            } @else {
+                              <button
+                                type="button"
+                                class="tab-chip"
+                                [disabled]="confidentWordsSaving()"
+                                (click)="toggleConfidentForHistoryQuestion(question)"
+                              >
+                                Mark Confident
+                              </button>
+                              <button
+                                type="button"
+                                class="tab-chip"
+                                [disabled]="needsFocusWordsSaving()"
+                                (click)="toggleNeedsFocusForHistoryQuestion(question)"
+                              >
+                                Mark Needs Focus
+                              </button>
+                            }
+                          </div>
+                        </article>
                       }
                     </div>
-                    <div class="history-question-grid" aria-label="Reviewed answers">
-                      @for (option of question.options; track option; let optionIndex = $index) {
-                        <div
-                          class="history-question-option"
-                          [class.selected]="question.selectedIndex === optionIndex"
-                          [class.correct]="optionIndex === question.correctIndex"
-                          [class.skipped-correct]="question.skipped && optionIndex === question.correctIndex"
-                          [class.wrong]="question.selectedIndex === optionIndex && optionIndex !== question.correctIndex"
-                        >
-                          <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>
-                          <span class="quiz-option-text">{{ option }}</span>
-                        </div>
-                      }
-                    </div>
-                  </article>
+                  </div>
                 }
               </div>
             }
           </div>
+        } @else {
+          <section class="notice calm-notice">No quiz history yet. Finish a quiz to see your score here.</section>
         }
       </section>
     }
@@ -979,61 +1000,11 @@
             </section>
           }
 
-          <div class="experiment-toolbar">
-            <div class="alphabet-row">
-              <span class="quiz-counter">Quiz setup</span>
-            </div>
-            <div class="quiz-meta">
-              <span>{{ quizQuestionTarget() }} questions</span>
-              <span>25 mins</span>
-              <span>4 options each</span>
-            </div>
-            <div class="quiz-meta">
-              <span>{{ confidentWordsCount() }} confident</span>
-              <span>{{ needsFocusWordsCount() }} focus</span>
-              <span>Revision deck mixes saved words with new inventory words</span>
-            </div>
-          </div>
-
-          <div class="quiz-setup-grid" role="list" aria-label="Root quiz setup">
-            <button type="button" class="quiz-setup-card active">
-              <span class="section-label">Root quiz</span>
-              <strong>Practice roots, prefixes, and suffixes</strong>
-              <p>Questions come only from the root inventory and its example words.</p>
-            </button>
-          </div>
-
-          <div class="quiz-config-row">
-            <div class="quiz-config-copy">
-              <p class="section-label">Difficulty</p>
-              <strong>{{ quizTypeLabel() }}</strong>
-              <span>
-                Pick a level, then we’ll build a revision deck with about 60% confident words,
-                20% needs-focus words, and 20% new inventory words.
-              </span>
-            </div>
-
-            <div class="quiz-picker-group">
-              <div class="quiz-difficulty-row" role="radiogroup" aria-label="Quiz difficulty">
-                @for (level of [1, 2, 3, 4, 5]; track level) {
-                  <button
-                    type="button"
-                    class="quiz-difficulty-chip"
-                    [class.active]="quizDifficulty() === level"
-                    (click)="selectQuizDifficulty(level)"
-                  >
-                    {{ level }}
-                  </button>
-                }
-              </div>
-            </div>
-          </div>
-
           @if (quizNotice()) {
             <section class="notice calm-notice">{{ quizNotice() }}</section>
           }
 
-          <div class="quiz-actions">
+          <div class="quiz-actions quiz-actions-setup">
             <button
               type="button"
               class="primary"

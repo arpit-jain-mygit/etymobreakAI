@@ -732,6 +732,112 @@ h1 {
   font-style: normal;
 }
 
+.history-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.92fr) minmax(0, 1.08fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.history-root-list {
+  grid-template-columns: 1fr;
+}
+
+.history-root-card {
+  cursor: pointer;
+}
+
+.history-root-card.history-active {
+  border-color: rgba(126, 156, 214, 0.52);
+  background: linear-gradient(180deg, rgba(236, 243, 255, 0.98), rgba(229, 239, 255, 0.96));
+}
+
+.history-detail {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.history-summary-card {
+  display: grid;
+  gap: 12px;
+}
+
+.history-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.history-detail-head strong {
+  color: #264653;
+  font-size: 1.15rem;
+}
+
+.history-detail-head span {
+  color: #708395;
+  font-weight: 700;
+}
+
+.history-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #60748d;
+  font-size: 0.8rem;
+}
+
+.history-detail-meta span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(96, 116, 141, 0.08);
+}
+
+.history-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.history-detail-summary small {
+  display: block;
+  margin-bottom: 4px;
+  color: #7f97a9;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.64rem;
+}
+
+.history-detail-summary p {
+  margin: 0;
+  color: #304454;
+  line-height: 1.45;
+}
+
+.history-review-column {
+  display: grid;
+  gap: 10px;
+}
+
+.history-question-list {
+  display: grid;
+  gap: 10px;
+}
+
+.history-question-card {
+  display: grid;
+  gap: 10px;
+}
+
+.history-question-card .quiz-summary-options {
+  margin-top: 0;
+}
+
+.history-question-card .history-question-actions {
+  padding-top: 0;
+}
+
 .saved-word-list {
   display: grid;
   gap: 12px;
@@ -1346,6 +1452,10 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .history-layout {
+    grid-template-columns: 1fr;
+  }
+
   .quiz-options {
     grid-template-columns: 1fr;
   }
@@ -1390,6 +1500,10 @@ h1 {
   }
 
   .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-detail-summary {
     grid-template-columns: 1fr;
   }
 
