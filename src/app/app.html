@@ -674,7 +674,7 @@
               <span class="quiz-counter">Quiz setup</span>
             </div>
             <div class="quiz-meta">
-              <span>50 questions</span>
+              <span>{{ quizQuestionTarget() }} questions</span>
               <span>25 mins</span>
               <span>4 options each</span>
             </div>
@@ -698,7 +698,7 @@
               <p class="section-label">Difficulty</p>
               <strong>{{ quizTypeLabel() }}</strong>
               <span>
-                Pick a level and question count, then we’ll build a revision deck with about 60% confident words,
+                Pick a level, then we’ll build a revision deck with about 60% confident words,
                 20% needs-focus words, and 20% new inventory words.
               </span>
             </div>
@@ -713,19 +713,6 @@
                     (click)="selectQuizDifficulty(level)"
                   >
                     {{ level }}
-                  </button>
-                }
-              </div>
-
-              <div class="quiz-count-row" role="radiogroup" aria-label="Quiz question count">
-                @for (count of [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]; track count) {
-                  <button
-                    type="button"
-                    class="quiz-count-chip"
-                    [class.active]="quizQuestionTarget() === count"
-                    (click)="selectQuizQuestionCount(count)"
-                  >
-                    {{ count }}
                   </button>
                 }
               </div>

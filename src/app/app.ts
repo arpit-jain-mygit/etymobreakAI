@@ -302,7 +302,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly quizFlowStage = signal<QuizFlowStage>('setup');
   protected readonly quizType = signal<QuizBankType>('root');
   protected readonly quizDifficulty = signal(1);
-  protected readonly quizQuestionTarget = signal(50);
+  protected readonly quizQuestionTarget = signal(5);
   protected readonly quizIndex = signal(0);
   protected readonly quizQuestions = signal<QuizQuestion[]>([]);
   protected readonly quizTimeRemaining = signal(25 * 60);
@@ -346,7 +346,6 @@ export class App implements OnInit, AfterViewInit {
   });
   protected readonly quizTypeLabel = computed(() => 'Root quiz');
   protected readonly quizDifficultyLabel = computed(() => `Level ${this.quizDifficulty()}`);
-  protected readonly quizQuestionTargetLabel = computed(() => `${this.quizQuestionTarget()} questions`);
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
   private quizBankLoadPromise: Promise<void> | null = null;
@@ -574,6 +573,18 @@ export class App implements OnInit, AfterViewInit {
     return questions.filter((question) => this.historyQuestionStatus(question) === filter);
   });
 
+  private resolveQuizQuestionTarget(): number {
+    const confidentCount = this.confidentWordsCount();
+    const focusCount = this.needsFocusWordsCount();
+
+    const confidentTotal = confidentCount > 0 ? Math.floor(confidentCount / 0.6) : 0;
+    const focusTotal = focusCount > 0 ? Math.floor(focusCount / 0.2) : 0;
+    const target = Math.max(confidentTotal, focusTotal, 5);
+    const normalized = Math.max(5, Math.floor(target / 5) * 5);
+
+    return Math.min(50, normalized || 5);
+  }
+
   private buildRootAnalysis(
     root: string,
     meaning = '',
@@ -766,6 +777,15 @@ export class App implements OnInit, AfterViewInit {
     }
     if (tab === 'needs_focus_words') {
       void this.loadNeedsFocusWordsFromServer();
+    }
+    if (tab === 'quiz' && this.quizFlowStage() === 'setup') {
+      void (async () => {
+        await this.loadConfidentWordsFromServer();
+        await this.loadNeedsFocusWordsFromServer();
+        if (this.quizFlowStage() === 'setup' && this.activeTab() === 'quiz') {
+          this.quizQuestionTarget.set(this.resolveQuizQuestionTarget());
+        }
+      })();
     }
   }
 
@@ -1139,11 +1159,6 @@ export class App implements OnInit, AfterViewInit {
     this.quizDifficulty.set(Math.min(5, Math.max(1, Math.floor(level))));
   }
 
-  protected selectQuizQuestionCount(count: number): void {
-    const normalized = Math.min(50, Math.max(5, Math.floor(count / 5) * 5));
-    this.quizQuestionTarget.set(normalized || 5);
-  }
-
   protected async startQuiz(): Promise<void> {
     if (this.quizFlowStage() === 'taking' || this.quizPreparing()) {
       return;
@@ -1158,6 +1173,9 @@ export class App implements OnInit, AfterViewInit {
     this.quizIndex.set(0);
     this.quizTimeRemaining.set(25 * 60);
     this.quizQuestions.set([]);
+    await this.loadConfidentWordsFromServer();
+    await this.loadNeedsFocusWordsFromServer();
+    this.quizQuestionTarget.set(this.resolveQuizQuestionTarget());
 
     const deck = await this.buildQuizDeck(
       this.quizType(),
@@ -1397,7 +1415,7 @@ export class App implements OnInit, AfterViewInit {
     this.quizReviewFilter.set('all');
     this.quizTimeRemaining.set(25 * 60);
     this.quizPreparing.set(false);
-    this.quizQuestionTarget.set(50);
+    this.quizQuestionTarget.set(this.resolveQuizQuestionTarget());
     this.quizNotice.set('');
     this.quizHistorySaved.set(false);
     this.quizHistoryError.set('');
