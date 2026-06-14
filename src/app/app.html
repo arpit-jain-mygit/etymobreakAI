@@ -337,8 +337,47 @@
               </div>
 
               @if (historyItem.questions?.length) {
+                <div class="quiz-review-filters" aria-label="Filter quiz history questions by category">
+                  <button
+                    type="button"
+                    class="quiz-review-filter"
+                    [class.active]="historyReviewFilter() === 'all'"
+                    (click)="historyReviewFilter.set('all')"
+                  >
+                    All
+                    <span>{{ historyReviewFilterCounts().all }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="quiz-review-filter"
+                    [class.active]="historyReviewFilter() === 'correct'"
+                    (click)="historyReviewFilter.set('correct')"
+                  >
+                    Correct
+                    <span>{{ historyReviewFilterCounts().correct }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="quiz-review-filter"
+                    [class.active]="historyReviewFilter() === 'wrong'"
+                    (click)="historyReviewFilter.set('wrong')"
+                  >
+                    Wrong
+                    <span>{{ historyReviewFilterCounts().wrong }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="quiz-review-filter"
+                    [class.active]="historyReviewFilter() === 'skipped'"
+                    (click)="historyReviewFilter.set('skipped')"
+                  >
+                    Skipped
+                    <span>{{ historyReviewFilterCounts().skipped }}</span>
+                  </button>
+                </div>
+
                 <div class="history-question-list">
-                  @for (question of historyItem.questions; track question.id; let index = $index) {
+                  @for (question of historyReviewFilteredQuestions(); track question.id; let index = $index) {
                     <article class="history-question">
                       <div class="history-question-top">
                         <strong>{{ index + 1 }}. {{ question.sourceTitle }}</strong>

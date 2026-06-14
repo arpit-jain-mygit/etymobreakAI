@@ -494,6 +494,28 @@ export class App implements OnInit, AfterViewInit {
   protected readonly selectedQuizHistory = computed(() =>
     this.quizHistory().find((item) => item.id === this.selectedQuizHistoryId()) ?? null
   );
+  protected readonly historyReviewFilter = signal<QuizReviewFilter>('all');
+  protected readonly historyReviewFilterCounts = computed(() => {
+    const questions = this.selectedQuizHistory()?.questions ?? [];
+    return questions.reduce(
+      (counts, question) => {
+        const status = this.historyQuestionStatus(question);
+        counts[status] += 1;
+        counts.all += 1;
+        return counts;
+      },
+      { all: 0, correct: 0, wrong: 0, skipped: 0 }
+    );
+  });
+  protected readonly historyReviewFilteredQuestions = computed(() => {
+    const filter = this.historyReviewFilter();
+    const questions = this.selectedQuizHistory()?.questions ?? [];
+    if (filter === 'all') {
+      return questions;
+    }
+
+    return questions.filter((question) => this.historyQuestionStatus(question) === filter);
+  });
   private normalizeForMatch(value: string): string {
     return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
@@ -660,6 +682,7 @@ export class App implements OnInit, AfterViewInit {
 
   protected selectQuizHistory(id: string): void {
     this.selectedQuizHistoryId.set(id);
+    this.historyReviewFilter.set('all');
   }
 
   protected startGoogleSignIn(): void {
@@ -2422,6 +2445,14 @@ export class App implements OnInit, AfterViewInit {
       },
       notes: [],
     };
+  }
+
+  private historyQuestionStatus(question: QuizAttemptQuestion): QuizReviewFilter {
+    if (question.skipped || question.selectedIndex === null) {
+      return 'skipped';
+    }
+
+    return question.isCorrect ? 'correct' : 'wrong';
   }
 
   private async loadNeedsFocusWordsFromServer(): Promise<void> {
