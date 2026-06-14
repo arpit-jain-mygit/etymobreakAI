@@ -1093,6 +1093,13 @@ input::placeholder {
   gap: 8px;
 }
 
+.history-board {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.92fr) minmax(0, 1.08fr);
+  gap: 12px;
+  align-items: start;
+}
+
 .history-empty {
   margin: 0;
   color: #60748d;
@@ -1258,6 +1265,12 @@ input::placeholder {
 .history-question-option.wrong {
   border-color: rgba(203, 123, 123, 0.6);
   background: rgba(252, 235, 235, 0.96);
+}
+
+@media (max-width: 980px) {
+  .history-board {
+    grid-template-columns: 1fr;
+  }
 }
 
 @keyframes spin {

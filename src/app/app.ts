@@ -135,7 +135,7 @@ type QuizFlowStage = 'setup' | 'taking' | 'summary';
 type QuizReviewFilter = 'all' | 'correct' | 'wrong' | 'skipped';
 
 type BreakdownRow = AnalysisPart[];
-type AppTab = 'search' | 'all_words' | 'root_suffix' | 'quiz';
+type AppTab = 'search' | 'all_words' | 'root_suffix' | 'quiz' | 'history';
 type AuthStage = 'home' | 'loading' | 'profile' | 'app';
 type QuizQuestionType = 'meaning' | 'root' | 'family' | 'literal';
 
@@ -588,6 +588,9 @@ export class App implements OnInit, AfterViewInit {
 
   protected setActiveTab(tab: AppTab): void {
     this.activeTab.set(tab);
+    if (tab === 'history' && !this.selectedQuizHistoryId() && this.quizHistory().length) {
+      this.selectedQuizHistoryId.set(this.quizHistory()[0]!.id);
+    }
   }
 
   protected completeProfile(): void {
@@ -657,21 +660,12 @@ export class App implements OnInit, AfterViewInit {
     }
 
     this.profileMenuView.set('profile');
-    void this.loadQuizHistoryFromServer();
     void this.loadConfidentWordsFromServer();
     void this.loadNeedsFocusWordsFromServer();
   }
 
   protected setProfileMenuView(view: 'profile' | 'history'): void {
     this.profileMenuView.set(view);
-    if (view === 'history') {
-      if (!this.selectedQuizHistoryId() && this.quizHistory().length) {
-        this.selectedQuizHistoryId.set(this.quizHistory()[0]!.id);
-      }
-      void this.loadQuizHistoryFromServer();
-      void this.loadConfidentWordsFromServer();
-      void this.loadNeedsFocusWordsFromServer();
-    }
   }
 
   protected selectQuizHistory(id: string): void {
