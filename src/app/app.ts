@@ -111,11 +111,15 @@ interface ConfidentWordEntry {
   bucketUri?: string;
 }
 
+type NeedsFocusWordEntry = ConfidentWordEntry;
+
 interface QuizAttemptQuestion {
   id: string;
   type: QuizQuestionType;
   prompt: string;
   sourceTitle: string;
+  sourceQuery?: string;
+  sourceMode?: string;
   options: string[];
   selectedIndex: number | null;
   selectedText: string;
@@ -194,8 +198,6 @@ interface AnalysisResult {
   query: string;
   mode: string;
   title: string;
-  systemPronunciation: string;
-  userPronunciation: string;
   summary: string;
   literalMeaningFormula: string;
   literalMeaningArrow: string;
@@ -215,8 +217,6 @@ const EMPTY_ANALYSIS: AnalysisResult = {
   query: '',
   mode: 'word',
   title: '',
-  systemPronunciation: '',
-  userPronunciation: '',
   summary: '',
   literalMeaningFormula: '',
   literalMeaningArrow: '',
@@ -277,9 +277,9 @@ export class App implements OnInit, AfterViewInit {
   protected readonly googleClientId = signal('');
   protected readonly googleButtonRendered = signal(false);
   protected readonly inventoryEntries = signal<unknown[]>([]);
-  protected readonly userPronunciations = signal<Record<string, string>>({});
   protected readonly quizHistory = signal<QuizHistoryEntry[]>([]);
   protected readonly confidentWords = signal<ConfidentWordEntry[]>([]);
+  protected readonly needsFocusWords = signal<NeedsFocusWordEntry[]>([]);
   protected readonly quizHistoryLoading = signal(false);
   protected readonly quizHistorySubmitting = signal(false);
   protected readonly quizHistorySaved = signal(false);
@@ -290,6 +290,10 @@ export class App implements OnInit, AfterViewInit {
   protected readonly confidentWordsSaving = signal(false);
   protected readonly confidentWordsError = signal('');
   protected readonly confidentWordNotice = signal('');
+  protected readonly needsFocusWordsLoading = signal(false);
+  protected readonly needsFocusWordsSaving = signal(false);
+  protected readonly needsFocusWordsError = signal('');
+  protected readonly needsFocusWordNotice = signal('');
   protected readonly quizTimeLabel = computed(() => {
     const remaining = Math.max(0, this.quizTimeRemaining());
     const minutes = Math.floor(remaining / 60);
@@ -314,6 +318,7 @@ export class App implements OnInit, AfterViewInit {
   private inventoryLoadPromise: Promise<void> | null = null;
   private quizBankLoadPromise: Promise<void> | null = null;
   private confidentWordsLoadPromise: Promise<void> | null = null;
+  private needsFocusWordsLoadPromise: Promise<void> | null = null;
   private quizBankCache = new Map<QuizBankType, QuizBankFile>();
   private quizTimerHandle: number | null = null;
   private readonly profileStorageKey = 'etymobreak-profile';
@@ -558,35 +563,6 @@ export class App implements OnInit, AfterViewInit {
     );
   }
 
-  protected pronunciationFor(analysis: AnalysisResult | null): string {
-    if (!analysis) {
-      return '';
-    }
-
-    return this.userPronunciations()[this.pronunciationKey(analysis)] ?? analysis.userPronunciation ?? '';
-  }
-
-  protected systemPronunciationFor(analysis: AnalysisResult | null): string {
-    if (!analysis) {
-      return '';
-    }
-
-    return analysis.systemPronunciation || '';
-  }
-
-  protected updatePronunciation(analysis: AnalysisResult | null, value: string): void {
-    if (!analysis) {
-      return;
-    }
-
-    const key = this.pronunciationKey(analysis);
-    const next = String(value ?? '');
-    this.userPronunciations.update((items) => ({ ...items, [key]: next }));
-    if (this.result() && this.pronunciationKey(this.result()!) === key) {
-      this.result.update((current) => (current ? { ...current, userPronunciation: next } : current));
-    }
-  }
-
   public ngOnInit(): void {
     this.inventoryLoadPromise = this.loadRootAutocomplete();
     void this.loadQuizBanks();
@@ -649,6 +625,9 @@ export class App implements OnInit, AfterViewInit {
     this.confidentWords.set([]);
     this.confidentWordsError.set('');
     this.confidentWordNotice.set('');
+    this.needsFocusWords.set([]);
+    this.needsFocusWordsError.set('');
+    this.needsFocusWordNotice.set('');
     try {
       localStorage.removeItem(this.profileStorageKey);
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
@@ -667,6 +646,7 @@ export class App implements OnInit, AfterViewInit {
     this.profileMenuView.set('profile');
     void this.loadQuizHistoryFromServer();
     void this.loadConfidentWordsFromServer();
+    void this.loadNeedsFocusWordsFromServer();
   }
 
   protected setProfileMenuView(view: 'profile' | 'history'): void {
@@ -677,6 +657,7 @@ export class App implements OnInit, AfterViewInit {
       }
       void this.loadQuizHistoryFromServer();
       void this.loadConfidentWordsFromServer();
+      void this.loadNeedsFocusWordsFromServer();
     }
   }
 
@@ -783,6 +764,109 @@ export class App implements OnInit, AfterViewInit {
     } finally {
       this.confidentWordsSaving.set(false);
     }
+  }
+
+  protected isAnalysisNeedsFocus(analysis: AnalysisResult | null): boolean {
+    if (!analysis) {
+      return false;
+    }
+
+    const key = this.needsFocusKey(analysis.query, analysis.mode);
+    return this.needsFocusWords().some((item) => this.needsFocusKey(item.query, item.mode) === key);
+  }
+
+  protected async toggleNeedsFocusForAnalysis(analysis: AnalysisResult | null): Promise<void> {
+    const profile = this.profile();
+    if (!analysis || !profile) {
+      return;
+    }
+
+    const query = analysis.query.trim();
+    if (!query) {
+      return;
+    }
+
+    const needsFocus = !this.isAnalysisNeedsFocus(analysis);
+    this.needsFocusWordsSaving.set(true);
+    this.needsFocusWordsError.set('');
+    this.needsFocusWordNotice.set('');
+
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/needs-focus-words`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          profile,
+          query,
+          mode: analysis.mode || 'word',
+          analysis,
+          needsFocus,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+          details?: string;
+        } | null;
+        const message = payload?.error || 'Your needs-focus word could not be saved.';
+        const details = payload?.details ? ` ${payload.details}` : '';
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      const saved = (await response.json().catch(() => null)) as
+        | NeedsFocusWordEntry
+        | { removed?: boolean }
+        | null;
+
+      if (saved && !(saved as { removed?: boolean }).removed) {
+        const entry = saved as NeedsFocusWordEntry;
+        const key = this.needsFocusKey(entry.query, entry.mode);
+        const next = [entry, ...this.needsFocusWords().filter((item) => this.needsFocusKey(item.query, item.mode) !== key)];
+        this.needsFocusWords.set(next);
+        this.needsFocusWordNotice.set(`${analysis.title || analysis.query} was marked as Needs Focus.`);
+      } else {
+        const key = this.needsFocusKey(query, analysis.mode || 'word');
+        this.needsFocusWords.update((items) =>
+          items.filter((item) => this.needsFocusKey(item.query, item.mode) !== key)
+        );
+        this.needsFocusWordNotice.set(`${analysis.title || analysis.query} was removed from Needs Focus words.`);
+      }
+    } catch (error) {
+      this.needsFocusWordsError.set(error instanceof Error ? error.message : 'Your needs-focus word could not be saved.');
+    } finally {
+      this.needsFocusWordsSaving.set(false);
+    }
+  }
+
+  protected isHistoryQuestionConfident(question: QuizAttemptQuestion | null): boolean {
+    const analysis = this.buildHistoryQuestionAnalysis(question);
+    return this.isAnalysisConfident(analysis);
+  }
+
+  protected isHistoryQuestionNeedsFocus(question: QuizAttemptQuestion | null): boolean {
+    const analysis = this.buildHistoryQuestionAnalysis(question);
+    return this.isAnalysisNeedsFocus(analysis);
+  }
+
+  protected async toggleConfidentForHistoryQuestion(question: QuizAttemptQuestion | null): Promise<void> {
+    const analysis = this.buildHistoryQuestionAnalysis(question);
+    if (!analysis) {
+      return;
+    }
+
+    await this.toggleConfidentForAnalysis(analysis);
+  }
+
+  protected async toggleNeedsFocusForHistoryQuestion(question: QuizAttemptQuestion | null): Promise<void> {
+    const analysis = this.buildHistoryQuestionAnalysis(question);
+    if (!analysis) {
+      return;
+    }
+
+    await this.toggleNeedsFocusForAnalysis(analysis);
   }
 
   protected selectQuizDifficulty(level: number): void {
@@ -954,6 +1038,8 @@ export class App implements OnInit, AfterViewInit {
       type: question.type,
       prompt: question.prompt,
       sourceTitle: question.sourceTitle,
+      sourceQuery: question.sourceTitle,
+      sourceMode: 'word',
       options: question.options,
       selectedIndex: question.selectedIndex,
       selectedText: question.selectedIndex === null ? '' : question.options[question.selectedIndex] ?? '',
@@ -1147,6 +1233,7 @@ export class App implements OnInit, AfterViewInit {
       this.profileCountry.set(country);
       void this.loadQuizHistoryFromServer();
       void this.loadConfidentWordsFromServer();
+      void this.loadNeedsFocusWordsFromServer();
       return;
     } catch {
       this.loadPendingGoogleIdentity();
@@ -1236,6 +1323,7 @@ export class App implements OnInit, AfterViewInit {
       this.profileMenuOpen.set(false);
       void this.loadQuizHistoryFromServer();
       void this.loadConfidentWordsFromServer();
+      void this.loadNeedsFocusWordsFromServer();
       localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
       this.authGateLoading.set(false);
@@ -1283,6 +1371,7 @@ export class App implements OnInit, AfterViewInit {
       this.profileMenuOpen.set(false);
       void this.loadQuizHistoryFromServer();
       void this.loadConfidentWordsFromServer();
+      void this.loadNeedsFocusWordsFromServer();
 
       localStorage.setItem(this.profileStorageKey, JSON.stringify(normalizedProfile));
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
@@ -1298,6 +1387,7 @@ export class App implements OnInit, AfterViewInit {
       this.profileMenuOpen.set(false);
       void this.loadQuizHistoryFromServer();
       void this.loadConfidentWordsFromServer();
+      void this.loadNeedsFocusWordsFromServer();
 
       try {
         localStorage.setItem(this.profileStorageKey, JSON.stringify(fallbackProfile));
@@ -1405,10 +1495,6 @@ export class App implements OnInit, AfterViewInit {
     } catch {
       return null;
     }
-  }
-
-  private pronunciationKey(analysis: AnalysisResult): string {
-    return `${analysis.mode.trim().toLowerCase()}::${analysis.query.trim().toLowerCase()}`;
   }
 
   private getInventoryAnalyses(letter = '', mode: 'all' | 'root_suffix' = 'all'): AnalysisResult[] {
@@ -1910,6 +1996,10 @@ export class App implements OnInit, AfterViewInit {
     return `${this.normalizeForMatch(query)}|${this.normalizeForMatch(mode || 'word')}`;
   }
 
+  private needsFocusKey(query: string, mode: string): string {
+    return `${this.normalizeForMatch(query)}|${this.normalizeForMatch(mode || 'word')}`;
+  }
+
   private normalizeConfidentEntry(item: unknown): ConfidentWordEntry | null {
     if (!item || typeof item !== 'object') {
       return null;
@@ -1992,6 +2082,93 @@ export class App implements OnInit, AfterViewInit {
     await this.confidentWordsLoadPromise;
   }
 
+  private normalizeNeedsFocusEntry(item: unknown): NeedsFocusWordEntry | null {
+    const normalized = this.normalizeConfidentEntry(item);
+    return normalized;
+  }
+
+  private buildHistoryQuestionAnalysis(question: QuizAttemptQuestion | null): AnalysisResult | null {
+    if (!question) {
+      return null;
+    }
+
+    const query = String(question.sourceQuery || question.sourceTitle || question.correctText || '').trim();
+    const title = String(question.sourceTitle || query || question.correctText || '').trim();
+    const prompt = String(question.prompt || '').trim();
+    const correctText = String(question.correctText || question.selectedText || '').trim();
+    const summary = prompt || correctText || title || query;
+    if (!query && !title && !summary && !correctText) {
+      return null;
+    }
+
+    return {
+      ...EMPTY_ANALYSIS,
+      query: query || title || summary,
+      mode: String(question.sourceMode || 'word').trim() || 'word',
+      title: title || query || summary || 'Quiz question',
+      summary,
+      literalMeaningFormula: '',
+      literalMeaningArrow: '',
+      literalMeaning: correctText || summary,
+      actualMeaning: correctText || summary,
+      rootFamily: {
+        root: '',
+        meaning: '',
+        origin: '',
+      },
+      notes: [],
+    };
+  }
+
+  private async loadNeedsFocusWordsFromServer(): Promise<void> {
+    const profile = this.profile();
+    if (!profile) {
+      this.needsFocusWords.set([]);
+      return;
+    }
+
+    if (this.needsFocusWordsLoadPromise) {
+      await this.needsFocusWordsLoadPromise;
+      return;
+    }
+
+    this.needsFocusWordsLoadPromise = (async () => {
+      try {
+        this.needsFocusWordsLoading.set(true);
+        this.needsFocusWordsError.set('');
+        const params = new URLSearchParams();
+        if (profile.google.sub) {
+          params.set('sub', profile.google.sub);
+        }
+        if (profile.google.email) {
+          params.set('email', profile.google.email);
+        }
+
+        const response = await fetch(`${getApiBaseUrl()}/needs-focus-words?${params.toString()}`);
+        if (!response.ok) {
+          this.needsFocusWords.set([]);
+          return;
+        }
+
+        const payload = (await response.json().catch(() => null)) as { items?: unknown[] } | null;
+        const entries = (payload?.items ?? [])
+          .map((item) => this.normalizeNeedsFocusEntry(item))
+          .filter((item): item is NeedsFocusWordEntry => item !== null)
+          .sort((a, b) => b.time.localeCompare(a.time));
+
+        this.needsFocusWords.set(entries);
+      } catch {
+        this.needsFocusWords.set([]);
+        this.needsFocusWordsError.set('Needs Focus words could not be loaded.');
+      } finally {
+        this.needsFocusWordsLoading.set(false);
+        this.needsFocusWordsLoadPromise = null;
+      }
+    })();
+
+    await this.needsFocusWordsLoadPromise;
+  }
+
   private normalizeAnalysisResult(payload: unknown, query: string): AnalysisResult {
     const text = (value: unknown): string => {
       if (typeof value !== 'string') {
@@ -2015,8 +2192,6 @@ export class App implements OnInit, AfterViewInit {
     };
 
     const data: any = payload && typeof payload === 'object' ? payload : {};
-    const systemPronunciation = text(data.systemPronunciation) || text(data.pronunciation);
-    const userPronunciation = text(data.userPronunciation);
 
     const breakdown = list(data.breakdown, (item) => {
       if (!item || typeof item !== 'object') {
@@ -2163,8 +2338,6 @@ export class App implements OnInit, AfterViewInit {
       query: text(data.query) || query,
       mode: ['word', 'root', 'prefix', 'suffix'].includes(text(data.mode)) ? text(data.mode) : 'word',
       title: text(data.title),
-      systemPronunciation,
-      userPronunciation,
       summary: text(data.summary),
       literalMeaningFormula: text(data.literalMeaningFormula),
       literalMeaningArrow: text(data.literalMeaningArrow),
@@ -2235,8 +2408,6 @@ export class App implements OnInit, AfterViewInit {
       query: mergeStrings(primary.query, fallback.query),
       mode: mergeStrings(primary.mode, fallback.mode),
       title: mergeStrings(primary.title, fallback.title),
-      systemPronunciation: mergeStrings(primary.systemPronunciation, fallback.systemPronunciation),
-      userPronunciation: mergeStrings(primary.userPronunciation, fallback.userPronunciation),
       summary: mergeStrings(primary.summary, fallback.summary),
       literalMeaningFormula: mergeStrings(primary.literalMeaningFormula, fallback.literalMeaningFormula),
       literalMeaningArrow: mergeStrings(primary.literalMeaningArrow, fallback.literalMeaningArrow),

@@ -88,37 +88,10 @@ h1 {
   flex-wrap: wrap;
 }
 
-.pronunciation-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.pronunciation-grid-centered {
-  max-width: 960px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.pronunciation-card {
-  display: grid;
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-}
-
-.pronunciation-user input {
-  width: 100%;
-  border: 1px solid rgba(158, 177, 184, 0.18);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.82);
-  padding: 12px 14px;
-  color: #304454;
-  font: inherit;
-}
-
-.pronunciation-user input:focus {
-  outline: 2px solid rgba(139, 173, 209, 0.28);
-  outline-offset: 1px;
 }
 
 .auth-panel {
@@ -1217,6 +1190,12 @@ input::placeholder {
   margin: 0;
   color: #526372;
   line-height: 1.45;
+}
+
+.history-question-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .history-question-grid {

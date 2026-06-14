@@ -219,6 +219,26 @@
                             </span>
                           </div>
                           <p>{{ question.prompt }}</p>
+                          <div class="history-question-actions">
+                            <button
+                              type="button"
+                              class="tab-chip"
+                              [class.active]="isHistoryQuestionConfident(question)"
+                              [disabled]="confidentWordsSaving()"
+                              (click)="toggleConfidentForHistoryQuestion(question)"
+                            >
+                              {{ isHistoryQuestionConfident(question) ? 'Confident' : 'Mark Confident' }}
+                            </button>
+                            <button
+                              type="button"
+                              class="tab-chip"
+                              [class.active]="isHistoryQuestionNeedsFocus(question)"
+                              [disabled]="needsFocusWordsSaving()"
+                              (click)="toggleNeedsFocusForHistoryQuestion(question)"
+                            >
+                              {{ isHistoryQuestionNeedsFocus(question) ? 'Needs Focus' : 'Mark Needs Focus' }}
+                            </button>
+                          </div>
                           <div class="history-question-grid" aria-label="Reviewed answers">
                             @for (option of question.options; track option; let optionIndex = $index) {
                               <div
@@ -359,33 +379,26 @@
         <section class="result">
         <div class="result-header">
           <h2>{{ analysis.title }}</h2>
-          <button
-            type="button"
-            class="tab-chip"
-            [class.active]="isAnalysisConfident(analysis)"
-            [disabled]="confidentWordsSaving()"
-            (click)="toggleConfidentForAnalysis(analysis)"
-          >
-            {{ isAnalysisConfident(analysis) ? 'Confident' : 'Mark Confident' }}
-          </button>
-        </div>
-
-        <div class="pronunciation-grid">
-          <article class="info-card pronunciation-card pronunciation-system">
-            <p class="card-label">System Pronunciation</p>
-            <p class="card-value formula">{{ systemPronunciationFor(analysis) || 'Not available yet' }}</p>
-          </article>
-          <label class="info-card pronunciation-card pronunciation-user">
-            <p class="card-label">Your Pronunciation</p>
-            <input
-              [ngModel]="pronunciationFor(analysis)"
-              (ngModelChange)="updatePronunciation(analysis, $event)"
-              [attr.name]="'pronunciation-' + analysis.query"
-              placeholder="Type how you say this word"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </label>
+          <div class="result-actions">
+            <button
+              type="button"
+              class="tab-chip"
+              [class.active]="isAnalysisConfident(analysis)"
+              [disabled]="confidentWordsSaving()"
+              (click)="toggleConfidentForAnalysis(analysis)"
+            >
+              {{ isAnalysisConfident(analysis) ? 'Confident' : 'Mark Confident' }}
+            </button>
+            <button
+              type="button"
+              class="tab-chip"
+              [class.active]="isAnalysisNeedsFocus(analysis)"
+              [disabled]="needsFocusWordsSaving()"
+              (click)="toggleNeedsFocusForAnalysis(analysis)"
+            >
+              {{ isAnalysisNeedsFocus(analysis) ? 'Needs Focus' : 'Mark Needs Focus' }}
+            </button>
+          </div>
         </div>
 
         @if (confidentWordNotice()) {
@@ -393,6 +406,12 @@
         }
         @if (confidentWordsError()) {
           <section class="notice">{{ confidentWordsError() }}</section>
+        }
+        @if (needsFocusWordNotice()) {
+          <section class="notice calm-notice">{{ needsFocusWordNotice() }}</section>
+        }
+        @if (needsFocusWordsError()) {
+          <section class="notice">{{ needsFocusWordsError() }}</section>
         }
 
         <div class="meaning-grid">
@@ -519,33 +538,26 @@
             <div class="experiment-slide">
               <div class="result-header" style="text-align:center;">
                 <h2>{{ analysis.title }}</h2>
-                <button
-                  type="button"
-                  class="tab-chip"
-                  [class.active]="isAnalysisConfident(analysis)"
-                  [disabled]="confidentWordsSaving()"
-                  (click)="toggleConfidentForAnalysis(analysis)"
-                >
-                  {{ isAnalysisConfident(analysis) ? 'Confident' : 'Mark Confident' }}
-                </button>
-              </div>
-
-              <div class="pronunciation-grid pronunciation-grid-centered">
-                <article class="info-card pronunciation-card pronunciation-system">
-                  <p class="card-label">System Pronunciation</p>
-                  <p class="card-value formula">{{ systemPronunciationFor(analysis) || 'Not available yet' }}</p>
-                </article>
-                <label class="info-card pronunciation-card pronunciation-user">
-                  <p class="card-label">Your Pronunciation</p>
-                  <input
-                    [ngModel]="pronunciationFor(analysis)"
-                    (ngModelChange)="updatePronunciation(analysis, $event)"
-                    [attr.name]="'pronunciation-' + analysis.query"
-                    placeholder="Type how you say this word"
-                    autocomplete="off"
-                    spellcheck="false"
-                  />
-                </label>
+                <div class="result-actions">
+                  <button
+                    type="button"
+                    class="tab-chip"
+                    [class.active]="isAnalysisConfident(analysis)"
+                    [disabled]="confidentWordsSaving()"
+                    (click)="toggleConfidentForAnalysis(analysis)"
+                  >
+                    {{ isAnalysisConfident(analysis) ? 'Confident' : 'Mark Confident' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="tab-chip"
+                    [class.active]="isAnalysisNeedsFocus(analysis)"
+                    [disabled]="needsFocusWordsSaving()"
+                    (click)="toggleNeedsFocusForAnalysis(analysis)"
+                  >
+                    {{ isAnalysisNeedsFocus(analysis) ? 'Needs Focus' : 'Mark Needs Focus' }}
+                  </button>
+                </div>
               </div>
 
               @if (confidentWordNotice()) {
@@ -553,6 +565,12 @@
               }
               @if (confidentWordsError()) {
                 <section class="notice">{{ confidentWordsError() }}</section>
+              }
+              @if (needsFocusWordNotice()) {
+                <section class="notice calm-notice">{{ needsFocusWordNotice() }}</section>
+              }
+              @if (needsFocusWordsError()) {
+                <section class="notice">{{ needsFocusWordsError() }}</section>
               }
 
           <div class="meaning-grid">

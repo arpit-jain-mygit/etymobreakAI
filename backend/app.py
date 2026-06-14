@@ -13,9 +13,11 @@ from .profile_store import (
     ensure_schema,
     get_profile_by_google_identity,
     list_confident_words_by_google_identity,
+    list_needs_focus_words_by_google_identity,
     insert_quiz_history,
     list_quiz_history_by_google_identity,
     upsert_confident_word,
+    upsert_needs_focus_word,
     upsert_profile,
 )
 
@@ -65,6 +67,15 @@ class ConfidentWordRequest(BaseModel):
     mode: str = Field(default="word")
     analysis: dict = Field(default_factory=dict)
     confident: bool = Field(default=True)
+
+
+class NeedsFocusWordRequest(BaseModel):
+    id: str = Field(default="")
+    profile: dict
+    query: str = Field(min_length=1)
+    mode: str = Field(default="word")
+    analysis: dict = Field(default_factory=dict)
+    needsFocus: bool = Field(default=True)
 
 
 @app.get("/health")
@@ -193,6 +204,36 @@ def get_confident_words(sub: str | None = None, email: str | None = None) -> dic
             status_code=503,
             content={
                 "error": "Confident word storage is unavailable.",
+                "details": str(exc),
+            },
+        )
+
+    return {"items": items}
+
+
+@app.post("/needs-focus-words")
+def save_needs_focus_word(payload: NeedsFocusWordRequest) -> dict:
+    try:
+        return upsert_needs_focus_word(payload.model_dump())
+    except ProfileStoreError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Needs Focus word storage is unavailable.",
+                "details": str(exc),
+            },
+        )
+
+
+@app.get("/needs-focus-words")
+def get_needs_focus_words(sub: str | None = None, email: str | None = None) -> dict:
+    try:
+        items = list_needs_focus_words_by_google_identity(sub, email)
+    except ProfileStoreError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Needs Focus word storage is unavailable.",
                 "details": str(exc),
             },
         )
