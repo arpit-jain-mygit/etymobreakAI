@@ -891,9 +891,12 @@
 
                   <div class="quiz-actions">
                     <button type="button" class="primary" (click)="skipCurrentQuizQuestion()">Skip Que</button>
+                    <button type="button" class="tab-chip quiz-save" (click)="saveCurrentQuizAnswerLocally()">
+                      Save me answer
+                    </button>
                     <button
                       type="button"
-                      class="primary"
+                      class="primary quiz-submit"
                       [disabled]="quizHistorySubmitting()"
                       (click)="submitQuizAttempt()"
                     >

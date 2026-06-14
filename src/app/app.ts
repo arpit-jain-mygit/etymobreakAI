@@ -188,6 +188,17 @@ interface QuizSummaryQuestion extends QuizQuestion {
   status: 'correct' | 'wrong' | 'skipped';
 }
 
+interface QuizDraftState {
+  quizType: QuizBankType;
+  quizDifficulty: number;
+  quizQuestionTarget: number;
+  quizIndex: number;
+  quizTimeRemaining: number;
+  quizFlowStage: QuizFlowStage;
+  questions: QuizQuestion[];
+  savedAt: string;
+}
+
 interface RootFamily {
   root: string;
   meaning: string;
@@ -323,6 +334,7 @@ export class App implements OnInit, AfterViewInit {
   private quizTimerHandle: number | null = null;
   private readonly profileStorageKey = 'etymobreak-profile';
   private readonly pendingGoogleStorageKey = 'etymobreak-google-identity';
+  private readonly quizDraftPrefix = 'etymobreak-quiz-draft';
   private quizAttemptCounter = 0;
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
@@ -608,6 +620,7 @@ export class App implements OnInit, AfterViewInit {
   }
 
   protected signOutProfile(): void {
+    this.clearQuizDraftLocally();
     this.profileMenuOpen.set(false);
     this.profileMenuView.set('profile');
     this.profile.set(null);
@@ -993,6 +1006,7 @@ export class App implements OnInit, AfterViewInit {
     this.quizQuestions.set(deck);
     this.quizFlowStage.set('taking');
     this.quizPreparing.set(false);
+    this.persistQuizDraft(false);
     this.startQuizTimer();
   }
 
@@ -1049,6 +1063,7 @@ export class App implements OnInit, AfterViewInit {
         skipped: true,
       };
       this.quizQuestions.set(updated);
+      this.persistQuizDraft(false);
     }
     this.quizIndex.set(Math.min(total - 1, this.quizIndex() + 1));
   }
@@ -1072,7 +1087,21 @@ export class App implements OnInit, AfterViewInit {
       skipped: false,
     };
     this.quizQuestions.set(updated);
+    this.persistQuizDraft(false);
     this.quizNotice.set('');
+  }
+
+  protected saveCurrentQuizAnswerLocally(): void {
+    if (this.quizFlowStage() !== 'taking' || !this.quizQuestions().length) {
+      this.quizNotice.set('Start a quiz first.');
+      return;
+    }
+
+    if (this.persistQuizDraft(true)) {
+      this.quizNotice.set('Answer saved locally on this device.');
+    } else {
+      this.quizNotice.set('Nothing to save yet. Choose an answer first.');
+    }
   }
 
   protected async submitQuizAttempt(): Promise<void> {
@@ -1181,6 +1210,7 @@ export class App implements OnInit, AfterViewInit {
 
       this.quizHistorySaved.set(true);
       this.quizNotice.set('Quiz saved to your history.');
+      this.clearQuizDraftLocally();
     } catch (error) {
       this.quizHistoryError.set(error instanceof Error ? error.message : 'Your quiz history could not be saved.');
     } finally {
@@ -1200,6 +1230,7 @@ export class App implements OnInit, AfterViewInit {
     this.quizNotice.set('');
     this.quizHistorySaved.set(false);
     this.quizHistoryError.set('');
+    this.clearQuizDraftLocally();
   }
 
   protected formatHistoryTime(value: string): string {
@@ -1313,6 +1344,7 @@ export class App implements OnInit, AfterViewInit {
       this.profileFirstName.set(firstName);
       this.profileLastName.set(lastName);
       this.profileCountry.set(country);
+      this.loadQuizDraftLocally();
       void this.loadQuizHistoryFromServer();
       void this.loadConfidentWordsFromServer();
       void this.loadNeedsFocusWordsFromServer();
@@ -1403,6 +1435,7 @@ export class App implements OnInit, AfterViewInit {
       this.profileLastName.set(lastName);
       this.profileCountry.set(country);
       this.profileMenuOpen.set(false);
+      this.loadQuizDraftLocally();
       void this.loadQuizHistoryFromServer();
       void this.loadConfidentWordsFromServer();
       void this.loadNeedsFocusWordsFromServer();
@@ -1467,6 +1500,7 @@ export class App implements OnInit, AfterViewInit {
       this.authError.set(error instanceof Error ? error.message : 'Your profile could not be created.');
       this.authGateLoading.set(false);
       this.profileMenuOpen.set(false);
+      this.loadQuizDraftLocally();
       void this.loadQuizHistoryFromServer();
       void this.loadConfidentWordsFromServer();
       void this.loadNeedsFocusWordsFromServer();
@@ -1976,6 +2010,120 @@ export class App implements OnInit, AfterViewInit {
     if (this.quizTimerHandle !== null) {
       window.clearInterval(this.quizTimerHandle);
       this.quizTimerHandle = null;
+    }
+  }
+
+  private quizDraftStorageKey(profile = this.profile()): string {
+    const identity =
+      profile?.google.sub ||
+      profile?.google.email ||
+      this.googleIdentity()?.sub ||
+      this.googleIdentity()?.email ||
+      'anonymous';
+    return `${this.quizDraftPrefix}:${identity}`;
+  }
+
+  private persistQuizDraft(showFeedback: boolean): boolean {
+    const profile = this.profile();
+    const questions = this.quizQuestions();
+    if (!profile || !questions.length || this.quizFlowStage() !== 'taking') {
+      return false;
+    }
+
+    const draft: QuizDraftState = {
+      quizType: this.quizType(),
+      quizDifficulty: this.quizDifficulty(),
+      quizQuestionTarget: this.quizQuestionTarget(),
+      quizIndex: this.quizIndex(),
+      quizTimeRemaining: this.quizTimeRemaining(),
+      quizFlowStage: this.quizFlowStage(),
+      questions,
+      savedAt: new Date().toISOString(),
+    };
+
+    try {
+      localStorage.setItem(this.quizDraftStorageKey(profile), JSON.stringify(draft));
+      if (showFeedback) {
+        this.quizNotice.set('Answer saved locally on this device.');
+      }
+      return true;
+    } catch {
+      if (showFeedback) {
+        this.quizNotice.set('Your answer could not be saved locally right now.');
+      }
+      return false;
+    }
+  }
+
+  private clearQuizDraftLocally(): void {
+    const profile = this.profile();
+    if (!profile) {
+      return;
+    }
+
+    try {
+      localStorage.removeItem(this.quizDraftStorageKey(profile));
+    } catch {
+      return;
+    }
+  }
+
+  private loadQuizDraftLocally(): void {
+    const profile = this.profile();
+    if (!profile) {
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(this.quizDraftStorageKey(profile));
+      if (!raw) {
+        return;
+      }
+
+      const draft = JSON.parse(raw) as Partial<QuizDraftState> | null;
+      if (!draft || !Array.isArray(draft.questions) || !draft.questions.length) {
+        return;
+      }
+
+      const questions = draft.questions
+        .map((question) => {
+          if (!question || typeof question !== 'object') {
+            return null;
+          }
+
+          const entry = question as QuizQuestion;
+          return {
+            ...entry,
+            options: Array.isArray(entry.options)
+              ? entry.options.filter((option): option is string => typeof option === 'string')
+              : [],
+          } satisfies QuizQuestion;
+        })
+        .filter((question): question is QuizQuestion => question !== null);
+
+      if (!questions.length) {
+        return;
+      }
+
+      this.quizType.set((draft.quizType as QuizBankType) || 'word');
+      this.quizDifficulty.set(Math.min(5, Math.max(1, Math.floor(Number(draft.quizDifficulty || 1)))));
+      this.quizQuestionTarget.set(Math.min(50, Math.max(5, Math.floor(Number(draft.quizQuestionTarget || 50)))));
+      this.quizIndex.set(Math.min(Math.max(0, Math.floor(Number(draft.quizIndex || 0))), Math.max(0, questions.length - 1)));
+      this.quizTimeRemaining.set(Math.max(0, Math.floor(Number(draft.quizTimeRemaining || 0))));
+      this.quizQuestions.set(questions);
+      this.quizFlowStage.set(
+        draft.quizFlowStage === 'summary' ? 'summary' : questions.length ? 'taking' : 'setup'
+      );
+      if (this.quizFlowStage() === 'taking') {
+        this.quizNotice.set('Loaded your saved quiz draft on this device.');
+      }
+
+      if (this.quizFlowStage() === 'taking') {
+        this.stopQuizTimer();
+        this.startQuizTimer();
+      }
+    } catch {
+      return;
     }
   }
 
