@@ -431,11 +431,11 @@
                           <div class="quiz-summary-grid">
                             <div>
                               <small>Your answer</small>
-                              <p>{{ question.userAnswerLabel }}</p>
+                              <p>{{ question.skipped ? 'Skipped' : (question.selectedText || 'Unanswered') }}</p>
                             </div>
                             <div>
                               <small>Correct answer</small>
-                              <p>{{ question.correctAnswerLabel }}</p>
+                              <p>{{ question.correctText }}</p>
                             </div>
                           </div>
                           <div class="history-question-actions">
