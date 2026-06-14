@@ -1884,6 +1884,7 @@ export class App implements OnInit, AfterViewInit {
         word: wordLabel,
         meaning,
         breakdown,
+        breakdownParts: this.parseBreakdownParts(breakdown),
         otherRootWords: list(wordEntry.otherRootWords, (part) => {
           if (!part || typeof part !== 'object') {
             return null;
