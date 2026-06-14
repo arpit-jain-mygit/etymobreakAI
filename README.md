@@ -151,3 +151,4 @@ The app now gates the main experience behind Google sign-in and a basic profile 
 - In Render, open the `etymobreak-ai-api` service, attach the Postgres database, and map the database connection to `DATABASE_URL`.
 - Quiz attempts are no longer stored in Postgres. The backend forwards quiz history to a tiny Cloud Run broker, which writes each attempt to GCS under a per-user folder.
 - Add `BROKER_URL` and `BROKER_SHARED_SECRET` to the Render backend service so the API can reach the broker securely.
+- Add `GCP_ETYMOBREAK_BUCKET` to the Render backend service and use the same bucket name on the Cloud Run broker service.

@@ -19,3 +19,5 @@ services:
         sync: false
       - key: BROKER_SHARED_SECRET
         sync: false
+      - key: GCP_ETYMOBREAK_BUCKET
+        sync: false

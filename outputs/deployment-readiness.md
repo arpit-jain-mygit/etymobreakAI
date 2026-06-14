@@ -74,7 +74,7 @@ This file collects the current deployment steps for the frontend on Vercel and t
 - Create a bucket for quiz attempts, for example `etymobreak-ai-quizzes`.
 - Deploy the broker to Cloud Run with a service account attached to the service.
 - Give that service account `Storage Object Admin` on the bucket, or at minimum `Storage Object Creator` plus `Storage Object Viewer`.
-- Set `GCP_QUIZ_BUCKET` on the Cloud Run broker service to that bucket name.
+- Set `GCP_ETYMOBREAK_BUCKET` on the Cloud Run broker service to that bucket name.
 - Set `BROKER_SHARED_SECRET` on the Cloud Run broker and mirror the same secret in the Render backend service.
 - The broker stores attempts under `users/{google_sub}/quiz-attempts/YYYY/MM/DD/quiz-<attempt-id>.json`.
 - Use a user-level folder keyed by the Google subject ID so each signed-in user stays isolated.
@@ -130,7 +130,7 @@ gcloud run deploy etymobreak-ai-quiz-broker \
   --region asia-south1 \
   --service-account etymobreak-ai-broker@etymobreak-ai.iam.gserviceaccount.com \
   --allow-unauthenticated \
-  --set-env-vars GCP_QUIZ_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=<your-broker-secret>
+  --set-env-vars GCP_ETYMOBREAK_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=<your-broker-secret>
 ```
 
 9. Copy the Cloud Run service URL into `BROKER_URL` on the Render backend service. The working service URL is:
@@ -157,7 +157,7 @@ Use Cloud Build to redeploy the broker whenever files under `broker/` change.
 6. Keep `options.logging: CLOUD_LOGGING_ONLY` in `cloudbuild.yaml` so Cloud Build does not require a separate logs bucket when a custom service account is used.
 7. If you assign a custom build service account in the trigger, grant it `roles/logging.logWriter` as well. The build log error in this project came from the service account being unable to write Cloud Logging entries.
 8. Set the broker env vars once in the Cloud Run service:
-   - `GCP_QUIZ_BUCKET`
+   - `GCP_ETYMOBREAK_BUCKET`
    - `BROKER_SHARED_SECRET`
 9. After that, every broker commit to `main` will:
    - build a new image from `./broker`
@@ -200,7 +200,7 @@ Set these on the Cloud Run broker service itself:
 ```bash
 gcloud run services update etymobreak-ai-quiz-broker \
   --region asia-south1 \
-  --set-env-vars GCP_QUIZ_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=<long-random-secret>
+  --set-env-vars GCP_ETYMOBREAK_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=<long-random-secret>
 ```
 
 The same `BROKER_SHARED_SECRET` value must be sent by the Render backend when it calls the broker.
@@ -208,8 +208,9 @@ The same `BROKER_SHARED_SECRET` value must be sent by the Render backend when it
 ### Render Backend Broker Wiring
 1. Add `BROKER_URL` to the Render backend service.
 2. Add `BROKER_SHARED_SECRET` to the Render backend service.
-3. Keep `DATABASE_URL` pointed at Render Postgres for profiles only.
-4. Keep quiz attempts out of Postgres.
+3. Add `GCP_ETYMOBREAK_BUCKET` to the Render backend service.
+4. Keep `DATABASE_URL` pointed at Render Postgres for profiles only.
+5. Keep quiz attempts out of Postgres.
 
 ### Example Cloud Build + Cloud Run Commands
 Use the command below after signing in with the Google Cloud CLI and selecting the right project:
@@ -223,7 +224,7 @@ gcloud run deploy etymobreak-ai-quiz-broker \
   --region asia-south1 \
   --service-account etymobreak-ai-broker@etymobreak-ai.iam.gserviceaccount.com \
   --allow-unauthenticated \
-  --set-env-vars GCP_QUIZ_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=<your-broker-secret>
+  --set-env-vars GCP_ETYMOBREAK_BUCKET=etymobreak-ai-quizzes,BROKER_SHARED_SECRET=<your-broker-secret>
 ```
 
 Notes:
