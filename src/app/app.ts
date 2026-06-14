@@ -130,7 +130,7 @@ interface QuizAttemptQuestion {
   isCorrect: boolean | null;
 }
 
-type QuizBankType = 'word' | 'root_prefix_suffix' | 'mixed' | 'confident';
+type QuizBankType = 'revision' | 'word' | 'root_prefix_suffix' | 'mixed';
 type QuizFlowStage = 'setup' | 'taking' | 'summary';
 type QuizReviewFilter = 'all' | 'correct' | 'wrong' | 'skipped';
 
@@ -267,7 +267,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly experimentLetter = signal('');
   protected readonly experimentIndex = signal(0);
   protected readonly quizFlowStage = signal<QuizFlowStage>('setup');
-  protected readonly quizType = signal<QuizBankType>('word');
+  protected readonly quizType = signal<QuizBankType>('revision');
   protected readonly quizDifficulty = signal(1);
   protected readonly quizQuestionTarget = signal(50);
   protected readonly quizIndex = signal(0);
@@ -312,19 +312,27 @@ export class App implements OnInit, AfterViewInit {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   });
   protected readonly quizTypeLabel = computed(() => {
-    switch (this.quizType()) {
-      case 'root_prefix_suffix':
-        return 'Root / Prefix / Suffix quiz';
-      case 'mixed':
-        return 'Mixed quiz';
-      case 'confident':
-        return 'Revision quiz';
-      default:
-        return 'Words quiz';
-    }
+    return 'Revision quiz';
   });
   protected readonly quizDifficultyLabel = computed(() => `Level ${this.quizDifficulty()}`);
   protected readonly quizQuestionTargetLabel = computed(() => `${this.quizQuestionTarget()} questions`);
+  protected readonly revisionOtherCount = computed(() => {
+    const confident = new Set(
+      this.confidentWords().map((item) => this.confidentKey(item.query, item.mode)).filter(Boolean)
+    );
+    const focus = new Set(
+      this.needsFocusWords().map((item) => this.needsFocusKey(item.query, item.mode)).filter(Boolean)
+    );
+
+    return this.getInventoryAnalyses('', 'all').filter((analysis) => {
+      if (this.isEmptyAnalysis(analysis)) {
+        return false;
+      }
+
+      const key = this.confidentKey(analysis.query, analysis.mode);
+      return !confident.has(key) && !focus.has(key);
+    }).length;
+  });
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
   private quizBankLoadPromise: Promise<void> | null = null;
@@ -577,7 +585,6 @@ export class App implements OnInit, AfterViewInit {
 
   public ngOnInit(): void {
     this.inventoryLoadPromise = this.loadRootAutocomplete();
-    void this.loadQuizBanks();
     void this.loadAuthConfig();
     this.loadStoredProfile();
   }
@@ -694,8 +701,8 @@ export class App implements OnInit, AfterViewInit {
     this.experimentIndex.set(0);
   }
 
-  protected selectQuizType(type: QuizBankType): void {
-    this.quizType.set(type);
+  protected selectQuizType(_type: QuizBankType): void {
+    this.quizType.set('revision');
   }
 
   protected isAnalysisConfident(analysis: AnalysisResult | null): boolean {
@@ -972,6 +979,7 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
+    this.quizType.set('revision');
     this.quizPreparing.set(true);
     this.quizHistorySaved.set(false);
     this.quizHistorySubmitting.set(false);
@@ -988,11 +996,7 @@ export class App implements OnInit, AfterViewInit {
     );
     if (!deck.length) {
       this.quizFlowStage.set('setup');
-      this.quizNotice.set(
-        this.quizType() === 'confident'
-          ? 'Mark a few words as Confident first, then build a revision quiz from them.'
-          : 'That quiz bank could not be loaded yet. Please try again in a moment.'
-      );
+      this.quizNotice.set('Your revision deck could not be built yet. Please try again in a moment.');
       this.quizPreparing.set(false);
       return;
     }
@@ -1657,6 +1661,41 @@ export class App implements OnInit, AfterViewInit {
     return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
   }
 
+  private uniqueAnalyses(items: AnalysisResult[], exclude: AnalysisResult[] = []): AnalysisResult[] {
+    const used = new Set(exclude.map((item) => this.analysisKey(item)));
+    const unique: AnalysisResult[] = [];
+
+    for (const item of items) {
+      const key = this.analysisKey(item);
+      if (!key || used.has(key)) {
+        continue;
+      }
+
+      used.add(key);
+      unique.push(item);
+    }
+
+    return unique;
+  }
+
+  private analysisKey(analysis: AnalysisResult | null): string {
+    if (!analysis) {
+      return '';
+    }
+
+    return this.confidentKey(analysis.query || analysis.title, analysis.mode || 'word');
+  }
+
+  private revisionQuestionKey(question: QuizQuestion): string {
+    return [
+      this.normalizeForMatch(question.sourceTitle),
+      this.normalizeForMatch(question.prompt),
+      this.normalizeForMatch(question.explanation),
+      String(question.correctIndex),
+      String(question.type),
+    ].join('|');
+  }
+
   private async loadQuizBanks(): Promise<void> {
     if (this.quizBankLoadPromise) {
       await this.quizBankLoadPromise;
@@ -1676,7 +1715,7 @@ export class App implements OnInit, AfterViewInit {
   }
 
   private async loadQuizBank(bankType: QuizBankType): Promise<QuizBankFile | null> {
-    if (bankType === 'confident') {
+    if (bankType === 'revision') {
       return null;
     }
 
@@ -1685,7 +1724,7 @@ export class App implements OnInit, AfterViewInit {
       return cached;
     }
 
-    const fileMap: Record<Exclude<QuizBankType, 'confident'>, string> = {
+    const fileMap: Record<Exclude<QuizBankType, 'revision'>, string> = {
       word: '/question_bank_words.json',
       root_prefix_suffix: '/question_bank_roots_prefixes_suffixes.json',
       mixed: '/question_bank_mixed.json',
@@ -1771,8 +1810,8 @@ export class App implements OnInit, AfterViewInit {
     targetCount: number
   ): Promise<QuizQuestion[]> {
     this.quizAttemptCounter += 1;
-    if (type === 'confident') {
-      return this.buildConfidentQuizDeck(difficulty, targetCount);
+    if (type === 'revision') {
+      return this.buildRevisionQuizDeck(difficulty, targetCount);
     }
 
     const bank = await this.loadQuizBank(type);
@@ -1809,7 +1848,7 @@ export class App implements OnInit, AfterViewInit {
     return { options, correctIndex };
   }
 
-  private createConfidentQuestion(
+  private createRevisionQuestion(
     sourceTitle: string,
     prompt: string,
     correct: string,
@@ -1828,7 +1867,7 @@ export class App implements OnInit, AfterViewInit {
     }
 
     return {
-      id: `confident-${this.quizAttemptCounter}-${this.quizQuestions().length}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `revision-${this.quizAttemptCounter}-${this.quizQuestions().length}-${Math.random().toString(36).slice(2, 8)}`,
       type,
       prompt: prompt.trim(),
       options: options.options,
@@ -1837,19 +1876,77 @@ export class App implements OnInit, AfterViewInit {
       skipped: false,
       submitted: false,
       isCorrect: null,
-      sourceTitle: sourceTitle || 'Confident word',
-      explanation: explanation.trim() || 'Review the answer from your confident words.',
+      sourceTitle: sourceTitle || 'Revision word',
+      explanation: explanation.trim() || 'Review the answer from your saved words.',
     };
   }
 
-  private async buildConfidentQuizDeck(difficulty: number, targetCount: number): Promise<QuizQuestion[]> {
+  private async buildRevisionQuizDeck(difficulty: number, targetCount: number): Promise<QuizQuestion[]> {
     await this.loadConfidentWordsFromServer();
+    await this.loadNeedsFocusWordsFromServer();
 
-    const analyses = this.shuffle(
+    const confidentAnalyses = this.uniqueAnalyses(
       this.confidentWords()
         .map((item) => item.analysis)
         .filter((item) => !this.isEmptyAnalysis(item))
     );
+    const focusAnalyses = this.uniqueAnalyses(
+      this.needsFocusWords()
+        .map((item) => item.analysis)
+        .filter((item) => !this.isEmptyAnalysis(item)),
+      confidentAnalyses
+    );
+    const inventoryAnalyses = this.uniqueAnalyses(
+      this.getInventoryAnalyses('', 'all').filter((analysis) => !this.isEmptyAnalysis(analysis)),
+      [...confidentAnalyses, ...focusAnalyses]
+    );
+
+    if (!confidentAnalyses.length && !focusAnalyses.length && !inventoryAnalyses.length) {
+      return [];
+    }
+
+    const totalTarget = Math.min(50, Math.max(5, Math.floor(targetCount / 5) * 5)) || 5;
+    const confidentTarget = Math.max(1, Math.round(totalTarget * 0.6));
+    const focusTarget = Math.max(1, Math.round(totalTarget * 0.2));
+    const otherTarget = Math.max(1, totalTarget - confidentTarget - focusTarget);
+
+    const confidentCandidates = this.shuffle(this.buildRevisionCandidates(confidentAnalyses, difficulty));
+    const focusCandidates = this.shuffle(this.buildRevisionCandidates(focusAnalyses, difficulty));
+    const otherCandidates = this.shuffle(this.buildRevisionCandidates(inventoryAnalyses, difficulty));
+
+    const selected: QuizQuestion[] = [];
+    const used = new Set<string>();
+
+    const takeFrom = (pool: QuizQuestion[], limit: number): void => {
+      for (const question of pool) {
+        if (selected.length >= totalTarget || limit <= 0) {
+          break;
+        }
+
+        const key = this.revisionQuestionKey(question);
+        if (used.has(key)) {
+          continue;
+        }
+
+        used.add(key);
+        selected.push(question);
+        limit -= 1;
+      }
+    };
+
+    takeFrom(confidentCandidates, confidentTarget);
+    takeFrom(focusCandidates, focusTarget);
+    takeFrom(otherCandidates, otherTarget);
+
+    if (selected.length < totalTarget) {
+      const fallbackPool = this.shuffle([...confidentCandidates, ...focusCandidates, ...otherCandidates]);
+      takeFrom(fallbackPool, totalTarget - selected.length);
+    }
+
+    return this.shuffle(selected).slice(0, totalTarget);
+  }
+
+  private buildRevisionCandidates(analyses: AnalysisResult[], difficulty: number): QuizQuestion[] {
     if (!analyses.length) {
       return [];
     }
@@ -1889,14 +1986,14 @@ export class App implements OnInit, AfterViewInit {
 
     const candidates: QuizQuestion[] = [];
     for (const analysis of analyses) {
-      const sourceTitle = analysis.title || analysis.query || 'Confident word';
+      const sourceTitle = analysis.title || analysis.query || 'Revision word';
       const explanation = analysis.actualMeaning || analysis.summary || analysis.literalMeaning || sourceTitle;
 
       if (difficulty >= 1) {
         const correctMeaning = analysis.actualMeaning || analysis.summary || analysis.literalMeaning;
         if (correctMeaning) {
           const distractors = fallbackPool.filter((item) => item !== correctMeaning);
-          const question = this.createConfidentQuestion(
+          const question = this.createRevisionQuestion(
             sourceTitle,
             `What does ${sourceTitle} mean?`,
             correctMeaning,
@@ -1914,7 +2011,7 @@ export class App implements OnInit, AfterViewInit {
         const formula = analysis.literalMeaningFormula || analysis.literalMeaning;
         if (formula) {
           const distractors = fallbackPool.filter((item) => item !== formula);
-          const question = this.createConfidentQuestion(
+          const question = this.createRevisionQuestion(
             sourceTitle,
             `Which literal formula fits ${sourceTitle}?`,
             formula,
@@ -1932,7 +2029,7 @@ export class App implements OnInit, AfterViewInit {
         for (const part of analysis.breakdown) {
           const prompt = `What does ${part.label} mean in ${sourceTitle}?`;
           const distractors = fallbackPool.filter((item) => item !== part.meaning);
-          const question = this.createConfidentQuestion(
+          const question = this.createRevisionQuestion(
             sourceTitle,
             prompt,
             part.meaning,
@@ -1950,7 +2047,7 @@ export class App implements OnInit, AfterViewInit {
         for (const item of analysis.familyMemory) {
           const prompt = `Which word belongs to the ${analysis.rootFamily.root || sourceTitle} family?`;
           const distractors = fallbackPool.filter((value) => value !== item.term);
-          const question = this.createConfidentQuestion(
+          const question = this.createRevisionQuestion(
             sourceTitle,
             prompt,
             item.term,
@@ -1967,7 +2064,7 @@ export class App implements OnInit, AfterViewInit {
       if (difficulty >= 5 && analysis.rootFamily.root && analysis.rootFamily.meaning) {
         const prompt = `What does the root ${analysis.rootFamily.root} mean?`;
         const distractors = fallbackPool.filter((value) => value !== analysis.rootFamily.meaning);
-        const question = this.createConfidentQuestion(
+        const question = this.createRevisionQuestion(
           sourceTitle,
           prompt,
           analysis.rootFamily.meaning,
@@ -1981,7 +2078,7 @@ export class App implements OnInit, AfterViewInit {
       }
     }
 
-    return this.shuffle(candidates).slice(0, Math.min(50, Math.max(5, Math.floor(targetCount / 5) * 5)) || candidates.length);
+    return candidates;
   }
 
   private startQuizTimer(): void {
@@ -2099,7 +2196,7 @@ export class App implements OnInit, AfterViewInit {
         return;
       }
 
-      this.quizType.set((draft.quizType as QuizBankType) || 'word');
+      this.quizType.set('revision');
       this.quizDifficulty.set(Math.min(5, Math.max(1, Math.floor(Number(draft.quizDifficulty || 1)))));
       this.quizQuestionTarget.set(Math.min(50, Math.max(5, Math.floor(Number(draft.quizQuestionTarget || 50)))));
       this.quizIndex.set(Math.min(Math.max(0, Math.floor(Number(draft.quizIndex || 0))), Math.max(0, questions.length - 1)));

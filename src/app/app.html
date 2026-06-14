@@ -740,53 +740,16 @@
             </div>
           </div>
 
-          <div class="quiz-setup-grid" role="list" aria-label="Quiz types">
+          <div class="quiz-setup-grid" role="list" aria-label="Revision quiz setup">
             <button
               type="button"
-              class="quiz-setup-card"
-              [class.active]="quizType() === 'word'"
-              (click)="selectQuizType('word')"
+              class="quiz-setup-card active"
+              (click)="selectQuizType('revision')"
             >
-              <span class="section-label">Type 1</span>
-              <strong>Words quiz</strong>
-              <p>Choose from the words bank and play at the selected difficulty.</p>
-              <em>Level 1 to Level 5</em>
-            </button>
-
-            <button
-              type="button"
-              class="quiz-setup-card"
-              [class.active]="quizType() === 'root_prefix_suffix'"
-              (click)="selectQuizType('root_prefix_suffix')"
-            >
-              <span class="section-label">Type 2</span>
-              <strong>Root / Prefix / Suffix quiz</strong>
-              <p>Focus on word parts, meaning, and family roots.</p>
-              <em>Level 1 to Level 5</em>
-            </button>
-
-            <button
-              type="button"
-              class="quiz-setup-card"
-              [class.active]="quizType() === 'mixed'"
-              (click)="selectQuizType('mixed')"
-            >
-              <span class="section-label">Type 3</span>
-              <strong>Mixed quiz</strong>
-              <p>A blended quiz with words and word parts together.</p>
-              <em>Level 1 to Level 5</em>
-            </button>
-
-            <button
-              type="button"
-              class="quiz-setup-card"
-              [class.active]="quizType() === 'confident'"
-              (click)="selectQuizType('confident')"
-            >
-              <span class="section-label">Type 4</span>
-              <strong>Revision quiz</strong>
-              <p>Build a quiz from the words you marked as Confident.</p>
-              <em>{{ confidentWords().length }} saved words</em>
+              <span class="section-label">Revision quiz</span>
+              <strong>Revise your saved words</strong>
+              <p>60% from Confident, 20% from Needs Focus, and 20% from other words.</p>
+              <em>{{ confidentWords().length }} confident • {{ needsFocusWords().length }} focus • {{ revisionOtherCount() }} other</em>
             </button>
           </div>
 
@@ -794,7 +757,7 @@
             <div class="quiz-config-copy">
               <p class="section-label">Difficulty</p>
               <strong>{{ quizTypeLabel() }}</strong>
-              <span>Pick a level and question count, then we’ll build a random deck from that bank.</span>
+              <span>Pick a level and question count, then we’ll build a random revision deck from your saved words.</span>
             </div>
 
             <div class="quiz-picker-group">
