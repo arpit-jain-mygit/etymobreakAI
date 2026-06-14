@@ -155,14 +155,15 @@ Use Cloud Build to redeploy the broker whenever files under `broker/` change.
    - deploy Cloud Run revisions (`roles/run.admin`)
    - attach the broker runtime service account with `roles/iam.serviceAccountUser`
 6. Keep `options.logging: CLOUD_LOGGING_ONLY` in `cloudbuild.yaml` so Cloud Build does not require a separate logs bucket when a custom service account is used.
-7. Set the broker env vars once in the Cloud Run service:
+7. If you assign a custom build service account in the trigger, grant it `roles/logging.logWriter` as well. The build log error in this project came from the service account being unable to write Cloud Logging entries.
+8. Set the broker env vars once in the Cloud Run service:
    - `GCP_QUIZ_BUCKET`
    - `BROKER_SHARED_SECRET`
-8. After that, every broker commit to `main` will:
+9. After that, every broker commit to `main` will:
    - build a new image from `./broker`
    - push it to Artifact Registry
    - deploy a fresh Cloud Run revision for `etymobreak-ai-quiz-broker`
-9. Leave the service env vars in Cloud Run itself. The trigger only swaps the image, so the existing broker config stays in place.
+10. Leave the service env vars in Cloud Run itself. The trigger only swaps the image, so the existing broker config stays in place.
 
 ### Cloud Build Trigger Form Values
 When creating the trigger in Google Cloud Console, use these values:
@@ -173,6 +174,7 @@ When creating the trigger in Google Cloud Console, use these values:
 - **Configuration:** Cloud Build configuration file
 - **Cloud Build config file path:** `cloudbuild.yaml`
 - **Service account:** default Cloud Build service account is fine if it has the roles listed above
+  - If you choose a custom service account, also grant it `roles/logging.logWriter`.
 
 ### Cloud Build IAM Commands
 Run these once in Cloud Shell if the trigger account does not already have the required roles:

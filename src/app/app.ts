@@ -128,9 +128,10 @@ interface QuizAttemptQuestion {
 
 type QuizBankType = 'word' | 'root_prefix_suffix' | 'mixed' | 'confident';
 type QuizFlowStage = 'setup' | 'taking' | 'summary';
+type QuizReviewFilter = 'all' | 'correct' | 'wrong' | 'skipped';
 
 type BreakdownRow = AnalysisPart[];
-type AppTab = 'search' | 'experiment' | 'quiz';
+type AppTab = 'search' | 'all_words' | 'root_suffix' | 'quiz';
 type AuthStage = 'home' | 'loading' | 'profile' | 'app';
 type QuizQuestionType = 'meaning' | 'root' | 'family' | 'literal';
 
@@ -193,6 +194,8 @@ interface AnalysisResult {
   query: string;
   mode: string;
   title: string;
+  systemPronunciation: string;
+  userPronunciation: string;
   summary: string;
   literalMeaningFormula: string;
   literalMeaningArrow: string;
@@ -212,6 +215,8 @@ const EMPTY_ANALYSIS: AnalysisResult = {
   query: '',
   mode: 'word',
   title: '',
+  systemPronunciation: '',
+  userPronunciation: '',
   summary: '',
   literalMeaningFormula: '',
   literalMeaningArrow: '',
@@ -272,6 +277,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly googleClientId = signal('');
   protected readonly googleButtonRendered = signal(false);
   protected readonly inventoryEntries = signal<unknown[]>([]);
+  protected readonly userPronunciations = signal<Record<string, string>>({});
   protected readonly quizHistory = signal<QuizHistoryEntry[]>([]);
   protected readonly confidentWords = signal<ConfidentWordEntry[]>([]);
   protected readonly quizHistoryLoading = signal(false);
@@ -279,6 +285,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly quizHistorySaved = signal(false);
   protected readonly quizHistoryError = signal('');
   protected readonly selectedQuizHistoryId = signal('');
+  protected readonly quizReviewFilter = signal<QuizReviewFilter>('all');
   protected readonly confidentWordsLoading = signal(false);
   protected readonly confidentWordsSaving = signal(false);
   protected readonly confidentWordsError = signal('');
@@ -336,33 +343,13 @@ export class App implements OnInit, AfterViewInit {
       this.autocompleteOptions().length > 0
   );
   protected readonly alphabet = computed(() => 'abcdefghijklmnopqrstuvwxyz'.split(''));
-  protected readonly experimentSlides = computed(() => {
-    const letter = this.experimentLetter().trim().toLowerCase();
-    if (!letter) {
-      return [];
-    }
-
-    const filtered = this.inventoryEntries()
-      .filter((item) => {
-        if (!item || typeof item !== 'object') {
-          return false;
-        }
-
-        const entry: any = item;
-        const query = String(entry.query || '').trim().toLowerCase();
-        return query.startsWith(letter);
-      })
-      .map((item) => {
-        const entry: any = item;
-        const query = String(entry.query || '').trim().toLowerCase();
-        return this.normalizeAnalysisResult(item, query);
-      })
-      .filter((item) => !this.isEmptyAnalysis(item));
-
-    return filtered.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
-  });
+  protected readonly allWordSlides = computed(() => this.getInventoryAnalyses(this.experimentLetter(), 'all'));
+  protected readonly rootSuffixSlides = computed(() => this.getInventoryAnalyses(this.experimentLetter(), 'root_suffix'));
+  protected readonly activeWordSlides = computed(() =>
+    this.activeTab() === 'root_suffix' ? this.rootSuffixSlides() : this.allWordSlides()
+  );
   protected readonly experimentSlide = computed(() => {
-    const slides = this.experimentSlides();
+    const slides = this.activeWordSlides();
     if (!slides.length) {
       return null;
     }
@@ -370,7 +357,7 @@ export class App implements OnInit, AfterViewInit {
     const index = Math.min(Math.max(this.experimentIndex(), 0), slides.length - 1);
     return slides[index] ?? null;
   });
-  protected readonly experimentSlideCount = computed(() => this.experimentSlides().length);
+  protected readonly experimentSlideCount = computed(() => this.activeWordSlides().length);
   protected readonly experimentSlidePosition = computed(() => {
     const total = this.experimentSlideCount();
     if (!total) {
@@ -434,6 +421,24 @@ export class App implements OnInit, AfterViewInit {
       };
     })
   );
+  protected readonly quizSummaryFilteredItems = computed(() => {
+    const filter = this.quizReviewFilter();
+    const items = this.quizSummaryItems();
+    if (filter === 'all') {
+      return items;
+    }
+
+    return items.filter((item) => item.status === filter);
+  });
+  protected readonly quizSummaryFilterCounts = computed(() => {
+    const items = this.quizSummaryItems();
+    return {
+      all: items.length,
+      correct: items.filter((item) => item.status === 'correct').length,
+      wrong: items.filter((item) => item.status === 'wrong').length,
+      skipped: items.filter((item) => item.status === 'skipped').length,
+    };
+  });
   protected readonly quizCurrentQuestionSubmitted = computed(() => this.quizQuestion()?.submitted ?? false);
   protected readonly profileComplete = computed(() => {
     const profile = this.profile();
@@ -553,6 +558,35 @@ export class App implements OnInit, AfterViewInit {
     );
   }
 
+  protected pronunciationFor(analysis: AnalysisResult | null): string {
+    if (!analysis) {
+      return '';
+    }
+
+    return this.userPronunciations()[this.pronunciationKey(analysis)] ?? analysis.userPronunciation ?? '';
+  }
+
+  protected systemPronunciationFor(analysis: AnalysisResult | null): string {
+    if (!analysis) {
+      return '';
+    }
+
+    return analysis.systemPronunciation || '';
+  }
+
+  protected updatePronunciation(analysis: AnalysisResult | null, value: string): void {
+    if (!analysis) {
+      return;
+    }
+
+    const key = this.pronunciationKey(analysis);
+    const next = String(value ?? '');
+    this.userPronunciations.update((items) => ({ ...items, [key]: next }));
+    if (this.result() && this.pronunciationKey(this.result()!) === key) {
+      this.result.update((current) => (current ? { ...current, userPronunciation: next } : current));
+    }
+  }
+
   public ngOnInit(): void {
     this.inventoryLoadPromise = this.loadRootAutocomplete();
     void this.loadQuizBanks();
@@ -670,7 +704,6 @@ export class App implements OnInit, AfterViewInit {
   protected chooseExperimentLetter(letter: string): void {
     this.experimentLetter.set(letter);
     this.experimentIndex.set(0);
-    this.activeTab.set('experiment');
   }
 
   protected selectQuizType(type: QuizBankType): void {
@@ -992,6 +1025,7 @@ export class App implements OnInit, AfterViewInit {
     this.quizFlowStage.set('setup');
     this.quizQuestions.set([]);
     this.quizIndex.set(0);
+    this.quizReviewFilter.set('all');
     this.quizTimeRemaining.set(25 * 60);
     this.quizPreparing.set(false);
     this.quizQuestionTarget.set(50);
@@ -1373,7 +1407,11 @@ export class App implements OnInit, AfterViewInit {
     }
   }
 
-  private getInventoryAnalyses(letter = ''): AnalysisResult[] {
+  private pronunciationKey(analysis: AnalysisResult): string {
+    return `${analysis.mode.trim().toLowerCase()}::${analysis.query.trim().toLowerCase()}`;
+  }
+
+  private getInventoryAnalyses(letter = '', mode: 'all' | 'root_suffix' = 'all'): AnalysisResult[] {
     const normalizedLetter = letter.trim().toLowerCase();
     return this.inventoryEntries()
       .filter((item) => {
@@ -1387,7 +1425,19 @@ export class App implements OnInit, AfterViewInit {
           return false;
         }
 
-        return !normalizedLetter || query.startsWith(normalizedLetter);
+        if (normalizedLetter && !query.startsWith(normalizedLetter)) {
+          return false;
+        }
+
+        if (mode === 'all') {
+          return true;
+        }
+
+        const breakdown = Array.isArray(entry.breakdown) ? entry.breakdown : [];
+        return breakdown.some((part: any) => {
+          const type = String(part?.type || '').trim().toLowerCase();
+          return type.includes('root') || type.includes('suffix') || type.includes('prefix');
+        });
       })
       .map((item) => {
         const entry: any = item;
@@ -1965,6 +2015,8 @@ export class App implements OnInit, AfterViewInit {
     };
 
     const data: any = payload && typeof payload === 'object' ? payload : {};
+    const systemPronunciation = text(data.systemPronunciation) || text(data.pronunciation);
+    const userPronunciation = text(data.userPronunciation);
 
     const breakdown = list(data.breakdown, (item) => {
       if (!item || typeof item !== 'object') {
@@ -2111,6 +2163,8 @@ export class App implements OnInit, AfterViewInit {
       query: text(data.query) || query,
       mode: ['word', 'root', 'prefix', 'suffix'].includes(text(data.mode)) ? text(data.mode) : 'word',
       title: text(data.title),
+      systemPronunciation,
+      userPronunciation,
       summary: text(data.summary),
       literalMeaningFormula: text(data.literalMeaningFormula),
       literalMeaningArrow: text(data.literalMeaningArrow),
@@ -2181,6 +2235,8 @@ export class App implements OnInit, AfterViewInit {
       query: mergeStrings(primary.query, fallback.query),
       mode: mergeStrings(primary.mode, fallback.mode),
       title: mergeStrings(primary.title, fallback.title),
+      systemPronunciation: mergeStrings(primary.systemPronunciation, fallback.systemPronunciation),
+      userPronunciation: mergeStrings(primary.userPronunciation, fallback.userPronunciation),
       summary: mergeStrings(primary.summary, fallback.summary),
       literalMeaningFormula: mergeStrings(primary.literalMeaningFormula, fallback.literalMeaningFormula),
       literalMeaningArrow: mergeStrings(primary.literalMeaningArrow, fallback.literalMeaningArrow),

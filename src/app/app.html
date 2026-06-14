@@ -257,10 +257,18 @@
           <button
             type="button"
             class="tab-chip"
-            [class.active]="activeTab() === 'experiment'"
-            (click)="setActiveTab('experiment')"
+            [class.active]="activeTab() === 'all_words'"
+            (click)="setActiveTab('all_words')"
           >
             all. words
+          </button>
+          <button
+            type="button"
+            class="tab-chip"
+            [class.active]="activeTab() === 'root_suffix'"
+            (click)="setActiveTab('root_suffix')"
+          >
+            root/suffix words
           </button>
           <button
             type="button"
@@ -362,6 +370,24 @@
           </button>
         </div>
 
+        <div class="pronunciation-grid">
+          <article class="info-card pronunciation-card pronunciation-system">
+            <p class="card-label">System Pronunciation</p>
+            <p class="card-value formula">{{ systemPronunciationFor(analysis) || 'Not available yet' }}</p>
+          </article>
+          <label class="info-card pronunciation-card pronunciation-user">
+            <p class="card-label">Your Pronunciation</p>
+            <input
+              [ngModel]="pronunciationFor(analysis)"
+              (ngModelChange)="updatePronunciation(analysis, $event)"
+              [attr.name]="'pronunciation-' + analysis.query"
+              placeholder="Type how you say this word"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </label>
+        </div>
+
         @if (confidentWordNotice()) {
           <section class="notice calm-notice">{{ confidentWordNotice() }}</section>
         }
@@ -451,7 +477,7 @@
       }
     }
 
-    @if (activeTab() === 'experiment') {
+    @if (activeTab() === 'all_words' || activeTab() === 'root_suffix') {
       <section class="experiment-panel">
       <div class="experiment-toolbar">
         <div class="alphabet-row" aria-label="Select letter">
@@ -466,6 +492,9 @@
             </button>
           }
         </div>
+        <span class="tab-chip active" style="justify-self:start; align-self:center;">
+          {{ activeTab() === 'root_suffix' ? 'root/suffix words' : 'all. words' }}
+        </span>
         <span style="justify-self:end; align-self:center; color:#708395; font-size:.8rem;">
           {{ experimentSlidePosition() || 0 }} / {{ experimentSlideCount() }}
         </span>
@@ -499,6 +528,24 @@
                 >
                   {{ isAnalysisConfident(analysis) ? 'Confident' : 'Mark Confident' }}
                 </button>
+              </div>
+
+              <div class="pronunciation-grid pronunciation-grid-centered">
+                <article class="info-card pronunciation-card pronunciation-system">
+                  <p class="card-label">System Pronunciation</p>
+                  <p class="card-value formula">{{ systemPronunciationFor(analysis) || 'Not available yet' }}</p>
+                </article>
+                <label class="info-card pronunciation-card pronunciation-user">
+                  <p class="card-label">Your Pronunciation</p>
+                  <input
+                    [ngModel]="pronunciationFor(analysis)"
+                    (ngModelChange)="updatePronunciation(analysis, $event)"
+                    [attr.name]="'pronunciation-' + analysis.query"
+                    placeholder="Type how you say this word"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                </label>
               </div>
 
               @if (confidentWordNotice()) {
@@ -841,8 +888,47 @@
             <section class="notice">{{ quizHistoryError() }}</section>
           }
 
+          <div class="quiz-review-filters" aria-label="Filter reviewed quiz questions by category">
+            <button
+              type="button"
+              class="quiz-review-filter"
+              [class.active]="quizReviewFilter() === 'all'"
+              (click)="quizReviewFilter.set('all')"
+            >
+              All
+              <span>{{ quizSummaryFilterCounts().all }}</span>
+            </button>
+            <button
+              type="button"
+              class="quiz-review-filter"
+              [class.active]="quizReviewFilter() === 'correct'"
+              (click)="quizReviewFilter.set('correct')"
+            >
+              Correct
+              <span>{{ quizSummaryFilterCounts().correct }}</span>
+            </button>
+            <button
+              type="button"
+              class="quiz-review-filter"
+              [class.active]="quizReviewFilter() === 'wrong'"
+              (click)="quizReviewFilter.set('wrong')"
+            >
+              Wrong
+              <span>{{ quizSummaryFilterCounts().wrong }}</span>
+            </button>
+            <button
+              type="button"
+              class="quiz-review-filter"
+              [class.active]="quizReviewFilter() === 'skipped'"
+              (click)="quizReviewFilter.set('skipped')"
+            >
+              Skipped
+              <span>{{ quizSummaryFilterCounts().skipped }}</span>
+            </button>
+          </div>
+
           <div class="quiz-summary-list">
-            @for (question of quizSummaryItems(); track question.id; let index = $index) {
+            @for (question of quizSummaryFilteredItems(); track question.id; let index = $index) {
               <article class="info-card quiz-summary-item" [class.correct]="question.status === 'correct'" [class.wrong]="question.status === 'wrong'" [class.skipped]="question.status === 'skipped'">
                 <div class="quiz-summary-top">
                   <strong>{{ index + 1 }}. {{ question.sourceTitle }}</strong>
@@ -874,6 +960,9 @@
                   </div>
                 </div>
               </article>
+            }
+            @if (!quizSummaryFilteredItems().length) {
+              <section class="notice calm-notice">No submitted questions in this category.</section>
             }
           </div>
 
