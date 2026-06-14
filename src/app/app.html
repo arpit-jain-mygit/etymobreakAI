@@ -197,6 +197,22 @@
           >
             Quiz
           </button>
+          <button
+            type="button"
+            class="tab-chip"
+            [class.active]="activeTab() === 'search'"
+            (click)="setActiveTab('search')"
+          >
+            Search
+          </button>
+          <button
+            type="button"
+            class="tab-chip"
+            [class.active]="activeTab() === 'history'"
+            (click)="setActiveTab('history')"
+          >
+            History
+          </button>
         </div>
       </div>
 
