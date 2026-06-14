@@ -836,14 +836,25 @@ export class App implements OnInit, AfterViewInit {
     if (tab === 'needs_focus_words') {
       void this.loadNeedsFocusWordsFromServer();
     }
-    if (tab === 'quiz' && this.quizFlowStage() === 'setup') {
+    if (tab === 'quiz') {
+      this.quizDraftPromptOpen.set(false);
+      this.quizDraftPromptMessage.set('');
+      this.pendingQuizDraft = null;
+      this.clearQuizDraftLocally();
+      this.quizFlowStage.set('setup');
+      this.quizQuestions.set([]);
+      this.quizIndex.set(0);
+      this.quizTimeRemaining.set(25 * 60);
+      this.quizPreparing.set(false);
+      this.quizHistorySaved.set(false);
+      this.quizNotice.set('');
       void (async () => {
         await this.loadConfidentWordsFromServer();
         await this.loadNeedsFocusWordsFromServer();
         if (this.quizFlowStage() === 'setup' && this.activeTab() === 'quiz') {
           this.quizQuestionTarget.set(this.resolveQuizQuestionTarget());
         }
-      })();
+        })();
     }
   }
 
