@@ -722,14 +722,20 @@ export class App implements OnInit, AfterViewInit {
     popup.focus();
 
     const runPrint = (): void => {
+      popup.focus();
       popup.print();
     };
 
-    if (popup.document.readyState === 'complete') {
-      runPrint();
-    } else {
-      popup.onload = runPrint;
-    }
+    const fontsReady = popup.document.fonts?.ready ?? Promise.resolve();
+    fontsReady
+      .catch(() => undefined)
+      .finally(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setTimeout(runPrint, 300);
+          });
+        });
+      });
 
     popup.onafterprint = () => {
       popup.close();
