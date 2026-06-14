@@ -752,6 +752,9 @@ export class App implements OnInit, AfterViewInit {
         const next = [entry, ...this.confidentWords().filter((item) => this.confidentKey(item.query, item.mode) !== key)];
         this.confidentWords.set(next);
         this.confidentWordNotice.set(`${analysis.title || analysis.query} was marked as Confident.`);
+        if (this.isAnalysisNeedsFocus(analysis)) {
+          await this.removeNeedsFocusForAnalysis(analysis);
+        }
       } else {
         const key = this.confidentKey(query, analysis.mode || 'word');
         this.confidentWords.update((items) =>
@@ -827,6 +830,9 @@ export class App implements OnInit, AfterViewInit {
         const next = [entry, ...this.needsFocusWords().filter((item) => this.needsFocusKey(item.query, item.mode) !== key)];
         this.needsFocusWords.set(next);
         this.needsFocusWordNotice.set(`${analysis.title || analysis.query} was marked as Needs Focus.`);
+        if (this.isAnalysisConfident(analysis)) {
+          await this.removeConfidentForAnalysis(analysis);
+        }
       } else {
         const key = this.needsFocusKey(query, analysis.mode || 'word');
         this.needsFocusWords.update((items) =>
@@ -838,6 +844,82 @@ export class App implements OnInit, AfterViewInit {
       this.needsFocusWordsError.set(error instanceof Error ? error.message : 'Your needs-focus word could not be saved.');
     } finally {
       this.needsFocusWordsSaving.set(false);
+    }
+  }
+
+  private async removeConfidentForAnalysis(analysis: AnalysisResult | null): Promise<void> {
+    const profile = this.profile();
+    if (!analysis || !profile) {
+      return;
+    }
+
+    const query = analysis.query.trim();
+    if (!query) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/confident-words`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          profile,
+          query,
+          mode: analysis.mode || 'word',
+          analysis,
+          confident: false,
+        }),
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      this.confidentWords.update((items) =>
+        items.filter((item) => this.confidentKey(item.query, item.mode) !== this.confidentKey(query, analysis.mode || 'word'))
+      );
+    } catch {
+      return;
+    }
+  }
+
+  private async removeNeedsFocusForAnalysis(analysis: AnalysisResult | null): Promise<void> {
+    const profile = this.profile();
+    if (!analysis || !profile) {
+      return;
+    }
+
+    const query = analysis.query.trim();
+    if (!query) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/needs-focus-words`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          profile,
+          query,
+          mode: analysis.mode || 'word',
+          analysis,
+          needsFocus: false,
+        }),
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      this.needsFocusWords.update((items) =>
+        items.filter((item) => this.needsFocusKey(item.query, item.mode) !== this.needsFocusKey(query, analysis.mode || 'word'))
+      );
+    } catch {
+      return;
     }
   }
 
