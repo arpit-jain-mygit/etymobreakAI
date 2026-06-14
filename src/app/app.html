@@ -695,6 +695,21 @@
     @if (activeTab() === 'quiz') {
       <section class="experiment-panel quiz-panel">
         @if (quizFlowStage() === 'setup') {
+          @if (quizDraftPromptOpen()) {
+            <section class="notice calm-notice quiz-draft-prompt">
+              <strong>Unfinished quiz found</strong>
+              <p>{{ quizDraftPromptMessage() }}</p>
+              <div class="quiz-draft-actions">
+                <button type="button" class="primary" (click)="confirmQuizDraftDecision(false)">
+                  Yes, start new quiz
+                </button>
+                <button type="button" class="tab-chip" (click)="confirmQuizDraftDecision(true)">
+                  No, continue draft
+                </button>
+              </div>
+            </section>
+          }
+
           <div class="experiment-toolbar">
             <div class="alphabet-row">
               <span class="quiz-counter">Quiz setup</span>
@@ -750,8 +765,13 @@
           }
 
           <div class="quiz-actions">
-            <button type="button" class="primary" [disabled]="quizPreparing()" (click)="startQuiz()">
-              {{ quizPreparing() ? 'Building quiz...' : 'Start Quiz' }}
+            <button
+              type="button"
+              class="primary"
+              [disabled]="quizPreparing() || quizDraftPromptOpen()"
+              (click)="startQuiz()"
+            >
+              {{ quizPreparing() ? 'Building quiz...' : 'New Quiz' }}
             </button>
           </div>
         } @else if (quizFlowStage() === 'taking') {

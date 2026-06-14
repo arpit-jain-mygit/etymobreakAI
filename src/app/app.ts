@@ -313,6 +313,8 @@ export class App implements OnInit, AfterViewInit {
   protected readonly quizTimeRemaining = signal(25 * 60);
   protected readonly quizPreparing = signal(false);
   protected readonly quizNotice = signal('');
+  protected readonly quizDraftPromptOpen = signal(false);
+  protected readonly quizDraftPromptMessage = signal('');
   protected readonly googleIdentity = signal<GoogleIdentity | null>(null);
   protected readonly profile = signal<StoredProfile | null>(null);
   protected readonly profileFirstName = signal('');
@@ -360,6 +362,7 @@ export class App implements OnInit, AfterViewInit {
   private quizBankCache = new Map<QuizBankType, QuizBankFile>();
   private rootMasteryQuizBankCache: QuizBankFile | null = null;
   private quizTimerHandle: number | null = null;
+  private pendingQuizDraft: QuizDraftState | null = null;
   private readonly profileStorageKey = 'etymobreak-profile';
   private readonly pendingGoogleStorageKey = 'etymobreak-google-identity';
   private readonly quizDraftPrefix = 'etymobreak-quiz-draft';
@@ -794,6 +797,33 @@ export class App implements OnInit, AfterViewInit {
     }
   }
 
+  protected confirmQuizDraftDecision(keepDraft: boolean): void {
+    const draft = this.pendingQuizDraft;
+    this.quizDraftPromptOpen.set(false);
+    this.quizDraftPromptMessage.set('');
+
+    if (!draft) {
+      return;
+    }
+
+    if (!keepDraft) {
+      this.clearQuizDraftLocally();
+      this.pendingQuizDraft = null;
+      this.quizFlowStage.set('setup');
+      this.quizQuestions.set([]);
+      this.quizIndex.set(0);
+      this.quizTimeRemaining.set(25 * 60);
+      this.quizPreparing.set(false);
+      this.quizQuestionTarget.set(this.resolveQuizQuestionTarget());
+      this.quizNotice.set('Started a fresh quiz.');
+      return;
+    }
+
+    this.pendingQuizDraft = null;
+    this.applyQuizDraft(draft);
+    this.quizNotice.set('Resumed your saved quiz draft on this device.');
+  }
+
   protected completeProfile(): void {
     if (!this.googleIdentity()) {
       this.authError.set('Please sign in with Google first.');
@@ -825,6 +855,9 @@ export class App implements OnInit, AfterViewInit {
 
   protected signOutProfile(): void {
     this.clearQuizDraftLocally();
+    this.pendingQuizDraft = null;
+    this.quizDraftPromptOpen.set(false);
+    this.quizDraftPromptMessage.set('');
     this.profileMenuOpen.set(false);
     this.profileMenuView.set('profile');
     this.profile.set(null);
@@ -1165,6 +1198,10 @@ export class App implements OnInit, AfterViewInit {
   }
 
   protected async startQuiz(): Promise<void> {
+    if (this.quizDraftPromptOpen()) {
+      return;
+    }
+
     if (this.quizFlowStage() === 'taking' || this.quizPreparing()) {
       return;
     }
@@ -1425,6 +1462,9 @@ export class App implements OnInit, AfterViewInit {
     this.quizHistorySaved.set(false);
     this.quizHistoryError.set('');
     this.clearQuizDraftLocally();
+    this.pendingQuizDraft = null;
+    this.quizDraftPromptOpen.set(false);
+    this.quizDraftPromptMessage.set('');
   }
 
   protected formatHistoryTime(value: string): string {
@@ -2620,6 +2660,9 @@ export class App implements OnInit, AfterViewInit {
     }
 
     try {
+      this.pendingQuizDraft = null;
+      this.quizDraftPromptOpen.set(false);
+      this.quizDraftPromptMessage.set('');
       const raw = localStorage.getItem(this.quizDraftStorageKey(profile));
       if (!raw) {
         return;
@@ -2627,6 +2670,12 @@ export class App implements OnInit, AfterViewInit {
 
       const draft = JSON.parse(raw) as Partial<QuizDraftState> | null;
       if (!draft || !Array.isArray(draft.questions) || !draft.questions.length) {
+        this.clearQuizDraftLocally();
+        return;
+      }
+
+      if (draft.quizFlowStage !== 'taking' || !Array.isArray(draft.questions)) {
+        this.clearQuizDraftLocally();
         return;
       }
 
@@ -2647,29 +2696,76 @@ export class App implements OnInit, AfterViewInit {
         .filter((question): question is QuizQuestion => question !== null);
 
       if (!questions.length) {
+        this.clearQuizDraftLocally();
         return;
       }
 
-      this.quizType.set('root');
-      this.quizDifficulty.set(Math.min(5, Math.max(1, Math.floor(Number(draft.quizDifficulty || 1)))));
-      this.quizQuestionTarget.set(Math.min(50, Math.max(5, Math.floor(Number(draft.quizQuestionTarget || 50)))));
-      this.quizIndex.set(Math.min(Math.max(0, Math.floor(Number(draft.quizIndex || 0))), Math.max(0, questions.length - 1)));
-      this.quizTimeRemaining.set(Math.max(0, Math.floor(Number(draft.quizTimeRemaining || 0))));
-      this.quizQuestions.set(questions);
-      this.quizFlowStage.set(
-        draft.quizFlowStage === 'summary' ? 'summary' : questions.length ? 'taking' : 'setup'
+      this.pendingQuizDraft = {
+        quizType: draft.quizType || 'root',
+        quizDifficulty: Math.min(5, Math.max(1, Math.floor(Number(draft.quizDifficulty || 1)))),
+        quizQuestionTarget: Math.min(50, Math.max(5, Math.floor(Number(draft.quizQuestionTarget || 50)))),
+        quizIndex: Math.min(
+          Math.max(0, Math.floor(Number(draft.quizIndex || 0))),
+          Math.max(0, questions.length - 1)
+        ),
+        quizTimeRemaining: Math.max(0, Math.floor(Number(draft.quizTimeRemaining || 0))),
+        quizFlowStage: 'taking',
+        questions,
+        savedAt: String(draft.savedAt || new Date().toISOString()),
+      };
+      this.quizFlowStage.set('setup');
+      this.quizQuestions.set([]);
+      this.quizIndex.set(0);
+      this.quizTimeRemaining.set(25 * 60);
+      this.quizPreparing.set(false);
+      this.quizQuestionTarget.set(this.pendingQuizDraft.quizQuestionTarget);
+      this.quizDraftPromptMessage.set(
+        'You have an unfinished quiz saved on this device. Do you want to discard it and start a new quiz?'
       );
-      if (this.quizFlowStage() === 'taking') {
-        this.quizNotice.set('Loaded your saved quiz draft on this device.');
-      }
-
-      if (this.quizFlowStage() === 'taking') {
-        this.stopQuizTimer();
-        this.startQuizTimer();
-      }
+      this.quizDraftPromptOpen.set(true);
+      this.quizNotice.set('You have an unfinished quiz on this device.');
+      this.stopQuizTimer();
     } catch {
       return;
     }
+  }
+
+  private applyQuizDraft(draft: QuizDraftState): void {
+    const questions = draft.questions
+      .map((question) => {
+        if (!question || typeof question !== 'object') {
+          return null;
+        }
+
+        const entry = question as QuizQuestion;
+        return {
+          ...entry,
+          options: Array.isArray(entry.options)
+            ? entry.options.filter((option): option is string => typeof option === 'string')
+            : [],
+        } satisfies QuizQuestion;
+      })
+      .filter((question): question is QuizQuestion => question !== null);
+
+    if (!questions.length) {
+      this.quizFlowStage.set('setup');
+      this.quizQuestions.set([]);
+      this.quizIndex.set(0);
+      this.quizTimeRemaining.set(25 * 60);
+      this.quizPreparing.set(false);
+      this.quizQuestionTarget.set(this.resolveQuizQuestionTarget());
+      return;
+    }
+
+    this.quizType.set(draft.quizType || 'root');
+    this.quizDifficulty.set(Math.min(5, Math.max(1, Math.floor(Number(draft.quizDifficulty || 1)))));
+    this.quizQuestionTarget.set(Math.min(50, Math.max(5, Math.floor(Number(draft.quizQuestionTarget || 50)))));
+    this.quizIndex.set(Math.min(Math.max(0, Math.floor(Number(draft.quizIndex || 0))), Math.max(0, questions.length - 1)));
+    this.quizTimeRemaining.set(Math.max(0, Math.floor(Number(draft.quizTimeRemaining || 0))));
+    this.quizQuestions.set(questions);
+    this.quizFlowStage.set('taking');
+    this.stopQuizTimer();
+    this.startQuizTimer();
   }
 
   private async loadQuizHistoryFromServer(): Promise<void> {

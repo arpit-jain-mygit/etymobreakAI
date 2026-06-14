@@ -1130,6 +1130,28 @@ h1 {
   background: rgba(232, 239, 255, 0.98);
 }
 
+.quiz-draft-prompt {
+  display: grid;
+  gap: 10px;
+  margin-top: 0;
+}
+
+.quiz-draft-prompt strong {
+  color: #264653;
+}
+
+.quiz-draft-prompt p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.quiz-draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
