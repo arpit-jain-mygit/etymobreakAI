@@ -42,6 +42,34 @@ interface FamilyMemoryItem {
   exampleSentence?: string;
 }
 
+interface RootAssembledRoot {
+  root: string;
+  type: string;
+  meaning: string;
+}
+
+interface RootAssembledWord {
+  word: string;
+  meaning: string;
+  breakdown: string;
+  otherRootWords: RootAssembledRoot[];
+  exampleSentence?: string;
+  slideNumber?: number;
+}
+
+interface RootInventoryEntry {
+  root: string;
+  alternateForms: string[];
+  type: string;
+  meaning: string;
+  origin: string;
+  source: string;
+  exampleSentence: string;
+  assembledWords: RootAssembledWord[];
+  familyMemory: FamilyMemoryItem[];
+  slideNumbers: number[];
+}
+
 interface FamilySection {
   label: string;
   title: string;
@@ -120,6 +148,9 @@ interface QuizAttemptQuestion {
   sourceTitle: string;
   sourceQuery?: string;
   sourceMode?: string;
+  root?: string;
+  rootMeaning?: string;
+  explanation?: string;
   options: string[];
   selectedIndex: number | null;
   selectedText: string;
@@ -130,7 +161,7 @@ interface QuizAttemptQuestion {
   isCorrect: boolean | null;
 }
 
-type QuizBankType = 'revision' | 'word' | 'root_prefix_suffix' | 'mixed';
+type QuizBankType = 'root' | 'revision' | 'word' | 'root_prefix_suffix' | 'mixed';
 type QuizFlowStage = 'setup' | 'taking' | 'summary';
 type QuizReviewFilter = 'all' | 'correct' | 'wrong' | 'skipped';
 
@@ -150,6 +181,8 @@ interface QuizQuestion {
   submitted: boolean;
   isCorrect: boolean | null;
   sourceTitle: string;
+  sourceRoot?: string;
+  sourceRootMeaning?: string;
   explanation: string;
 }
 
@@ -256,7 +289,7 @@ const EMPTY_ANALYSIS: AnalysisResult = {
 export class App implements OnInit, AfterViewInit {
   @ViewChild('googleButtonHost') private googleButtonHost?: ElementRef<HTMLDivElement>;
 
-  protected readonly activeTab = signal<AppTab>('search');
+  protected readonly activeTab = signal<AppTab>('all_words');
   protected readonly query = signal('');
   protected readonly loading = signal(false);
   protected readonly error = signal('');
@@ -267,7 +300,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly experimentLetter = signal('');
   protected readonly experimentIndex = signal(0);
   protected readonly quizFlowStage = signal<QuizFlowStage>('setup');
-  protected readonly quizType = signal<QuizBankType>('revision');
+  protected readonly quizType = signal<QuizBankType>('root');
   protected readonly quizDifficulty = signal(1);
   protected readonly quizQuestionTarget = signal(50);
   protected readonly quizIndex = signal(0);
@@ -311,22 +344,24 @@ export class App implements OnInit, AfterViewInit {
     const seconds = remaining % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   });
-  protected readonly quizTypeLabel = computed(() => {
-    return 'Revision quiz';
-  });
+  protected readonly quizTypeLabel = computed(() => 'Root quiz');
   protected readonly quizDifficultyLabel = computed(() => `Level ${this.quizDifficulty()}`);
   protected readonly quizQuestionTargetLabel = computed(() => `${this.quizQuestionTarget()} questions`);
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
   private quizBankLoadPromise: Promise<void> | null = null;
+  private rootMasteryQuizBankLoadPromise: Promise<QuizBankFile | null> | null = null;
   private confidentWordsLoadPromise: Promise<void> | null = null;
   private needsFocusWordsLoadPromise: Promise<void> | null = null;
   private quizBankCache = new Map<QuizBankType, QuizBankFile>();
+  private rootMasteryQuizBankCache: QuizBankFile | null = null;
   private quizTimerHandle: number | null = null;
   private readonly profileStorageKey = 'etymobreak-profile';
   private readonly pendingGoogleStorageKey = 'etymobreak-google-identity';
   private readonly quizDraftPrefix = 'etymobreak-quiz-draft';
   private quizAttemptCounter = 0;
+  protected readonly rootInventoryEntries = computed(() => this.getRootInventoryEntries());
+  protected readonly rootInventoryCount = computed(() => this.rootInventoryEntries().length);
   protected readonly autocompleteOptions = computed(() => {
     const current = this.query().trim().toLowerCase();
     const unique = [
@@ -359,14 +394,21 @@ export class App implements OnInit, AfterViewInit {
   protected readonly needsFocusWordSlides = computed(() =>
     this.getSavedWordAnalyses(this.experimentLetter(), 'needs_focus')
   );
+  protected readonly activeSavedWordAnalyses = computed(() => {
+    if (this.activeTab() === 'confident_words') {
+      return this.getSavedWordAnalyses('', 'confident');
+    }
+
+    if (this.activeTab() === 'needs_focus_words') {
+      return this.getSavedWordAnalyses('', 'needs_focus');
+    }
+
+    return [];
+  });
   protected readonly activeWordSlides = computed(() =>
     this.activeTab() === 'root_suffix'
       ? this.rootSuffixSlides()
-      : this.activeTab() === 'confident_words'
-        ? this.confidentWordSlides()
-        : this.activeTab() === 'needs_focus_words'
-          ? this.needsFocusWordSlides()
-          : this.allWordSlides()
+      : this.allWordSlides()
   );
   protected readonly experimentSlide = computed(() => {
     const slides = this.activeWordSlides();
@@ -505,6 +547,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly quizHistoryCount = computed(() => this.quizHistory().length);
   protected readonly confidentWordsCount = computed(() => this.confidentWords().length);
   protected readonly needsFocusWordsCount = computed(() => this.needsFocusWords().length);
+  protected readonly activeSavedWordCount = computed(() => this.activeSavedWordAnalyses().length);
   protected readonly selectedQuizHistory = computed(() =>
     this.quizHistory().find((item) => item.id === this.selectedQuizHistoryId()) ?? null
   );
@@ -530,6 +573,104 @@ export class App implements OnInit, AfterViewInit {
 
     return questions.filter((question) => this.historyQuestionStatus(question) === filter);
   });
+
+  private buildRootAnalysis(
+    root: string,
+    meaning = '',
+    title = '',
+    notes: string[] = []
+  ): AnalysisResult | null {
+    const normalizedRoot = String(root || '').trim();
+    if (!normalizedRoot) {
+      return null;
+    }
+
+    const normalizedMeaning = String(meaning || '').trim();
+    const normalizedTitle = String(title || normalizedRoot).trim() || normalizedRoot;
+    const summary = normalizedMeaning ? `${normalizedTitle} = ${normalizedMeaning}` : normalizedTitle;
+
+    return {
+      ...EMPTY_ANALYSIS,
+      query: normalizedRoot,
+      mode: 'root',
+      title: normalizedTitle.toUpperCase(),
+      summary,
+      literalMeaningFormula: '',
+      literalMeaningArrow: '',
+      literalMeaning: normalizedMeaning,
+      actualMeaning: normalizedMeaning || summary,
+      breakdown: [],
+      wordFamily: [],
+      otherWords: [],
+      relatedWords: [],
+      slideNumber: null,
+      rootFamily: {
+        root: normalizedRoot,
+        meaning: normalizedMeaning,
+        origin: '',
+      },
+      familyMemory: [],
+      notes,
+    };
+  }
+
+  protected rootEntryAnalysis(entry: RootInventoryEntry | null): AnalysisResult | null {
+    if (!entry) {
+      return null;
+    }
+
+    return this.buildRootAnalysis(entry.root, entry.meaning, entry.root, [
+      entry.source,
+      entry.exampleSentence,
+    ].filter(Boolean));
+  }
+
+  private quizQuestionRootAnalysis(question: QuizQuestion | QuizAttemptQuestion | null): AnalysisResult | null {
+    if (!question) {
+      return null;
+    }
+
+    const root = String((question as { sourceRoot?: string }).sourceRoot || question.sourceTitle || '').trim();
+    if (!root) {
+      return null;
+    }
+
+    const meaning = String((question as { sourceRootMeaning?: string }).sourceRootMeaning || '').trim();
+    return this.buildRootAnalysis(root, meaning, root, [question.prompt, question.explanation].filter(Boolean));
+  }
+
+  protected isRootEntryConfident(entry: RootInventoryEntry | null): boolean {
+    return this.isAnalysisConfident(this.rootEntryAnalysis(entry));
+  }
+
+  protected isRootEntryNeedsFocus(entry: RootInventoryEntry | null): boolean {
+    return this.isAnalysisNeedsFocus(this.rootEntryAnalysis(entry));
+  }
+
+  protected async toggleConfidentForRootEntry(entry: RootInventoryEntry | null): Promise<void> {
+    await this.toggleConfidentForAnalysis(this.rootEntryAnalysis(entry));
+  }
+
+  protected async toggleNeedsFocusForRootEntry(entry: RootInventoryEntry | null): Promise<void> {
+    await this.toggleNeedsFocusForAnalysis(this.rootEntryAnalysis(entry));
+  }
+
+  protected isQuizQuestionRootConfident(question: QuizQuestion | null): boolean {
+    return this.isAnalysisConfident(this.quizQuestionRootAnalysis(question));
+  }
+
+  protected isQuizQuestionRootNeedsFocus(question: QuizQuestion | null): boolean {
+    return this.isAnalysisNeedsFocus(this.quizQuestionRootAnalysis(question));
+  }
+
+  protected async toggleConfidentForQuizQuestion(question: QuizQuestion | null): Promise<void> {
+    await this.toggleConfidentForAnalysis(this.quizQuestionRootAnalysis(question));
+  }
+
+  protected async toggleNeedsFocusForQuizQuestion(question: QuizQuestion | null): Promise<void> {
+    await this.toggleNeedsFocusForAnalysis(this.quizQuestionRootAnalysis(question));
+  }
+
   private normalizeForMatch(value: string): string {
     return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
@@ -728,7 +869,7 @@ export class App implements OnInit, AfterViewInit {
   }
 
   protected selectQuizType(_type: QuizBankType): void {
-    this.quizType.set('revision');
+    this.quizType.set('root');
   }
 
   protected isAnalysisConfident(analysis: AnalysisResult | null): boolean {
@@ -1005,7 +1146,7 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
-    this.quizType.set('revision');
+    this.quizType.set('root');
     this.quizPreparing.set(true);
     this.quizHistorySaved.set(false);
     this.quizHistorySubmitting.set(false);
@@ -1022,7 +1163,7 @@ export class App implements OnInit, AfterViewInit {
     );
     if (!deck.length) {
       this.quizFlowStage.set('setup');
-      this.quizNotice.set('Your revision deck could not be built yet. Please try again in a moment.');
+      this.quizNotice.set('Your root deck could not be built yet. Please try again in a moment.');
       this.quizPreparing.set(false);
       return;
     }
@@ -1173,8 +1314,11 @@ export class App implements OnInit, AfterViewInit {
       type: question.type,
       prompt: question.prompt,
       sourceTitle: question.sourceTitle,
-      sourceQuery: question.sourceTitle,
-      sourceMode: 'word',
+      sourceQuery: question.sourceRoot || question.sourceTitle,
+      sourceMode: 'root',
+      root: question.sourceRoot || question.sourceTitle,
+      rootMeaning: question.sourceRootMeaning || '',
+      explanation: question.explanation,
       options: question.options,
       selectedIndex: question.selectedIndex,
       selectedText: question.selectedIndex === null ? '' : question.options[question.selectedIndex] ?? '',
@@ -1289,28 +1433,24 @@ export class App implements OnInit, AfterViewInit {
       }
 
       const payload = (await response.json().catch(() => null)) as unknown;
-      if (!Array.isArray(payload)) {
+      const roots = this.extractRootInventoryEntries(payload);
+      if (!roots.length) {
         return;
       }
 
-      this.inventoryEntries.set(payload);
+      this.inventoryEntries.set(roots as unknown[]);
+      this.inventoryIndex.clear();
 
-      const inventoryTerms = payload
-        .map((item) => {
-          if (!item || typeof item !== 'object') {
-            return '';
-          }
+      const inventoryTerms = roots.flatMap((item) => {
+        const terms = [item.root, ...item.alternateForms];
+        this.inventoryIndex.set(item.root.trim().toLowerCase(), item);
+        for (const assembled of item.assembledWords) {
+          this.inventoryIndex.set(assembled.word.trim().toLowerCase(), item);
+        }
+        return terms;
+      });
 
-          const entry: any = item;
-          const key = String(entry.query || '').trim().toLowerCase();
-          if (key) {
-            this.inventoryIndex.set(key, item);
-          }
-          return String(entry.query || '').trim().toLowerCase();
-        })
-        .filter(Boolean);
-
-      this.rootAutocomplete.set([...new Set(inventoryTerms)]);
+      this.rootAutocomplete.set([...new Set(inventoryTerms.map((term) => term.trim().toLowerCase()).filter(Boolean))]);
     } catch {
       return;
     }
@@ -1674,6 +1814,107 @@ export class App implements OnInit, AfterViewInit {
       .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
   }
 
+  private getRootInventoryEntries(): RootInventoryEntry[] {
+    return this.inventoryEntries()
+      .map((item) => this.normalizeRootInventoryEntry(item))
+      .filter((item): item is RootInventoryEntry => item !== null)
+      .sort((a, b) => a.root.localeCompare(b.root, undefined, { sensitivity: 'base' }));
+  }
+
+  private extractRootInventoryEntries(payload: unknown): RootInventoryEntry[] {
+    const data: any = payload && typeof payload === 'object' ? payload : {};
+    const entries = Array.isArray(data.roots) ? data.roots : Array.isArray(payload) ? payload : [];
+    return entries
+      .map((item) => this.normalizeRootInventoryEntry(item))
+      .filter((item): item is RootInventoryEntry => item !== null);
+  }
+
+  private normalizeRootInventoryEntry(item: unknown): RootInventoryEntry | null {
+    if (!item || typeof item !== 'object') {
+      return null;
+    }
+
+    const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+    const list = <T>(value: unknown, mapper: (entry: unknown) => T | null): T[] =>
+      Array.isArray(value) ? value.map(mapper).filter((entry): entry is T => entry !== null) : [];
+    const entry: any = item;
+
+    const assembledWords = list(entry.assembledWords, (word) => {
+      if (!word || typeof word !== 'object') {
+        return null;
+      }
+
+      const wordEntry: any = word;
+      const wordLabel = text(wordEntry.word);
+      const meaning = text(wordEntry.meaning);
+      const breakdown = text(wordEntry.breakdown);
+      if (!wordLabel || !meaning) {
+        return null;
+      }
+
+      return {
+        word: wordLabel,
+        meaning,
+        breakdown,
+        otherRootWords: list(wordEntry.otherRootWords, (part) => {
+          if (!part || typeof part !== 'object') {
+            return null;
+          }
+
+          const partEntry: any = part;
+          const root = text(partEntry.root);
+          const type = text(partEntry.type);
+          const partMeaning = text(partEntry.meaning);
+          if (!root || !type || !partMeaning) {
+            return null;
+          }
+
+          return {
+            root,
+            type,
+            meaning: partMeaning,
+          };
+        }),
+        exampleSentence: text(wordEntry.exampleSentence),
+        slideNumber: typeof wordEntry.slideNumber === 'number' ? wordEntry.slideNumber : undefined,
+      };
+    });
+
+    const familyMemory = list(entry.familyMemory, (item) => {
+      if (!item || typeof item !== 'object') {
+        return null;
+      }
+
+      const familyEntry: any = item;
+      const term = text(familyEntry.term);
+      const meaning = text(familyEntry.meaning);
+      if (!term || !meaning) {
+        return null;
+      }
+
+      return {
+        term,
+        meaning,
+        exampleSentence: text(familyEntry.exampleSentence),
+      };
+    });
+
+    return {
+      root: text(entry.root),
+      alternateForms: list(entry.alternateForms, (value) => text(value)).filter(Boolean),
+      type: text(entry.type),
+      meaning: text(entry.meaning),
+      origin: text(entry.origin),
+      source: text(entry.source),
+      exampleSentence: text(entry.exampleSentence),
+      assembledWords,
+      familyMemory,
+      slideNumbers: list(entry.slideNumbers, (value) => (typeof value === 'number' ? value : Number.NaN)).filter(
+        (value): value is number => Number.isFinite(value)
+      ),
+    };
+  }
+
   private getSavedWordAnalyses(letter = '', source: 'confident' | 'needs_focus'): AnalysisResult[] {
     const normalizedLetter = letter.trim().toLowerCase();
     const entries = source === 'confident' ? this.confidentWords() : this.needsFocusWords();
@@ -1759,7 +2000,7 @@ export class App implements OnInit, AfterViewInit {
   }
 
   private async loadQuizBank(bankType: QuizBankType): Promise<QuizBankFile | null> {
-    if (bankType === 'revision') {
+    if (bankType === 'root' || bankType === 'revision') {
       return null;
     }
 
@@ -1768,10 +2009,11 @@ export class App implements OnInit, AfterViewInit {
       return cached;
     }
 
-    const fileMap: Record<Exclude<QuizBankType, 'revision'>, string> = {
+    const fileMap: Record<Exclude<QuizBankType, 'root'>, string> = {
       word: '/question_bank_words.json',
       root_prefix_suffix: '/question_bank_roots_prefixes_suffixes.json',
       mixed: '/question_bank_mixed.json',
+      revision: '/question_bank_roots_prefixes_suffixes.json',
     };
 
     try {
@@ -1789,6 +2031,41 @@ export class App implements OnInit, AfterViewInit {
       return payload;
     } catch {
       return null;
+    }
+  }
+
+  private async loadRootMasteryQuestionBank(): Promise<QuizBankFile | null> {
+    if (this.rootMasteryQuizBankCache) {
+      return this.rootMasteryQuizBankCache;
+    }
+
+    if (this.rootMasteryQuizBankLoadPromise) {
+      return this.rootMasteryQuizBankLoadPromise;
+    }
+
+    this.rootMasteryQuizBankLoadPromise = (async () => {
+      try {
+        const response = await fetch('/aaptprep_root_mastery_question_bank.json');
+        if (!response.ok) {
+          return null;
+        }
+
+        const payload = (await response.json().catch(() => null)) as QuizBankFile | null;
+        if (!payload || !Array.isArray(payload.questions)) {
+          return null;
+        }
+
+        this.rootMasteryQuizBankCache = payload;
+        return payload;
+      } catch {
+        return null;
+      }
+    })();
+
+    try {
+      return await this.rootMasteryQuizBankLoadPromise;
+    } finally {
+      this.rootMasteryQuizBankLoadPromise = null;
     }
   }
 
@@ -1816,8 +2093,10 @@ export class App implements OnInit, AfterViewInit {
 
     const metadata = record.metadata ?? {};
     const sourceTitle = String(
-      metadata['word'] || metadata['part'] || metadata['root'] || record.questionType || record.id
+      metadata['root'] || metadata['exampleWord'] || metadata['word'] || metadata['part'] || record.questionType || record.id
     ).trim();
+    const sourceRoot = String(metadata['root'] || '').trim();
+    const sourceRootMeaning = String(metadata['rootMeaning'] || metadata['meaning'] || '').trim();
 
     return {
       id: `${record.id}-${index}`,
@@ -1830,6 +2109,8 @@ export class App implements OnInit, AfterViewInit {
       submitted: false,
       isCorrect: null,
       sourceTitle: sourceTitle || 'Quiz item',
+      sourceRoot,
+      sourceRootMeaning,
       explanation: String(record.answerText || '').trim() || 'Review the highlighted answer.',
     };
   }
@@ -1854,8 +2135,8 @@ export class App implements OnInit, AfterViewInit {
     targetCount: number
   ): Promise<QuizQuestion[]> {
     this.quizAttemptCounter += 1;
-    if (type === 'revision') {
-      return this.buildRevisionQuizDeck(difficulty, targetCount);
+    if (type === 'root' || type === 'revision') {
+      return this.buildRootQuizDeck(difficulty, targetCount);
     }
 
     const bank = await this.loadQuizBank(type);
@@ -1890,6 +2171,29 @@ export class App implements OnInit, AfterViewInit {
     const options = this.shuffle([safeCorrect, ...this.shuffle(uniqueDistractors).slice(0, 3)]);
     const correctIndex = options.indexOf(safeCorrect);
     return { options, correctIndex };
+  }
+
+  private async buildRootQuizDeck(difficulty: number, targetCount: number): Promise<QuizQuestion[]> {
+    const bank = await this.loadRootMasteryQuestionBank();
+    if (!bank || !Array.isArray(bank.questions) || !bank.questions.length) {
+      return [];
+    }
+
+    const totalTarget = Math.min(50, Math.max(5, Math.floor(targetCount / 5) * 5)) || 5;
+    const eligible = bank.questions.filter((question) => {
+      const normalizedDifficulty = Math.min(
+        5,
+        Math.max(1, Math.floor(Number(question.difficulty || question.level || 1)))
+      );
+      return normalizedDifficulty === difficulty;
+    });
+    const source = eligible.length >= totalTarget ? eligible : bank.questions;
+    const selected = this.shuffle(source).slice(0, totalTarget);
+
+    return selected
+      .map((record, index) => this.normalizeQuizQuestion(record, index))
+      .filter((question): question is QuizQuestion => question !== null)
+      .slice(0, totalTarget);
   }
 
   private createRevisionQuestion(
@@ -2240,7 +2544,7 @@ export class App implements OnInit, AfterViewInit {
         return;
       }
 
-      this.quizType.set('revision');
+      this.quizType.set('root');
       this.quizDifficulty.set(Math.min(5, Math.max(1, Math.floor(Number(draft.quizDifficulty || 1)))));
       this.quizQuestionTarget.set(Math.min(50, Math.max(5, Math.floor(Number(draft.quizQuestionTarget || 50)))));
       this.quizIndex.set(Math.min(Math.max(0, Math.floor(Number(draft.quizIndex || 0))), Math.max(0, questions.length - 1)));
@@ -2461,6 +2765,16 @@ export class App implements OnInit, AfterViewInit {
     const title = String(question.sourceTitle || query || question.correctText || '').trim();
     const prompt = String(question.prompt || '').trim();
     const correctText = String(question.correctText || question.selectedText || '').trim();
+    const root = String(question.root || '').trim();
+    const rootMeaning = String(question.rootMeaning || '').trim();
+
+    if (root) {
+      const rootAnalysis = this.buildRootAnalysis(root, rootMeaning, root, [prompt, correctText].filter(Boolean));
+      if (rootAnalysis) {
+        return rootAnalysis;
+      }
+    }
+
     const summary = prompt || correctText || title || query;
     if (!query && !title && !summary && !correctText) {
       return null;
