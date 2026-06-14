@@ -2119,22 +2119,21 @@ export class App implements OnInit, AfterViewInit {
       return null;
     }
 
+    const entries = this.getRootInventoryEntries();
     for (const candidate of candidates) {
       const indexed = this.inventoryIndex.get(candidate);
       if (indexed && typeof indexed === 'object') {
         const indexedEntry = indexed as RootInventoryEntry;
         const root = String(indexedEntry.root || '').trim().toLowerCase();
         if (root) {
-          const match = this.inventoryEntries().find(
-            (entry) => entry.root.trim().toLowerCase() === root
-          );
+          const match = entries.find((entry: RootInventoryEntry) => entry.root.trim().toLowerCase() === root);
           if (match) {
             return match;
           }
         }
       }
 
-      const direct = this.inventoryEntries().find((entry) => entry.root.trim().toLowerCase() === candidate);
+      const direct = entries.find((entry: RootInventoryEntry) => entry.root.trim().toLowerCase() === candidate);
       if (direct) {
         return direct;
       }
