@@ -2779,6 +2779,13 @@ export class App implements OnInit, AfterViewInit {
   }
 
   private async buildRevisionQuizDeck(difficulty: number, targetCount: number): Promise<QuizQuestion[]> {
+    if (this.inventoryLoadPromise) {
+      await this.inventoryLoadPromise;
+    }
+    if (!this.inventoryEntries().length) {
+      await this.loadRootAutocomplete();
+    }
+
     await this.loadConfidentWordsFromServer();
     await this.loadNeedsFocusWordsFromServer();
 
