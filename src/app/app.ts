@@ -367,6 +367,7 @@ export class App implements OnInit, AfterViewInit {
   private readonly profileStorageKey = 'etymobreak-profile';
   private readonly pendingGoogleStorageKey = 'etymobreak-google-identity';
   private readonly quizDraftPrefix = 'etymobreak-quiz-draft';
+  private readonly savedWordsCachePrefix = 'etymobreak-saved-words';
   private quizAttemptCounter = 0;
   protected readonly rootInventoryEntries = computed(() => this.getRootInventoryEntries());
   protected readonly rootInventoryCount = computed(() => this.rootInventoryEntries().length);
@@ -1058,15 +1059,16 @@ export class App implements OnInit, AfterViewInit {
         const key = this.confidentKey(entry.query, entry.mode);
         const next = [entry, ...this.confidentWords().filter((item) => this.confidentKey(item.query, item.mode) !== key)];
         this.confidentWords.set(next);
+        this.saveSavedWordsCache('confident', next);
         this.confidentWordNotice.set(`${analysis.title || analysis.query} was marked as Confident.`);
         if (this.isAnalysisNeedsFocus(analysis)) {
           await this.removeNeedsFocusForAnalysis(analysis);
         }
       } else {
         const key = this.confidentKey(query, analysis.mode || 'word');
-        this.confidentWords.update((items) =>
-          items.filter((item) => this.confidentKey(item.query, item.mode) !== key)
-        );
+        const next = this.confidentWords().filter((item) => this.confidentKey(item.query, item.mode) !== key);
+        this.confidentWords.set(next);
+        this.saveSavedWordsCache('confident', next);
         this.confidentWordNotice.set(`${analysis.title || analysis.query} was removed from Confident words.`);
       }
     } catch (error) {
@@ -1136,15 +1138,16 @@ export class App implements OnInit, AfterViewInit {
         const key = this.needsFocusKey(entry.query, entry.mode);
         const next = [entry, ...this.needsFocusWords().filter((item) => this.needsFocusKey(item.query, item.mode) !== key)];
         this.needsFocusWords.set(next);
+        this.saveSavedWordsCache('needs_focus', next);
         this.needsFocusWordNotice.set(`${analysis.title || analysis.query} was marked as Needs Focus.`);
         if (this.isAnalysisConfident(analysis)) {
           await this.removeConfidentForAnalysis(analysis);
         }
       } else {
         const key = this.needsFocusKey(query, analysis.mode || 'word');
-        this.needsFocusWords.update((items) =>
-          items.filter((item) => this.needsFocusKey(item.query, item.mode) !== key)
-        );
+        const next = this.needsFocusWords().filter((item) => this.needsFocusKey(item.query, item.mode) !== key);
+        this.needsFocusWords.set(next);
+        this.saveSavedWordsCache('needs_focus', next);
         this.needsFocusWordNotice.set(`${analysis.title || analysis.query} was removed from Needs Focus words.`);
       }
     } catch (error) {
@@ -1184,9 +1187,11 @@ export class App implements OnInit, AfterViewInit {
         return;
       }
 
-      this.confidentWords.update((items) =>
-        items.filter((item) => this.confidentKey(item.query, item.mode) !== this.confidentKey(query, analysis.mode || 'word'))
+      const next = this.confidentWords().filter(
+        (item) => this.confidentKey(item.query, item.mode) !== this.confidentKey(query, analysis.mode || 'word')
       );
+      this.confidentWords.set(next);
+      this.saveSavedWordsCache('confident', next);
     } catch {
       return;
     }
@@ -1222,9 +1227,11 @@ export class App implements OnInit, AfterViewInit {
         return;
       }
 
-      this.needsFocusWords.update((items) =>
-        items.filter((item) => this.needsFocusKey(item.query, item.mode) !== this.needsFocusKey(query, analysis.mode || 'word'))
+      const next = this.needsFocusWords().filter(
+        (item) => this.needsFocusKey(item.query, item.mode) !== this.needsFocusKey(query, analysis.mode || 'word')
       );
+      this.needsFocusWords.set(next);
+      this.saveSavedWordsCache('needs_focus', next);
     } catch {
       return;
     }
@@ -3293,6 +3300,8 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
+    this.loadSavedWordsCache('confident');
+
     if (this.confidentWordsLoadPromise) {
       await this.confidentWordsLoadPromise;
       return;
@@ -3323,8 +3332,8 @@ export class App implements OnInit, AfterViewInit {
           .sort((a, b) => b.time.localeCompare(a.time));
 
         this.confidentWords.set(entries);
+        this.saveSavedWordsCache('confident', entries);
       } catch {
-        this.confidentWords.set([]);
         this.confidentWordsError.set('Confident words could not be loaded.');
       } finally {
         this.confidentWordsLoading.set(false);
@@ -3398,6 +3407,8 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
+    this.loadSavedWordsCache('needs_focus');
+
     if (this.needsFocusWordsLoadPromise) {
       await this.needsFocusWordsLoadPromise;
       return;
@@ -3428,8 +3439,8 @@ export class App implements OnInit, AfterViewInit {
           .sort((a, b) => b.time.localeCompare(a.time));
 
         this.needsFocusWords.set(entries);
+        this.saveSavedWordsCache('needs_focus', entries);
       } catch {
-        this.needsFocusWords.set([]);
         this.needsFocusWordsError.set('Needs Focus words could not be loaded.');
       } finally {
         this.needsFocusWordsLoading.set(false);
@@ -3627,6 +3638,57 @@ export class App implements OnInit, AfterViewInit {
       familyMemory,
       notes: list(data.notes, (item) => text(item)).filter(Boolean),
     };
+  }
+
+  private savedWordsCacheKey(source: 'confident' | 'needs_focus', profile = this.profile()): string {
+    const identity =
+      profile?.google.sub ||
+      profile?.google.email ||
+      this.googleIdentity()?.sub ||
+      this.googleIdentity()?.email ||
+      'anonymous';
+    return `${this.savedWordsCachePrefix}:${source}:${identity}`;
+  }
+
+  private loadSavedWordsCache(source: 'confident' | 'needs_focus'): void {
+    const profile = this.profile();
+    if (!profile) {
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(this.savedWordsCacheKey(source, profile));
+      if (!raw) {
+        return;
+      }
+
+      const payload = JSON.parse(raw) as { items?: unknown[] } | null;
+      const entries = (payload?.items ?? [])
+        .map((item) => (source === 'confident' ? this.normalizeConfidentEntry(item) : this.normalizeNeedsFocusEntry(item)))
+        .filter((item): item is ConfidentWordEntry => item !== null)
+        .sort((a, b) => b.time.localeCompare(a.time));
+
+      if (source === 'confident') {
+        this.confidentWords.set(entries);
+      } else {
+        this.needsFocusWords.set(entries);
+      }
+    } catch {
+      return;
+    }
+  }
+
+  private saveSavedWordsCache(source: 'confident' | 'needs_focus', entries: ConfidentWordEntry[]): void {
+    const profile = this.profile();
+    if (!profile) {
+      return;
+    }
+
+    try {
+      localStorage.setItem(this.savedWordsCacheKey(source, profile), JSON.stringify({ items: entries }));
+    } catch {
+      return;
+    }
   }
 
   private mergeAnalysisResult(primary: AnalysisResult, fallback: AnalysisResult): AnalysisResult {
