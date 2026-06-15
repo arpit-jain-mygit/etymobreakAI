@@ -2851,6 +2851,11 @@ export class App implements OnInit, AfterViewInit {
       takeFrom(fallbackPool, totalTarget - selected.length);
     }
 
+    if (selected.length < totalTarget) {
+      const absoluteFallback = this.shuffle(this.buildRevisionCandidates(allInventoryAnalyses, 1, allInventoryAnalyses));
+      takeFrom(absoluteFallback, totalTarget - selected.length);
+    }
+
     return this.shuffle(selected).slice(0, totalTarget);
   }
 

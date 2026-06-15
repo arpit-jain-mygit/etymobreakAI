@@ -466,6 +466,12 @@ def list_quiz_history_by_google_identity(google_sub: str | None, email: str | No
             items = broker_payload.get("items", [])
             return items if isinstance(items, list) else []
         raise
+    except Exception as exc:
+        if _broker_is_configured():
+            broker_payload = _call_broker("GET", "/quiz-history", params={"sub": resolved_sub, "email": mail})
+            items = broker_payload.get("items", [])
+            return items if isinstance(items, list) else []
+        raise ProfileStoreError(f"Could not list quiz history: {exc}") from exc
 
 
 def _confident_word_object_name(google_sub: str, query: str, mode: str) -> str:
