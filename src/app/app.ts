@@ -2811,6 +2811,7 @@ export class App implements OnInit, AfterViewInit {
     const confidentCandidates = this.shuffle(this.buildRevisionCandidates(confidentAnalyses, difficulty));
     const focusCandidates = this.shuffle(this.buildRevisionCandidates(focusAnalyses, difficulty));
     const otherCandidates = this.shuffle(this.buildRevisionCandidates(inventoryAnalyses, difficulty));
+    const newFallbackCandidates = this.shuffle(this.buildRevisionCandidates(inventoryAnalyses, 1));
 
     const selected: QuizQuestion[] = [];
     const used = new Set<string>();
@@ -2835,6 +2836,10 @@ export class App implements OnInit, AfterViewInit {
     takeFrom(confidentCandidates, confidentTarget);
     takeFrom(focusCandidates, focusTarget);
     takeFrom(otherCandidates, newTarget);
+
+    if (selected.length < totalTarget && newTarget > 0) {
+      takeFrom(newFallbackCandidates, totalTarget - selected.length);
+    }
 
     if (selected.length < totalTarget) {
       const fallbackPool = this.shuffle([...confidentCandidates, ...focusCandidates, ...otherCandidates]);
