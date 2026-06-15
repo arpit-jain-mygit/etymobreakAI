@@ -569,6 +569,12 @@ export class App implements OnInit, AfterViewInit {
   protected readonly quizHistoryCount = computed(() => this.quizHistory().length);
   protected readonly confidentWordsCount = computed(() => this.confidentWords().length);
   protected readonly needsFocusWordsCount = computed(() => this.needsFocusWords().length);
+  protected readonly confidentWordsDisplayCount = computed(
+    () => this.getSavedWordInventoryEntries('', 'confident').length
+  );
+  protected readonly needsFocusWordsDisplayCount = computed(
+    () => this.getSavedWordInventoryEntries('', 'needs_focus').length
+  );
   protected readonly activeSavedWordCount = computed(() => this.activeSavedWordEntries().length);
   protected readonly selectedQuizHistory = computed(() =>
     this.quizHistory().find((item) => item.id === this.selectedQuizHistoryId()) ?? null

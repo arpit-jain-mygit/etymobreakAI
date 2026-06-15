@@ -182,7 +182,7 @@
               @if (confidentWordsLoading()) {
                 <span class="mini-spinner" aria-hidden="true"></span>
               } @else {
-                {{ confidentWordsCount() }}
+                {{ confidentWordsDisplayCount() }}
               }
             </span>
           </button>
@@ -197,7 +197,7 @@
               @if (needsFocusWordsLoading()) {
                 <span class="mini-spinner" aria-hidden="true"></span>
               } @else {
-                {{ needsFocusWordsCount() }}
+                {{ needsFocusWordsDisplayCount() }}
               }
             </span>
           </button>
