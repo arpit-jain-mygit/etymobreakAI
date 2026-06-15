@@ -2783,13 +2783,13 @@ export class App implements OnInit, AfterViewInit {
     await this.loadNeedsFocusWordsFromServer();
 
     const confidentAnalyses = this.uniqueAnalyses(
-      this.confidentWords()
-        .map((item) => item.analysis)
+      this.getSavedWordInventoryEntries('', 'confident')
+        .map((entry) => this.rootEntryAnalysis(entry))
         .filter((item) => !this.isEmptyAnalysis(item))
     );
     const focusAnalyses = this.uniqueAnalyses(
-      this.needsFocusWords()
-        .map((item) => item.analysis)
+      this.getSavedWordInventoryEntries('', 'needs_focus')
+        .map((entry) => this.rootEntryAnalysis(entry))
         .filter((item) => !this.isEmptyAnalysis(item)),
       confidentAnalyses
     );
