@@ -606,11 +606,15 @@ export class App implements OnInit, AfterViewInit {
     const confidentCount = this.confidentWordsCount();
     const focusCount = this.needsFocusWordsCount();
 
-    const confidentTotal = confidentCount > 0 ? Math.ceil(confidentCount / 0.8) : 0;
-    const focusTotal = focusCount > 0 ? Math.ceil(focusCount / 0.1) : 0;
-    const target = Math.max(confidentTotal, focusTotal, 5);
+    if (confidentCount > 0) {
+      return Math.max(5, Math.ceil(confidentCount / 0.8));
+    }
 
-    return Math.max(5, Math.ceil(target));
+    if (focusCount > 0) {
+      return Math.max(5, Math.ceil(focusCount / 0.2));
+    }
+
+    return 5;
   }
 
   private buildRootAnalysis(
@@ -2795,9 +2799,10 @@ export class App implements OnInit, AfterViewInit {
     }
 
     const totalTarget = Math.max(1, Math.floor(Number(targetCount || 0)) || 1);
-    const confidentTarget = Math.max(1, Math.round(totalTarget * 0.8));
-    const focusTarget = Math.max(1, Math.round(totalTarget * 0.1));
-    const newTarget = Math.max(1, totalTarget - confidentTarget - focusTarget);
+    const confidentTarget = Math.min(confidentAnalyses.length, totalTarget);
+    const remainingTarget = Math.max(0, totalTarget - confidentTarget);
+    const focusTarget = Math.floor(remainingTarget / 2);
+    const newTarget = remainingTarget - focusTarget;
 
     const confidentCandidates = this.shuffle(this.buildRevisionCandidates(confidentAnalyses, difficulty));
     const focusCandidates = this.shuffle(this.buildRevisionCandidates(focusAnalyses, difficulty));
