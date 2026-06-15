@@ -1006,7 +1006,7 @@ export class App implements OnInit, AfterViewInit {
   }
 
   protected selectQuizType(_type: QuizBankType): void {
-    this.quizType.set('root');
+    this.quizType.set('revision');
   }
 
   protected isAnalysisConfident(analysis: AnalysisResult | null): boolean {
@@ -1288,7 +1288,7 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
-    this.quizType.set('root');
+    this.quizType.set('revision');
     this.quizPreparing.set(true);
     this.quizHistorySaved.set(false);
     this.quizHistorySubmitting.set(false);
@@ -2680,7 +2680,11 @@ export class App implements OnInit, AfterViewInit {
     targetCount: number
   ): Promise<QuizQuestion[]> {
     this.quizAttemptCounter += 1;
-    if (type === 'root' || type === 'revision') {
+    if (type === 'revision') {
+      return this.buildRevisionQuizDeck(difficulty, targetCount);
+    }
+
+    if (type === 'root') {
       return this.buildRootQuizDeck(difficulty, targetCount);
     }
 
