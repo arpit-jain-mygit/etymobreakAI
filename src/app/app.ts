@@ -369,6 +369,8 @@ export class App implements OnInit, AfterViewInit {
   private readonly quizDraftPrefix = 'etymobreak-quiz-draft';
   private readonly savedWordsCachePrefix = 'etymobreak-saved-words';
   private quizAttemptCounter = 0;
+  private confidentWordsLoadedIdentity = '';
+  private needsFocusWordsLoadedIdentity = '';
   protected readonly rootInventoryEntries = computed(() => this.getRootInventoryEntries());
   protected readonly rootInventoryCount = computed(() => this.rootInventoryEntries().length);
   protected readonly autocompleteOptions = computed(() => {
@@ -863,13 +865,9 @@ export class App implements OnInit, AfterViewInit {
       this.quizPreparing.set(false);
       this.quizHistorySaved.set(false);
       this.quizNotice.set('');
-      void (async () => {
-        await this.loadConfidentWordsFromServer();
-        await this.loadNeedsFocusWordsFromServer();
-        if (this.quizFlowStage() === 'setup' && this.activeTab() === 'quiz') {
-          this.quizQuestionTarget.set(this.resolveQuizQuestionTarget());
-        }
-        })();
+      if (this.quizFlowStage() === 'setup' && this.activeTab() === 'quiz') {
+        this.quizQuestionTarget.set(this.resolveQuizQuestionTarget());
+      }
     }
   }
 
@@ -951,9 +949,11 @@ export class App implements OnInit, AfterViewInit {
     this.confidentWords.set([]);
     this.confidentWordsError.set('');
     this.confidentWordNotice.set('');
+    this.confidentWordsLoadedIdentity = '';
     this.needsFocusWords.set([]);
     this.needsFocusWordsError.set('');
     this.needsFocusWordNotice.set('');
+    this.needsFocusWordsLoadedIdentity = '';
     try {
       localStorage.removeItem(this.profileStorageKey);
       sessionStorage.removeItem(this.pendingGoogleStorageKey);
@@ -3341,6 +3341,11 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
+    const identity = this.savedWordsIdentity(profile);
+    if (this.confidentWordsLoadedIdentity === identity) {
+      return;
+    }
+
     this.loadSavedWordsCache('confident');
 
     if (this.confidentWordsLoadPromise) {
@@ -3374,6 +3379,7 @@ export class App implements OnInit, AfterViewInit {
 
         this.confidentWords.set(entries);
         this.saveSavedWordsCache('confident', entries);
+        this.confidentWordsLoadedIdentity = identity;
       } catch {
         this.confidentWordsError.set('Confident words could not be loaded.');
       } finally {
@@ -3448,6 +3454,11 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
+    const identity = this.savedWordsIdentity(profile);
+    if (this.needsFocusWordsLoadedIdentity === identity) {
+      return;
+    }
+
     this.loadSavedWordsCache('needs_focus');
 
     if (this.needsFocusWordsLoadPromise) {
@@ -3481,6 +3492,7 @@ export class App implements OnInit, AfterViewInit {
 
         this.needsFocusWords.set(entries);
         this.saveSavedWordsCache('needs_focus', entries);
+        this.needsFocusWordsLoadedIdentity = identity;
       } catch {
         this.needsFocusWordsError.set('Needs Focus words could not be loaded.');
       } finally {
@@ -3691,16 +3703,26 @@ export class App implements OnInit, AfterViewInit {
     return `${this.savedWordsCachePrefix}:${source}:${identity}`;
   }
 
-  private loadSavedWordsCache(source: 'confident' | 'needs_focus'): void {
+  private savedWordsIdentity(profile = this.profile()): string {
+    return (
+      profile?.google.sub ||
+      profile?.google.email ||
+      this.googleIdentity()?.sub ||
+      this.googleIdentity()?.email ||
+      'anonymous'
+    );
+  }
+
+  private loadSavedWordsCache(source: 'confident' | 'needs_focus'): boolean {
     const profile = this.profile();
     if (!profile) {
-      return;
+      return false;
     }
 
     try {
       const raw = localStorage.getItem(this.savedWordsCacheKey(source, profile));
       if (!raw) {
-        return;
+        return false;
       }
 
       const payload = JSON.parse(raw) as { items?: unknown[] } | null;
@@ -3714,8 +3736,9 @@ export class App implements OnInit, AfterViewInit {
       } else {
         this.needsFocusWords.set(entries);
       }
+      return true;
     } catch {
-      return;
+      return false;
     }
   }
 
