@@ -1028,13 +1028,40 @@ export class App implements OnInit, AfterViewInit {
     this.quizType.set(type);
   }
 
-  protected isAnalysisConfident(analysis: AnalysisResult | null): boolean {
+  private savedWordTime(value: string): number {
+    const time = new Date(String(value || '').trim()).getTime();
+    return Number.isFinite(time) ? time : 0;
+  }
+
+  private savedWordCanonicalState(analysis: AnalysisResult | null): 'confident' | 'needs_focus' | null {
     if (!analysis) {
-      return false;
+      return null;
     }
 
-    const key = this.confidentKey(analysis.query, analysis.mode);
-    return this.confidentWords().some((item) => this.confidentKey(item.query, item.mode) === key);
+    const confidentKey = this.confidentKey(analysis.query, analysis.mode);
+    const focusKey = this.needsFocusKey(analysis.query, analysis.mode);
+    const confidentEntry = this.confidentWords().find((item) => this.confidentKey(item.query, item.mode) === confidentKey);
+    const focusEntry = this.needsFocusWords().find((item) => this.needsFocusKey(item.query, item.mode) === focusKey);
+
+    if (!confidentEntry && !focusEntry) {
+      return null;
+    }
+
+    if (!confidentEntry) {
+      return 'needs_focus';
+    }
+
+    if (!focusEntry) {
+      return 'confident';
+    }
+
+    return this.savedWordTime(confidentEntry.time) >= this.savedWordTime(focusEntry.time)
+      ? 'confident'
+      : 'needs_focus';
+  }
+
+  protected isAnalysisConfident(analysis: AnalysisResult | null): boolean {
+    return this.savedWordCanonicalState(analysis) === 'confident';
   }
 
   protected async toggleConfidentForAnalysis(analysis: AnalysisResult | null): Promise<void> {
@@ -1108,12 +1135,7 @@ export class App implements OnInit, AfterViewInit {
   }
 
   protected isAnalysisNeedsFocus(analysis: AnalysisResult | null): boolean {
-    if (!analysis) {
-      return false;
-    }
-
-    const key = this.needsFocusKey(analysis.query, analysis.mode);
-    return this.needsFocusWords().some((item) => this.needsFocusKey(item.query, item.mode) === key);
+    return this.savedWordCanonicalState(analysis) === 'needs_focus';
   }
 
   protected async toggleNeedsFocusForAnalysis(analysis: AnalysisResult | null): Promise<void> {
@@ -2168,6 +2190,10 @@ export class App implements OnInit, AfterViewInit {
       .filter((item) => {
         const query = String(item.query || item.title || '').trim().toLowerCase();
         if (!query) {
+          return false;
+        }
+
+        if (this.savedWordCanonicalState(item.analysis) !== source) {
           return false;
         }
 
