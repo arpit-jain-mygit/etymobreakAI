@@ -588,14 +588,10 @@ export class App implements OnInit, AfterViewInit {
     return [profile?.firstName, profile?.lastName].map((part) => String(part || '').trim()).filter(Boolean).join(' ');
   });
   protected readonly quizHistoryCount = computed(() => this.quizHistory().length);
-  protected readonly confidentWordsCount = computed(() => this.confidentWords().length);
-  protected readonly needsFocusWordsCount = computed(() => this.needsFocusWords().length);
-  protected readonly confidentWordsDisplayCount = computed(
-    () => this.getSavedWordInventoryEntries('', 'confident').length
-  );
-  protected readonly needsFocusWordsDisplayCount = computed(
-    () => this.getSavedWordInventoryEntries('', 'needs_focus').length
-  );
+  protected readonly confidentWordsCount = computed(() => this.getSavedWordInventoryEntries('', 'confident').length);
+  protected readonly needsFocusWordsCount = computed(() => this.getSavedWordInventoryEntries('', 'needs_focus').length);
+  protected readonly confidentWordsDisplayCount = computed(() => this.confidentWordsCount());
+  protected readonly needsFocusWordsDisplayCount = computed(() => this.needsFocusWordsCount());
   protected readonly activeSavedWordCount = computed(() => this.activeSavedWordEntries().length);
   protected readonly selectedQuizHistory = computed(() =>
     this.quizHistory().find((item) => item.id === this.selectedQuizHistoryId()) ?? null
@@ -1061,27 +1057,20 @@ export class App implements OnInit, AfterViewInit {
       return null;
     }
 
-    const confidentEntry = this.confidentWords().find((item) => this.savedWordIdentity(item) === identity);
-    const focusEntry = this.needsFocusWords().find((item) => this.savedWordIdentity(item) === identity);
-
-    if (!confidentEntry && !focusEntry) {
+    const canonical = this.canonicalSavedWordStates().find((item) => item.identity === identity);
+    if (!canonical) {
       return null;
     }
 
-    if (!confidentEntry) {
-      return 'needs_focus';
-    }
-
-    if (!focusEntry) {
-      return 'confident';
-    }
-
-    return this.savedWordTime(confidentEntry.time) >= this.savedWordTime(focusEntry.time)
-      ? 'confident'
-      : 'needs_focus';
+    return canonical.state;
   }
 
-  private syncSavedWordBuckets(): void {
+  private canonicalSavedWordStates(): Array<{
+    identity: string;
+    state: 'confident' | 'needs_focus';
+    entry: ConfidentWordEntry;
+    time: number;
+  }> {
     const chosen = new Map<
       string,
       {
@@ -1116,12 +1105,22 @@ export class App implements OnInit, AfterViewInit {
       ingest(entry, 'needs_focus');
     }
 
-    const nextConfident = [...chosen.values()]
+    return [...chosen.entries()].map(([identity, value]) => ({
+      identity,
+      state: value.state,
+      entry: value.entry,
+      time: value.time,
+    }));
+  }
+
+  private syncSavedWordBuckets(): void {
+    const canonical = this.canonicalSavedWordStates();
+    const nextConfident = canonical
       .filter((item) => item.state === 'confident')
       .map((item) => item.entry)
       .sort((a, b) => b.time.localeCompare(a.time));
 
-    const nextNeedsFocus = [...chosen.values()]
+    const nextNeedsFocus = canonical
       .filter((item) => item.state === 'needs_focus')
       .map((item) => item.entry)
       .sort((a, b) => b.time.localeCompare(a.time));
@@ -2254,28 +2253,17 @@ export class App implements OnInit, AfterViewInit {
 
   private getSavedWordAnalyses(letter = '', source: 'confident' | 'needs_focus'): AnalysisResult[] {
     const normalizedLetter = letter.trim().toLowerCase();
-    const entries = source === 'confident' ? this.confidentWords() : this.needsFocusWords();
-    const seen = new Set<string>();
+    const entries = this.canonicalSavedWordStates().filter((item) => item.state === source);
 
     return entries
       .filter((item) => {
-        const identity = this.savedWordIdentity(item);
-        if (!identity || seen.has(identity)) {
+        if (!item.identity) {
           return false;
         }
 
-        if (this.savedWordCanonicalState(item.analysis) !== source) {
-          return false;
-        }
-
-        if (normalizedLetter && !identity.startsWith(normalizedLetter)) {
-          return false;
-        }
-
-        seen.add(identity);
-        return true;
+        return !normalizedLetter || item.identity.startsWith(normalizedLetter);
       })
-      .map((item) => item.analysis)
+      .map((item) => item.entry.analysis)
       .filter((analysis) => !this.isEmptyAnalysis(analysis))
       .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
   }
