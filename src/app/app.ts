@@ -3336,7 +3336,7 @@ export class App implements OnInit, AfterViewInit {
 
         const response = await fetch(`${getApiBaseUrl()}/confident-words?${params.toString()}`);
         if (!response.ok) {
-          this.confidentWords.set([]);
+          this.confidentWordsError.set('Confident words could not be refreshed right now.');
           return;
         }
 
@@ -3443,7 +3443,7 @@ export class App implements OnInit, AfterViewInit {
 
         const response = await fetch(`${getApiBaseUrl()}/needs-focus-words?${params.toString()}`);
         if (!response.ok) {
-          this.needsFocusWords.set([]);
+          this.needsFocusWordsError.set('Needs Focus words could not be refreshed right now.');
           return;
         }
 
