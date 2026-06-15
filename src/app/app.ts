@@ -1033,15 +1033,36 @@ export class App implements OnInit, AfterViewInit {
     return Number.isFinite(time) ? time : 0;
   }
 
+  private savedWordIdentity(value: AnalysisResult | ConfidentWordEntry | NeedsFocusWordEntry | null | undefined): string {
+    if (!value) {
+      return '';
+    }
+
+    const analysis = 'analysis' in value ? (value.analysis as AnalysisResult | null) : (value as AnalysisResult);
+    const root = String(
+      analysis?.rootFamily?.root ||
+        analysis?.query ||
+        ('query' in value ? value.query : '') ||
+        ('title' in value ? value.title : '') ||
+        ''
+    )
+      .trim()
+      .toLowerCase();
+    return root;
+  }
+
   private savedWordCanonicalState(analysis: AnalysisResult | null): 'confident' | 'needs_focus' | null {
     if (!analysis) {
       return null;
     }
 
-    const confidentKey = this.confidentKey(analysis.query, analysis.mode);
-    const focusKey = this.needsFocusKey(analysis.query, analysis.mode);
-    const confidentEntry = this.confidentWords().find((item) => this.confidentKey(item.query, item.mode) === confidentKey);
-    const focusEntry = this.needsFocusWords().find((item) => this.needsFocusKey(item.query, item.mode) === focusKey);
+    const identity = this.savedWordIdentity(analysis);
+    if (!identity) {
+      return null;
+    }
+
+    const confidentEntry = this.confidentWords().find((item) => this.savedWordIdentity(item) === identity);
+    const focusEntry = this.needsFocusWords().find((item) => this.savedWordIdentity(item) === identity);
 
     if (!confidentEntry && !focusEntry) {
       return null;
@@ -1058,6 +1079,57 @@ export class App implements OnInit, AfterViewInit {
     return this.savedWordTime(confidentEntry.time) >= this.savedWordTime(focusEntry.time)
       ? 'confident'
       : 'needs_focus';
+  }
+
+  private syncSavedWordBuckets(): void {
+    const chosen = new Map<
+      string,
+      {
+        state: 'confident' | 'needs_focus';
+        entry: ConfidentWordEntry;
+        time: number;
+      }
+    >();
+
+    const ingest = (entry: ConfidentWordEntry, state: 'confident' | 'needs_focus'): void => {
+      const identity = this.savedWordIdentity(entry);
+      if (!identity) {
+        return;
+      }
+
+      const time = this.savedWordTime(entry.time);
+      const existing = chosen.get(identity);
+      if (
+        !existing ||
+        time > existing.time ||
+        (time === existing.time && state === 'needs_focus' && existing.state === 'confident')
+      ) {
+        chosen.set(identity, { state, entry, time });
+      }
+    };
+
+    for (const entry of this.confidentWords()) {
+      ingest(entry, 'confident');
+    }
+
+    for (const entry of this.needsFocusWords()) {
+      ingest(entry, 'needs_focus');
+    }
+
+    const nextConfident = [...chosen.values()]
+      .filter((item) => item.state === 'confident')
+      .map((item) => item.entry)
+      .sort((a, b) => b.time.localeCompare(a.time));
+
+    const nextNeedsFocus = [...chosen.values()]
+      .filter((item) => item.state === 'needs_focus')
+      .map((item) => item.entry)
+      .sort((a, b) => b.time.localeCompare(a.time));
+
+    this.confidentWords.set(nextConfident);
+    this.needsFocusWords.set(nextNeedsFocus);
+    this.saveSavedWordsCache('confident', nextConfident);
+    this.saveSavedWordsCache('needs_focus', nextNeedsFocus);
   }
 
   protected isAnalysisConfident(analysis: AnalysisResult | null): boolean {
@@ -1112,21 +1184,21 @@ export class App implements OnInit, AfterViewInit {
 
       if (saved && !(saved as { removed?: boolean }).removed) {
         const entry = saved as ConfidentWordEntry;
-        const key = this.confidentKey(entry.query, entry.mode);
-        const next = [entry, ...this.confidentWords().filter((item) => this.confidentKey(item.query, item.mode) !== key)];
+        const key = this.savedWordIdentity(entry);
+        const next = [entry, ...this.confidentWords().filter((item) => this.savedWordIdentity(item) !== key)];
         this.confidentWords.set(next);
         this.saveSavedWordsCache('confident', next);
         this.confidentWordNotice.set(`${analysis.title || analysis.query} was marked as Confident.`);
-        if (this.isAnalysisNeedsFocus(analysis)) {
-          await this.removeNeedsFocusForAnalysis(analysis);
-        }
+        await this.removeNeedsFocusForAnalysis(analysis);
       } else {
-        const key = this.confidentKey(query, analysis.mode || 'word');
-        const next = this.confidentWords().filter((item) => this.confidentKey(item.query, item.mode) !== key);
+        const key = this.savedWordIdentity(analysis);
+        const next = this.confidentWords().filter((item) => this.savedWordIdentity(item) !== key);
         this.confidentWords.set(next);
         this.saveSavedWordsCache('confident', next);
         this.confidentWordNotice.set(`${analysis.title || analysis.query} was removed from Confident words.`);
       }
+
+      this.syncSavedWordBuckets();
     } catch (error) {
       this.confidentWordsError.set(error instanceof Error ? error.message : 'Your confident word could not be saved.');
     } finally {
@@ -1186,21 +1258,21 @@ export class App implements OnInit, AfterViewInit {
 
       if (saved && !(saved as { removed?: boolean }).removed) {
         const entry = saved as NeedsFocusWordEntry;
-        const key = this.needsFocusKey(entry.query, entry.mode);
-        const next = [entry, ...this.needsFocusWords().filter((item) => this.needsFocusKey(item.query, item.mode) !== key)];
+        const key = this.savedWordIdentity(entry);
+        const next = [entry, ...this.needsFocusWords().filter((item) => this.savedWordIdentity(item) !== key)];
         this.needsFocusWords.set(next);
         this.saveSavedWordsCache('needs_focus', next);
         this.needsFocusWordNotice.set(`${analysis.title || analysis.query} was marked as Needs Focus.`);
-        if (this.isAnalysisConfident(analysis)) {
-          await this.removeConfidentForAnalysis(analysis);
-        }
+        await this.removeConfidentForAnalysis(analysis);
       } else {
-        const key = this.needsFocusKey(query, analysis.mode || 'word');
-        const next = this.needsFocusWords().filter((item) => this.needsFocusKey(item.query, item.mode) !== key);
+        const key = this.savedWordIdentity(analysis);
+        const next = this.needsFocusWords().filter((item) => this.savedWordIdentity(item) !== key);
         this.needsFocusWords.set(next);
         this.saveSavedWordsCache('needs_focus', next);
         this.needsFocusWordNotice.set(`${analysis.title || analysis.query} was removed from Needs Focus words.`);
       }
+
+      this.syncSavedWordBuckets();
     } catch (error) {
       this.needsFocusWordsError.set(error instanceof Error ? error.message : 'Your needs-focus word could not be saved.');
     } finally {
@@ -1238,11 +1310,10 @@ export class App implements OnInit, AfterViewInit {
         return;
       }
 
-      const next = this.confidentWords().filter(
-        (item) => this.confidentKey(item.query, item.mode) !== this.confidentKey(query, analysis.mode || 'word')
-      );
+      const next = this.confidentWords().filter((item) => this.savedWordIdentity(item) !== this.savedWordIdentity(analysis));
       this.confidentWords.set(next);
       this.saveSavedWordsCache('confident', next);
+      this.syncSavedWordBuckets();
     } catch {
       return;
     }
@@ -1278,11 +1349,10 @@ export class App implements OnInit, AfterViewInit {
         return;
       }
 
-      const next = this.needsFocusWords().filter(
-        (item) => this.needsFocusKey(item.query, item.mode) !== this.needsFocusKey(query, analysis.mode || 'word')
-      );
+      const next = this.needsFocusWords().filter((item) => this.savedWordIdentity(item) !== this.savedWordIdentity(analysis));
       this.needsFocusWords.set(next);
       this.saveSavedWordsCache('needs_focus', next);
+      this.syncSavedWordBuckets();
     } catch {
       return;
     }
@@ -2185,11 +2255,12 @@ export class App implements OnInit, AfterViewInit {
   private getSavedWordAnalyses(letter = '', source: 'confident' | 'needs_focus'): AnalysisResult[] {
     const normalizedLetter = letter.trim().toLowerCase();
     const entries = source === 'confident' ? this.confidentWords() : this.needsFocusWords();
+    const seen = new Set<string>();
 
     return entries
       .filter((item) => {
-        const query = String(item.query || item.title || '').trim().toLowerCase();
-        if (!query) {
+        const identity = this.savedWordIdentity(item);
+        if (!identity || seen.has(identity)) {
           return false;
         }
 
@@ -2197,7 +2268,12 @@ export class App implements OnInit, AfterViewInit {
           return false;
         }
 
-        return !normalizedLetter || query.startsWith(normalizedLetter);
+        if (normalizedLetter && !identity.startsWith(normalizedLetter)) {
+          return false;
+        }
+
+        seen.add(identity);
+        return true;
       })
       .map((item) => item.analysis)
       .filter((analysis) => !this.isEmptyAnalysis(analysis))
@@ -3515,6 +3591,7 @@ export class App implements OnInit, AfterViewInit {
 
         this.confidentWords.set(entries);
         this.saveSavedWordsCache('confident', entries);
+        this.syncSavedWordBuckets();
         this.confidentWordsLoadedIdentity = identity;
       } catch {
         this.confidentWordsError.set('Confident words could not be loaded.');
@@ -3628,6 +3705,7 @@ export class App implements OnInit, AfterViewInit {
 
         this.needsFocusWords.set(entries);
         this.saveSavedWordsCache('needs_focus', entries);
+        this.syncSavedWordBuckets();
         this.needsFocusWordsLoadedIdentity = identity;
       } catch {
         this.needsFocusWordsError.set('Needs Focus words could not be loaded.');
