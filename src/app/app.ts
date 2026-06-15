@@ -166,7 +166,14 @@ interface QuizAttemptQuestion {
   isCorrect: boolean | null;
 }
 
-type QuizBankType = 'root' | 'revision' | 'word' | 'root_prefix_suffix' | 'mixed';
+type QuizBankType =
+  | 'root'
+  | 'revision'
+  | 'word'
+  | 'root_prefix_suffix'
+  | 'mixed'
+  | 'confident'
+  | 'needs_focus';
 type QuizFlowStage = 'setup' | 'taking' | 'summary';
 type QuizReviewFilter = 'all' | 'correct' | 'wrong' | 'skipped';
 
@@ -306,7 +313,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly experimentLetter = signal('');
   protected readonly experimentIndex = signal(0);
   protected readonly quizFlowStage = signal<QuizFlowStage>('setup');
-  protected readonly quizType = signal<QuizBankType>('root');
+  protected readonly quizType = signal<QuizBankType>('mixed');
   protected readonly quizDifficulty = signal(1);
   protected readonly quizQuestionTarget = signal(5);
   protected readonly quizIndex = signal(0);
@@ -352,7 +359,19 @@ export class App implements OnInit, AfterViewInit {
     const seconds = remaining % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   });
-  protected readonly quizTypeLabel = computed(() => 'Root quiz');
+  protected readonly quizTypeLabel = computed(() => {
+    switch (this.quizType()) {
+      case 'confident':
+        return 'Confident words quiz';
+      case 'needs_focus':
+        return 'Needs focus quiz';
+      case 'mixed':
+      case 'revision':
+        return 'Mixed revision quiz';
+      default:
+        return 'Root quiz';
+    }
+  });
   protected readonly quizDifficultyLabel = computed(() => `Level ${this.quizDifficulty()}`);
   private inventoryIndex = new Map<string, unknown>();
   private inventoryLoadPromise: Promise<void> | null = null;
@@ -1005,8 +1024,8 @@ export class App implements OnInit, AfterViewInit {
     this.experimentIndex.set(0);
   }
 
-  protected selectQuizType(_type: QuizBankType): void {
-    this.quizType.set('revision');
+  protected selectQuizType(type: QuizBankType): void {
+    this.quizType.set(type);
   }
 
   protected isAnalysisConfident(analysis: AnalysisResult | null): boolean {
@@ -1288,7 +1307,6 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
-    this.quizType.set('revision');
     this.quizPreparing.set(true);
     this.quizHistorySaved.set(false);
     this.quizHistorySubmitting.set(false);
@@ -2598,13 +2616,16 @@ export class App implements OnInit, AfterViewInit {
     if (bankType === 'root' || bankType === 'revision') {
       return null;
     }
+    if (bankType === 'confident' || bankType === 'needs_focus') {
+      return null;
+    }
 
     const cached = this.quizBankCache.get(bankType);
     if (cached) {
       return cached;
     }
 
-    const fileMap: Record<Exclude<QuizBankType, 'root'>, string> = {
+    const fileMap: Record<Exclude<QuizBankType, 'root' | 'confident' | 'needs_focus'>, string> = {
       word: '/question_bank_words.json',
       root_prefix_suffix: '/question_bank_roots_prefixes_suffixes.json',
       mixed: '/question_bank_mixed.json',
@@ -2730,8 +2751,8 @@ export class App implements OnInit, AfterViewInit {
     targetCount: number
   ): Promise<QuizQuestion[]> {
     this.quizAttemptCounter += 1;
-    if (type === 'revision') {
-      return this.buildRevisionQuizDeck(difficulty, targetCount);
+    if (type === 'revision' || type === 'mixed' || type === 'confident' || type === 'needs_focus') {
+      return this.buildRevisionQuizDeck(difficulty, targetCount, type);
     }
 
     if (type === 'root') {
@@ -2828,7 +2849,11 @@ export class App implements OnInit, AfterViewInit {
     };
   }
 
-  private async buildRevisionQuizDeck(difficulty: number, targetCount: number): Promise<QuizQuestion[]> {
+  private async buildRevisionQuizDeck(
+    difficulty: number,
+    targetCount: number,
+    mode: QuizBankType = 'mixed'
+  ): Promise<QuizQuestion[]> {
     if (this.inventoryLoadPromise) {
       await this.inventoryLoadPromise;
     }
@@ -2839,16 +2864,9 @@ export class App implements OnInit, AfterViewInit {
     await this.loadConfidentWordsFromServer();
     await this.loadNeedsFocusWordsFromServer();
 
-    const allRootEntries = this.getRootInventoryEntries();
     const confidentEntries = this.getSavedWordInventoryEntries('', 'confident');
     const focusEntries = this.getSavedWordInventoryEntries('', 'needs_focus').filter(
       (entry) => !confidentEntries.some((confident) => confident.root.trim().toLowerCase() === entry.root.trim().toLowerCase())
-    );
-    const savedRootKeys = new Set(
-      [...confidentEntries, ...focusEntries].map((entry) => entry.root.trim().toLowerCase()).filter(Boolean)
-    );
-    const newEntries = allRootEntries.filter(
-      (entry) => !savedRootKeys.has(entry.root.trim().toLowerCase())
     );
 
     const confidentAnalyses = this.uniqueAnalyses(
@@ -2862,6 +2880,11 @@ export class App implements OnInit, AfterViewInit {
         .filter((item): item is AnalysisResult => item !== null && !this.isEmptyAnalysis(item)),
       confidentAnalyses
     );
+    const allRootEntries = this.getRootInventoryEntries();
+    const savedRootKeys = new Set(
+      [...confidentEntries, ...focusEntries].map((entry) => entry.root.trim().toLowerCase()).filter(Boolean)
+    );
+    const newEntries = allRootEntries.filter((entry) => !savedRootKeys.has(entry.root.trim().toLowerCase()));
     const newAnalyses = this.uniqueAnalyses(
       newEntries
         .map((entry) => this.rootEntryAnalysis(entry))
@@ -2878,25 +2901,28 @@ export class App implements OnInit, AfterViewInit {
       return [];
     }
 
-    const totalTarget = Math.max(1, Math.floor(Number(targetCount || 0)) || 1);
-    const confidentTarget = Math.min(confidentAnalyses.length, totalTarget);
-    const remainingTarget = Math.max(0, totalTarget - confidentTarget);
-    const focusTarget = Math.floor(remainingTarget / 2);
-    const newTarget = remainingTarget - focusTarget;
-
-    const confidentCandidates = this.shuffle(
-      this.buildRevisionCandidates(confidentAnalyses, difficulty, allInventoryAnalyses)
-    );
+    const confidentCandidates = this.shuffle(this.buildRevisionCandidates(confidentAnalyses, difficulty, allInventoryAnalyses));
     const focusCandidates = this.shuffle(this.buildRevisionCandidates(focusAnalyses, difficulty, allInventoryAnalyses));
     const newCandidates = this.shuffle(this.buildRevisionCandidates(newAnalyses, difficulty, allInventoryAnalyses));
-    const newFallbackCandidates = this.shuffle(this.buildRevisionCandidates(newAnalyses, 1, allInventoryAnalyses));
 
     const selected: QuizQuestion[] = [];
     const used = new Set<string>();
+    const addAll = (pool: QuizQuestion[]): void => {
+      for (const question of pool) {
+        const key = this.revisionQuestionKey(question);
+        if (used.has(key)) {
+          continue;
+        }
+
+        used.add(key);
+        selected.push(question);
+      }
+    };
 
     const takeFrom = (pool: QuizQuestion[], limit: number): void => {
+      let taken = 0;
       for (const question of pool) {
-        if (selected.length >= totalTarget || limit <= 0) {
+        if (taken >= limit) {
           break;
         }
 
@@ -2907,9 +2933,26 @@ export class App implements OnInit, AfterViewInit {
 
         used.add(key);
         selected.push(question);
-        limit -= 1;
+        taken += 1;
       }
     };
+
+    if (mode === 'confident') {
+      addAll(confidentCandidates);
+      return selected.length ? selected : confidentCandidates.slice(0, Math.max(1, confidentEntries.length));
+    }
+
+    if (mode === 'needs_focus') {
+      addAll(focusCandidates);
+      return selected.length ? selected : focusCandidates.slice(0, Math.max(1, focusEntries.length));
+    }
+
+    const totalTarget = Math.max(1, Math.floor(Number(targetCount || 0)) || 1);
+    const confidentTarget = Math.min(confidentAnalyses.length, totalTarget);
+    const remainingTarget = Math.max(0, totalTarget - confidentTarget);
+    const focusTarget = Math.floor(remainingTarget / 2);
+    const newTarget = remainingTarget - focusTarget;
+    const newFallbackCandidates = this.shuffle(this.buildRevisionCandidates(newAnalyses, 1, allInventoryAnalyses));
 
     takeFrom(confidentCandidates, confidentTarget);
     takeFrom(focusCandidates, focusTarget);

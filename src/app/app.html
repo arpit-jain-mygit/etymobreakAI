@@ -935,6 +935,36 @@
             <section class="notice calm-notice">{{ quizNotice() }}</section>
           }
 
+          <div class="quiz-mode-grid" aria-label="Quiz creation choices">
+            <button
+              type="button"
+              class="quiz-mode-card"
+              [class.active]="quizType() === 'confident'"
+              (click)="selectQuizType('confident')"
+            >
+              <strong>All confident words</strong>
+              <p>Build the quiz from every saved confident word.</p>
+            </button>
+            <button
+              type="button"
+              class="quiz-mode-card"
+              [class.active]="quizType() === 'mixed'"
+              (click)="selectQuizType('mixed')"
+            >
+              <strong>Mix</strong>
+              <p>Use the current mixed formula with confident, focus, and new roots.</p>
+            </button>
+            <button
+              type="button"
+              class="quiz-mode-card"
+              [class.active]="quizType() === 'needs_focus'"
+              (click)="selectQuizType('needs_focus')"
+            >
+              <strong>Needs focus</strong>
+              <p>Build the quiz from every saved needs-focus word.</p>
+            </button>
+          </div>
+
           <div class="quiz-actions quiz-actions-setup">
             <button
               type="button"
