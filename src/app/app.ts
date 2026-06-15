@@ -2839,26 +2839,42 @@ export class App implements OnInit, AfterViewInit {
     await this.loadConfidentWordsFromServer();
     await this.loadNeedsFocusWordsFromServer();
 
+    const allRootEntries = this.getRootInventoryEntries();
+    const confidentEntries = this.getSavedWordInventoryEntries('', 'confident');
+    const focusEntries = this.getSavedWordInventoryEntries('', 'needs_focus').filter(
+      (entry) => !confidentEntries.some((confident) => confident.root.trim().toLowerCase() === entry.root.trim().toLowerCase())
+    );
+    const savedRootKeys = new Set(
+      [...confidentEntries, ...focusEntries].map((entry) => entry.root.trim().toLowerCase()).filter(Boolean)
+    );
+    const newEntries = allRootEntries.filter(
+      (entry) => !savedRootKeys.has(entry.root.trim().toLowerCase())
+    );
+
     const confidentAnalyses = this.uniqueAnalyses(
-      this.getSavedWordInventoryEntries('', 'confident')
+      confidentEntries
         .map((entry) => this.rootEntryAnalysis(entry))
         .filter((item): item is AnalysisResult => item !== null && !this.isEmptyAnalysis(item))
     );
     const focusAnalyses = this.uniqueAnalyses(
-      this.getSavedWordInventoryEntries('', 'needs_focus')
+      focusEntries
         .map((entry) => this.rootEntryAnalysis(entry))
         .filter((item): item is AnalysisResult => item !== null && !this.isEmptyAnalysis(item)),
       confidentAnalyses
     );
-    const allInventoryAnalyses = this.uniqueAnalyses(
-      this.getInventoryAnalyses('', 'all').filter((analysis) => !this.isEmptyAnalysis(analysis))
-    );
-    const inventoryAnalyses = this.uniqueAnalyses(
-      allInventoryAnalyses,
+    const newAnalyses = this.uniqueAnalyses(
+      newEntries
+        .map((entry) => this.rootEntryAnalysis(entry))
+        .filter((item): item is AnalysisResult => item !== null && !this.isEmptyAnalysis(item)),
       [...confidentAnalyses, ...focusAnalyses]
     );
+    const allInventoryAnalyses = this.uniqueAnalyses(
+      allRootEntries
+        .map((entry) => this.rootEntryAnalysis(entry))
+        .filter((analysis): analysis is AnalysisResult => analysis !== null && !this.isEmptyAnalysis(analysis))
+    );
 
-    if (!confidentAnalyses.length && !focusAnalyses.length && !inventoryAnalyses.length) {
+    if (!confidentAnalyses.length && !focusAnalyses.length && !newAnalyses.length) {
       return [];
     }
 
@@ -2872,8 +2888,8 @@ export class App implements OnInit, AfterViewInit {
       this.buildRevisionCandidates(confidentAnalyses, difficulty, allInventoryAnalyses)
     );
     const focusCandidates = this.shuffle(this.buildRevisionCandidates(focusAnalyses, difficulty, allInventoryAnalyses));
-    const otherCandidates = this.shuffle(this.buildRevisionCandidates(inventoryAnalyses, difficulty, allInventoryAnalyses));
-    const newFallbackCandidates = this.shuffle(this.buildRevisionCandidates(inventoryAnalyses, 1, allInventoryAnalyses));
+    const newCandidates = this.shuffle(this.buildRevisionCandidates(newAnalyses, difficulty, allInventoryAnalyses));
+    const newFallbackCandidates = this.shuffle(this.buildRevisionCandidates(newAnalyses, 1, allInventoryAnalyses));
 
     const selected: QuizQuestion[] = [];
     const used = new Set<string>();
@@ -2897,14 +2913,14 @@ export class App implements OnInit, AfterViewInit {
 
     takeFrom(confidentCandidates, confidentTarget);
     takeFrom(focusCandidates, focusTarget);
-    takeFrom(otherCandidates, newTarget);
+    takeFrom(newCandidates, newTarget);
 
     if (selected.length < totalTarget && newTarget > 0) {
       takeFrom(newFallbackCandidates, totalTarget - selected.length);
     }
 
     if (selected.length < totalTarget) {
-      const fallbackPool = this.shuffle([...confidentCandidates, ...focusCandidates, ...otherCandidates]);
+      const fallbackPool = this.shuffle([...confidentCandidates, ...focusCandidates, ...newCandidates]);
       takeFrom(fallbackPool, totalTarget - selected.length);
     }
 
