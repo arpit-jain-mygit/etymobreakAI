@@ -2793,8 +2793,11 @@ export class App implements OnInit, AfterViewInit {
         .filter((item) => !this.isEmptyAnalysis(item)),
       confidentAnalyses
     );
+    const allInventoryAnalyses = this.uniqueAnalyses(
+      this.getInventoryAnalyses('', 'all').filter((analysis) => !this.isEmptyAnalysis(analysis))
+    );
     const inventoryAnalyses = this.uniqueAnalyses(
-      this.getInventoryAnalyses('', 'all').filter((analysis) => !this.isEmptyAnalysis(analysis)),
+      allInventoryAnalyses,
       [...confidentAnalyses, ...focusAnalyses]
     );
 
@@ -2808,10 +2811,12 @@ export class App implements OnInit, AfterViewInit {
     const focusTarget = Math.floor(remainingTarget / 2);
     const newTarget = remainingTarget - focusTarget;
 
-    const confidentCandidates = this.shuffle(this.buildRevisionCandidates(confidentAnalyses, difficulty));
-    const focusCandidates = this.shuffle(this.buildRevisionCandidates(focusAnalyses, difficulty));
-    const otherCandidates = this.shuffle(this.buildRevisionCandidates(inventoryAnalyses, difficulty));
-    const newFallbackCandidates = this.shuffle(this.buildRevisionCandidates(inventoryAnalyses, 1));
+    const confidentCandidates = this.shuffle(
+      this.buildRevisionCandidates(confidentAnalyses, difficulty, allInventoryAnalyses)
+    );
+    const focusCandidates = this.shuffle(this.buildRevisionCandidates(focusAnalyses, difficulty, allInventoryAnalyses));
+    const otherCandidates = this.shuffle(this.buildRevisionCandidates(inventoryAnalyses, difficulty, allInventoryAnalyses));
+    const newFallbackCandidates = this.shuffle(this.buildRevisionCandidates(inventoryAnalyses, 1, allInventoryAnalyses));
 
     const selected: QuizQuestion[] = [];
     const used = new Set<string>();
@@ -2849,32 +2854,36 @@ export class App implements OnInit, AfterViewInit {
     return this.shuffle(selected).slice(0, totalTarget);
   }
 
-  private buildRevisionCandidates(analyses: AnalysisResult[], difficulty: number): QuizQuestion[] {
+  private buildRevisionCandidates(
+    analyses: AnalysisResult[],
+    difficulty: number,
+    distractorAnalyses: AnalysisResult[] = analyses
+  ): QuizQuestion[] {
     if (!analyses.length) {
       return [];
     }
 
     const titles = this.uniqueStrings(
-      analyses.map((analysis) => analysis.title || analysis.query).filter((value): value is string => Boolean(value))
+      distractorAnalyses.map((analysis) => analysis.title || analysis.query).filter((value): value is string => Boolean(value))
     );
     const meanings = this.uniqueStrings(
-      analyses
+      distractorAnalyses
         .map((analysis) => analysis.actualMeaning || analysis.summary || analysis.literalMeaning)
         .filter((value): value is string => Boolean(value))
     );
     const formulas = this.uniqueStrings(
-      analyses
+      distractorAnalyses
         .map((analysis) => analysis.literalMeaningFormula || analysis.literalMeaning)
         .filter((value): value is string => Boolean(value))
     );
     const breakdownMeanings = this.uniqueStrings(
-      analyses.flatMap((analysis) => analysis.breakdown.map((part) => part.meaning).filter(Boolean))
+      distractorAnalyses.flatMap((analysis) => analysis.breakdown.map((part) => part.meaning).filter(Boolean))
     );
     const familyTerms = this.uniqueStrings(
-      analyses.flatMap((analysis) => analysis.familyMemory.map((item) => item.term).filter(Boolean))
+      distractorAnalyses.flatMap((analysis) => analysis.familyMemory.map((item) => item.term).filter(Boolean))
     );
     const rootMeanings = this.uniqueStrings(
-      analyses
+      distractorAnalyses
         .map((analysis) => analysis.rootFamily.meaning)
         .filter((value): value is string => Boolean(value))
     );
