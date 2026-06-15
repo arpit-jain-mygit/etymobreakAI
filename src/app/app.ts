@@ -394,8 +394,8 @@ export class App implements OnInit, AfterViewInit {
       this.autocompleteOptions().length > 0
   );
   protected readonly alphabet = computed(() => 'abcdefghijklmnopqrstuvwxyz'.split(''));
-  protected readonly allWordSlides = computed(() => this.getInventoryAnalyses(this.experimentLetter(), 'all'));
-  protected readonly rootSuffixSlides = computed(() => this.getInventoryAnalyses(this.experimentLetter(), 'root_suffix'));
+  protected readonly allWordSlides = computed(() => this.getRootInventoryEntries());
+  protected readonly rootSuffixSlides = computed(() => this.getRootInventoryEntries());
   protected readonly confidentWordSlides = computed(() =>
     this.getSavedWordAnalyses(this.experimentLetter(), 'confident')
   );

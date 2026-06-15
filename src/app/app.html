@@ -885,7 +885,9 @@
               </article>
             </div>
           </div>
-        } @else {
+        }
+
+        @if (!experimentSlide()) {
           <section class="notice calm-notice">
             {{
               activeTab() === 'all_words'
@@ -1175,4 +1177,5 @@
         }
       </section>
     }
+  }
 </main>
