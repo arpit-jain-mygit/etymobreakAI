@@ -733,147 +733,58 @@
       }
     }
 
-    @if (activeTab() === 'all_words') {
-      <section class="experiment-panel root-browser-panel">
-        <div class="experiment-toolbar">
-          <div class="alphabet-row">
-            <span class="quiz-counter">Root inventory</span>
-          </div>
-          <div class="quiz-meta">
-            <span>{{ rootInventoryCount() }} roots</span>
-            <span>Root / prefix / suffix</span>
-          </div>
-        </div>
-
-        @if (rootInventoryEntries().length) {
-          <div class="root-list">
-            @for (entry of rootInventoryEntries(); track entry.root + '|' + entry.type) {
-              <article class="root-card" [class.prefix-card]="entry.type === 'prefix'" [class.suffix-card]="entry.type === 'suffix'">
-                <div class="root-card-head">
-                  <div class="root-card-title">
-                    <p class="section-label">{{ entry.type }}</p>
-                    <h2>{{ entry.root }}</h2>
-                  </div>
-                  <span>{{ entry.assembledWords.length }} examples</span>
-                </div>
-
-                <p class="root-card-meaning">{{ entry.meaning }}</p>
-                @if (entry.source) {
-                  <p class="root-card-source">{{ entry.source }}</p>
-                }
-                @if (entry.exampleSentence) {
-                  <em class="root-card-example">{{ entry.exampleSentence }}</em>
-                }
-
-                @if (entry.alternateForms.length) {
-                  <div class="examples-row root-pill-row" aria-label="Alternate forms">
-                    @for (form of entry.alternateForms; track form) {
-                      <span class="example-pill">{{ form }}</span>
-                    }
-                  </div>
-                }
-
-                @if (entry.assembledWords.length) {
-                  <div class="root-assembled-list" aria-label="Assembled words">
-                    @for (word of entry.assembledWords; track word.word) {
-                      <article class="root-assembled-card">
-                        <strong>{{ word.word }}</strong>
-                        <p>{{ word.meaning }}</p>
-                        @if (word.breakdownParts.length) {
-                          <div class="examples-row root-pill-row" aria-label="Breakdown parts">
-                            @for (part of word.breakdownParts; track part) {
-                              <span class="example-pill">{{ part }}</span>
-                            }
-                          </div>
-                        }
-                        @if (word.otherRootWords.length) {
-                          <div class="root-assembled-roots" aria-label="Other root words">
-                            @for (part of word.otherRootWords; track part.root) {
-                              <div class="root-assembled-root">
-                                <strong>{{ part.root }}</strong>
-                                <p>{{ part.meaning }}</p>
-                                @if (part.examples?.length) {
-                                  <div class="examples-row root-pill-row" aria-label="Examples from root inventory">
-                                    @for (example of part.examples; track example.word) {
-                                      <span class="example-pill">
-                                        {{ example.word }} • {{ example.meaning }}
-                                      </span>
-                                    }
-                                  </div>
-                                }
-                              </div>
-                            }
-                          </div>
-                        }
-                        @if (word.exampleSentence) {
-                          <em>{{ word.exampleSentence }}</em>
-                        }
-                      </article>
-                    }
-                  </div>
-                }
-
-                <div class="root-card-actions">
-                  @if (isRootEntryConfident(entry)) {
-                    <span class="status-chip confident">Confident</span>
-                  } @else if (isRootEntryNeedsFocus(entry)) {
-                    <span class="status-chip needs-focus">Needs Focus</span>
-                    <button
-                      type="button"
-                      class="tab-chip"
-                      [disabled]="confidentWordsSaving()"
-                      (click)="toggleConfidentForRootEntry(entry)"
-                    >
-                      Mark Confident
-                    </button>
-                  } @else {
-                    <button
-                      type="button"
-                      class="tab-chip"
-                      [disabled]="confidentWordsSaving()"
-                      (click)="toggleConfidentForRootEntry(entry)"
-                    >
-                      Mark Confident
-                    </button>
-                    <button
-                      type="button"
-                      class="tab-chip"
-                      [disabled]="needsFocusWordsSaving()"
-                      (click)="toggleNeedsFocusForRootEntry(entry)"
-                    >
-                      Mark Needs Focus
-                    </button>
-                  }
-                </div>
-              </article>
-            }
-          </div>
-        } @else {
-          <section class="notice calm-notice">No root entries found.</section>
-        }
-      </section>
-    }
-
-    @if (activeTab() === 'confident_words' || activeTab() === 'needs_focus_words') {
-      <section class="experiment-panel saved-words-panel">
+    @if (activeTab() === 'all_words' || activeTab() === 'confident_words' || activeTab() === 'needs_focus_words') {
+      <section class="experiment-panel root-browser-panel word-slideshow-panel">
         <div class="experiment-toolbar">
           <div class="alphabet-row">
             <span class="quiz-counter">
-              {{ activeTab() === 'confident_words' ? 'My Confident Words' : 'Words need more Focus' }}
+              {{
+                activeTab() === 'all_words'
+                  ? 'Root inventory'
+                  : activeTab() === 'confident_words'
+                    ? 'My Confident Words'
+                    : 'Words need more Focus'
+              }}
             </span>
           </div>
           <div class="quiz-meta">
-            <span>{{ activeSavedWordCount() }} words</span>
-            <span>Same root cards</span>
-            <button type="button" class="tab-chip" (click)="exportActiveSavedWordsAsPdf()">
-              Export PDF
-            </button>
+            <span>{{ experimentSlidePosition() }} / {{ experimentSlideCount() }}</span>
+            <span>{{ activeTab() === 'all_words' ? 'All words' : 'Saved words' }}</span>
+            @if (activeTab() !== 'all_words') {
+              <button type="button" class="tab-chip" (click)="exportActiveSavedWordsAsPdf()">Export PDF</button>
+            }
           </div>
         </div>
 
-        @if (activeSavedWordEntries().length) {
-          <div class="root-list">
-            @for (entry of activeSavedWordEntries(); track entry.root + '|' + entry.type) {
+        @if (experimentSlide(); as entry) {
+          <div class="flash-stage word-stage">
+            <button
+              type="button"
+              class="nav-button"
+              aria-label="Previous word"
+              (click)="previousExperimentSlide()"
+              [disabled]="!experimentSlideCount() || experimentSlidePosition() <= 1"
+              style="position:absolute; left:12px; top:50%; transform:translateY(-50%); z-index:2;"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              class="nav-button"
+              aria-label="Next word"
+              (click)="nextExperimentSlide()"
+              [disabled]="!experimentSlideCount() || experimentSlidePosition() >= experimentSlideCount()"
+              style="position:absolute; right:12px; top:50%; transform:translateY(-50%); z-index:2;"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </button>
+
+            <div class="flash-card-shell word-shell">
               <article class="root-card" [class.prefix-card]="entry.type === 'prefix'" [class.suffix-card]="entry.type === 'suffix'">
                 <div class="root-card-head">
                   <div class="root-card-title">
@@ -976,7 +887,13 @@
           </div>
         } @else {
           <section class="notice calm-notice">
-            {{ activeTab() === 'confident_words' ? 'No confident words yet.' : 'No focus words yet.' }}
+            {{
+              activeTab() === 'all_words'
+                ? 'No root entries found.'
+                : activeTab() === 'confident_words'
+                  ? 'No confident words yet.'
+                  : 'No focus words yet.'
+            }}
           </section>
         }
       </section>

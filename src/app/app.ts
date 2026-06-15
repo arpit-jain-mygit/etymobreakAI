@@ -427,7 +427,9 @@ export class App implements OnInit, AfterViewInit {
   protected readonly activeWordSlides = computed(() =>
     this.activeTab() === 'root_suffix'
       ? this.rootSuffixSlides()
-      : this.allWordSlides()
+      : this.activeTab() === 'confident_words' || this.activeTab() === 'needs_focus_words'
+        ? this.activeSavedWordEntries()
+        : this.allWordSlides()
   );
   protected readonly experimentSlide = computed(() => {
     const slides = this.activeWordSlides();
@@ -827,6 +829,9 @@ export class App implements OnInit, AfterViewInit {
 
   protected setActiveTab(tab: AppTab): void {
     this.activeTab.set(tab);
+    if (tab === 'all_words' || tab === 'confident_words' || tab === 'needs_focus_words') {
+      this.experimentIndex.set(0);
+    }
     if (tab === 'history' && !this.selectedQuizHistoryId() && this.quizHistory().length) {
       this.selectedQuizHistoryId.set(this.quizHistory()[0]!.id);
     }
