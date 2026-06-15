@@ -603,8 +603,8 @@ export class App implements OnInit, AfterViewInit {
   });
 
   private resolveQuizQuestionTarget(): number {
-    const confidentCount = this.confidentWordsCount();
-    const focusCount = this.needsFocusWordsCount();
+    const confidentCount = this.confidentWordsDisplayCount();
+    const focusCount = this.needsFocusWordsDisplayCount();
 
     if (confidentCount > 0) {
       return Math.max(5, Math.ceil(confidentCount / 0.8));
