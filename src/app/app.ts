@@ -1090,8 +1090,9 @@ export class App implements OnInit, AfterViewInit {
       const existing = chosen.get(identity);
       if (
         !existing ||
-        time > existing.time ||
-        (time === existing.time && state === 'needs_focus' && existing.state === 'confident')
+        state === 'needs_focus' ||
+        (state === existing.state && time > existing.time) ||
+        (time > existing.time && existing.state !== 'needs_focus')
       ) {
         chosen.set(identity, { state, entry, time });
       }
