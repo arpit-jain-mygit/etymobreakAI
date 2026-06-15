@@ -409,58 +409,63 @@ def list_quiz_history_by_google_identity(google_sub: str | None, email: str | No
     if not resolved_sub:
         return []
 
-    if _broker_is_configured():
-        broker_payload = _call_broker("GET", "/quiz-history", params={"sub": resolved_sub, "email": mail})
-        items = broker_payload.get("items", [])
-        return items if isinstance(items, list) else []
+    def read_from_bucket() -> list[dict[str, Any]]:
+        client, bucket_name = _bucket_client()
+        bucket = client.bucket(bucket_name)
+        prefix = f"users/{_sanitize_path_segment(resolved_sub)}/quiz-attempts/"
 
-    client, bucket_name = _bucket_client()
-    bucket = client.bucket(bucket_name)
-    prefix = f"users/{_sanitize_path_segment(resolved_sub)}/quiz-attempts/"
+        history: list[dict[str, Any]] = []
+        for blob in client.list_blobs(bucket, prefix=prefix):
+            try:
+                raw = blob.download_as_text()
+                payload = json.loads(raw)
+            except Exception:
+                continue
 
-    history: list[dict[str, Any]] = []
-    for blob in client.list_blobs(bucket, prefix=prefix):
-        try:
-            raw = blob.download_as_text()
-            payload = json.loads(raw)
-        except Exception:
-            continue
+            if not isinstance(payload, dict):
+                continue
 
-        if not isinstance(payload, dict):
-            continue
+            metadata = payload.get("metadata", {})
+            summary = payload.get("summary", {})
+            player = payload.get("player", {})
+            attempt = payload.get("attempt", {})
+            history.append(
+                {
+                    "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
+                    "time": str(payload.get("createdAt", "")).strip() or (
+                        blob.updated.isoformat() if getattr(blob, "updated", None) else ""
+                    ),
+                    "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
+                    "playerEmail": str(player.get("email", "")).strip() or mail,
+                    "country": str(player.get("country", "")).strip(),
+                    "quizScope": str(metadata.get("quizScope", "")).strip(),
+                    "correct": int(metadata.get("correctCount", 0) or 0),
+                    "wrong": int(metadata.get("wrongCount", 0) or 0),
+                    "marks": int(metadata.get("marks", 0) or 0),
+                    "percentage": int(metadata.get("percentage", 0) or 0),
+                    "total": int(metadata.get("totalPossible", 0) or 0),
+                    "bucketObjectName": blob.name,
+                    "bucketUri": f"gs://{bucket_name}/{blob.name}",
+                    "quizType": str(summary.get("quizType", "")).strip(),
+                    "difficulty": int(summary.get("difficulty", 0) or 0),
+                    "questionCount": int(summary.get("questionCount", 0) or 0),
+                    "timeLimitMinutes": int(summary.get("timeLimitMinutes", 0) or 0),
+                    "timeSpentSeconds": int(summary.get("timeSpentSeconds", 0) or 0),
+                    "questions": attempt.get("questions", []),
+                }
+            )
 
-        metadata = payload.get("metadata", {})
-        summary = payload.get("summary", {})
-        player = payload.get("player", {})
-        attempt = payload.get("attempt", {})
-        history.append(
-            {
-                "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
-                "time": str(payload.get("createdAt", "")).strip() or (
-                    blob.updated.isoformat() if getattr(blob, "updated", None) else ""
-                ),
-                "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
-                "playerEmail": str(player.get("email", "")).strip() or mail,
-                "country": str(player.get("country", "")).strip(),
-                "quizScope": str(metadata.get("quizScope", "")).strip(),
-                "correct": int(metadata.get("correctCount", 0) or 0),
-                "wrong": int(metadata.get("wrongCount", 0) or 0),
-                "marks": int(metadata.get("marks", 0) or 0),
-                "percentage": int(metadata.get("percentage", 0) or 0),
-                "total": int(metadata.get("totalPossible", 0) or 0),
-                "bucketObjectName": blob.name,
-                "bucketUri": f"gs://{bucket_name}/{blob.name}",
-                "quizType": str(summary.get("quizType", "")).strip(),
-                "difficulty": int(summary.get("difficulty", 0) or 0),
-                "questionCount": int(summary.get("questionCount", 0) or 0),
-                "timeLimitMinutes": int(summary.get("timeLimitMinutes", 0) or 0),
-                "timeSpentSeconds": int(summary.get("timeSpentSeconds", 0) or 0),
-                "questions": attempt.get("questions", []),
-            }
-        )
+        history.sort(key=lambda item: item.get("time", ""), reverse=True)
+        return history
 
-    history.sort(key=lambda item: item.get("time", ""), reverse=True)
-    return history
+    try:
+        return read_from_bucket()
+    except ProfileStoreError:
+        if _broker_is_configured():
+            broker_payload = _call_broker("GET", "/quiz-history", params={"sub": resolved_sub, "email": mail})
+            items = broker_payload.get("items", [])
+            return items if isinstance(items, list) else []
+        raise
 
 
 def _confident_word_object_name(google_sub: str, query: str, mode: str) -> str:
