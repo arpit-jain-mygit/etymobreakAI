@@ -2785,12 +2785,12 @@ export class App implements OnInit, AfterViewInit {
     const confidentAnalyses = this.uniqueAnalyses(
       this.getSavedWordInventoryEntries('', 'confident')
         .map((entry) => this.rootEntryAnalysis(entry))
-        .filter((item) => !this.isEmptyAnalysis(item))
+        .filter((item): item is AnalysisResult => item !== null && !this.isEmptyAnalysis(item))
     );
     const focusAnalyses = this.uniqueAnalyses(
       this.getSavedWordInventoryEntries('', 'needs_focus')
         .map((entry) => this.rootEntryAnalysis(entry))
-        .filter((item) => !this.isEmptyAnalysis(item)),
+        .filter((item): item is AnalysisResult => item !== null && !this.isEmptyAnalysis(item)),
       confidentAnalyses
     );
     const allInventoryAnalyses = this.uniqueAnalyses(
