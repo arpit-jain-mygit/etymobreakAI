@@ -599,12 +599,11 @@ export class App implements OnInit, AfterViewInit {
     const confidentCount = this.confidentWordsCount();
     const focusCount = this.needsFocusWordsCount();
 
-    const confidentTotal = confidentCount > 0 ? Math.floor(confidentCount / 0.6) : 0;
-    const focusTotal = focusCount > 0 ? Math.floor(focusCount / 0.2) : 0;
+    const confidentTotal = confidentCount > 0 ? Math.ceil(confidentCount / 0.8) : 0;
+    const focusTotal = focusCount > 0 ? Math.ceil(focusCount / 0.1) : 0;
     const target = Math.max(confidentTotal, focusTotal, 5);
-    const normalized = Math.max(5, Math.floor(target / 5) * 5);
 
-    return Math.min(50, normalized || 5);
+    return Math.max(5, Math.ceil(target));
   }
 
   private buildRootAnalysis(
@@ -2677,7 +2676,7 @@ export class App implements OnInit, AfterViewInit {
       const normalizedDifficulty = Math.min(5, Math.max(1, Math.floor(Number(question.difficulty || question.level || 1))));
       return normalizedDifficulty === difficulty;
     });
-    const target = Math.min(50, Math.max(5, Math.floor(targetCount / 5) * 5));
+    const target = Math.max(1, Math.floor(Number(targetCount || 0)) || 1);
     const source = eligible.length >= target ? eligible : bank.questions;
     const selected = this.shuffle(source).slice(0, target);
 
@@ -2708,7 +2707,7 @@ export class App implements OnInit, AfterViewInit {
       return [];
     }
 
-    const totalTarget = Math.min(50, Math.max(5, Math.floor(targetCount / 5) * 5)) || 5;
+    const totalTarget = Math.max(1, Math.floor(Number(targetCount || 0)) || 1);
     const eligible = bank.questions.filter((question) => {
       const normalizedDifficulty = Math.min(
         5,
@@ -2782,9 +2781,9 @@ export class App implements OnInit, AfterViewInit {
       return [];
     }
 
-    const totalTarget = Math.min(50, Math.max(5, Math.floor(targetCount / 5) * 5)) || 5;
-    const confidentTarget = Math.max(1, Math.round(totalTarget * 0.6));
-    const focusTarget = Math.max(1, Math.round(totalTarget * 0.2));
+    const totalTarget = Math.max(1, Math.floor(Number(targetCount || 0)) || 1);
+    const confidentTarget = Math.max(1, Math.round(totalTarget * 0.8));
+    const focusTarget = Math.max(1, Math.round(totalTarget * 0.1));
     const newTarget = Math.max(1, totalTarget - confidentTarget - focusTarget);
 
     const confidentCandidates = this.shuffle(this.buildRevisionCandidates(confidentAnalyses, difficulty));
@@ -3086,7 +3085,7 @@ export class App implements OnInit, AfterViewInit {
       this.pendingQuizDraft = {
         quizType: draft.quizType || 'root',
         quizDifficulty: Math.min(5, Math.max(1, Math.floor(Number(draft.quizDifficulty || 1)))),
-        quizQuestionTarget: Math.min(50, Math.max(5, Math.floor(Number(draft.quizQuestionTarget || 50)))),
+        quizQuestionTarget: Math.max(1, Math.floor(Number(draft.quizQuestionTarget || 5)) || 1),
         quizIndex: Math.min(
           Math.max(0, Math.floor(Number(draft.quizIndex || 0))),
           Math.max(0, questions.length - 1)
@@ -3142,7 +3141,7 @@ export class App implements OnInit, AfterViewInit {
 
     this.quizType.set(draft.quizType || 'root');
     this.quizDifficulty.set(Math.min(5, Math.max(1, Math.floor(Number(draft.quizDifficulty || 1)))));
-    this.quizQuestionTarget.set(Math.min(50, Math.max(5, Math.floor(Number(draft.quizQuestionTarget || 50)))));
+      this.quizQuestionTarget.set(Math.max(1, Math.floor(Number(draft.quizQuestionTarget || 5)) || 1));
     this.quizIndex.set(Math.min(Math.max(0, Math.floor(Number(draft.quizIndex || 0))), Math.max(0, questions.length - 1)));
     this.quizTimeRemaining.set(Math.max(0, Math.floor(Number(draft.quizTimeRemaining || 0))));
     this.quizQuestions.set(questions);
