@@ -2188,6 +2188,56 @@ export class App implements OnInit, AfterViewInit {
     return this.uniqueStrings(terms);
   }
 
+  private collectAnalysisTerms(analysis: AnalysisResult | null): string[] {
+    if (!analysis) {
+      return [];
+    }
+
+    return this.uniqueStrings([
+      analysis.query,
+      analysis.title,
+      analysis.summary,
+      analysis.literalMeaningFormula,
+      analysis.literalMeaningArrow,
+      analysis.literalMeaning,
+      analysis.actualMeaning,
+      analysis.rootFamily.root,
+      analysis.rootFamily.meaning,
+      analysis.rootFamily.origin,
+      ...analysis.breakdown.flatMap((part) => [part.label, part.type, part.meaning, part.source || '']),
+      ...analysis.wordFamily.flatMap((item) => [
+        item.word,
+        item.meaning,
+        item.exampleSentence || '',
+        ...(item.breakdown || []).flatMap((part) => [part.label, part.type, part.meaning, part.source || '']),
+      ]),
+      ...analysis.otherWords.flatMap((group) => [
+        group.title,
+        group.focus,
+        ...group.words.flatMap((word) => [word.word, word.meaning]),
+      ]),
+      ...analysis.relatedWords.flatMap((item) => [
+        item.word,
+        item.breakdown || '',
+        item.meaning,
+        item.explanation || '',
+        item.exampleSentence || '',
+      ]),
+      ...analysis.familyMemory.flatMap((item) => [item.term, item.meaning, item.exampleSentence || '']),
+      ...analysis.notes,
+    ]);
+  }
+
+  private collectRevisionFallbackTerms(): string[] {
+    const inventoryTerms = this.getRootInventoryEntries().flatMap((entry) => this.collectAutocompleteTerms(entry));
+    const savedTerms = [
+      ...this.getSavedWordAnalyses('', 'confident').flatMap((analysis) => this.collectAnalysisTerms(analysis)),
+      ...this.getSavedWordAnalyses('', 'needs_focus').flatMap((analysis) => this.collectAnalysisTerms(analysis)),
+    ];
+
+    return this.uniqueStrings([...inventoryTerms, ...savedTerms]);
+  }
+
   private searchRootInventoryEntries(query: string): RootInventoryEntry[] {
     const normalizedQuery = this.normalizeForMatch(query);
     if (!normalizedQuery) {
@@ -2906,6 +2956,7 @@ export class App implements OnInit, AfterViewInit {
       ...breakdownMeanings,
       ...familyTerms,
       ...rootMeanings,
+      ...this.collectRevisionFallbackTerms(),
     ]);
 
     const candidates: QuizQuestion[] = [];
