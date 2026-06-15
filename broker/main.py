@@ -153,14 +153,149 @@ def _attempt_payload(
     return object_name, f"gs://{bucket_name}/{object_name}"
 
 
-def _confident_object_name(google_sub: str, query: str, mode: str) -> str:
+def _confident_object_name(google_sub: str, identity: str) -> str:
     profile_folder = _sanitize_path_segment(google_sub)
-    return f"users/{profile_folder}/confident-words/{_sanitize_path_segment(query)}--{_sanitize_path_segment(mode or 'word')}.json"
+    return f"users/{profile_folder}/confident-words/{_sanitize_path_segment(identity)}.json"
 
 
-def _needs_focus_object_name(google_sub: str, query: str, mode: str) -> str:
+def _needs_focus_object_name(google_sub: str, identity: str) -> str:
     profile_folder = _sanitize_path_segment(google_sub)
-    return f"users/{profile_folder}/needs-focus-words/{_sanitize_path_segment(query)}--{_sanitize_path_segment(mode or 'word')}.json"
+    return f"users/{profile_folder}/needs-focus-words/{_sanitize_path_segment(identity)}.json"
+
+
+def _saved_word_identity(payload: dict[str, Any]) -> str:
+    analysis = payload.get("analysis", {}) if isinstance(payload.get("analysis", {}), dict) else {}
+    root_family = analysis.get("rootFamily", {}) if isinstance(analysis.get("rootFamily", {}), dict) else {}
+    candidates = [
+        str(root_family.get("root", "")).strip(),
+        str(payload.get("query", "")).strip(),
+        str(analysis.get("query", "")).strip(),
+        str(payload.get("title", "")).strip(),
+        str(analysis.get("title", "")).strip(),
+    ]
+    for candidate in candidates:
+        normalized = _sanitize_path_segment(candidate).lower()
+        if normalized and normalized != "unknown":
+            return normalized
+    return ""
+
+
+def _saved_word_time(payload: dict[str, Any], blob_updated: Any = None) -> str:
+    return (
+        str(payload.get("updatedAt", "")).strip()
+        or str(payload.get("createdAt", "")).strip()
+        or (blob_updated.isoformat() if getattr(blob_updated, "isoformat", None) else "")
+    )
+
+
+def _saved_word_state_rank(state: str) -> int:
+    return 1 if state == "needs_focus" else 0
+
+
+def _list_saved_word_items(
+    client: Any,
+    bucket_name: str,
+    resolved_sub: str,
+    fallback_email: str,
+    state: str,
+) -> list[dict[str, Any]]:
+    bucket = client.bucket(bucket_name)
+    prefix = f"users/{_sanitize_path_segment(resolved_sub)}/{state.replace('_', '-')}/"
+
+    items: list[dict[str, Any]] = []
+    for blob in client.list_blobs(bucket, prefix=prefix):
+        try:
+            raw = blob.download_as_text()
+            payload = json.loads(raw)
+        except Exception:
+            continue
+
+        if not isinstance(payload, dict):
+            continue
+
+        identity = _saved_word_identity(payload)
+        if not identity:
+            continue
+
+        player = payload.get("player", {})
+        analysis = payload.get("analysis", {})
+        if not isinstance(player, dict):
+            player = {}
+        if not isinstance(analysis, dict):
+            analysis = {}
+
+        items.append(
+            {
+                "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
+                "time": _saved_word_time(payload, getattr(blob, "updated", None)),
+                "query": str(payload.get("query", "")).strip(),
+                "mode": str(payload.get("mode", "")).strip(),
+                "title": str(payload.get("metadata", {}).get("title", "")).strip()
+                if isinstance(payload.get("metadata", {}), dict)
+                else str(analysis.get("title", "")).strip(),
+                "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
+                "playerEmail": str(player.get("email", "")).strip() or fallback_email,
+                "country": str(player.get("country", "")).strip(),
+                "analysis": analysis,
+                "bucketObjectName": blob.name,
+                "bucketUri": f"gs://{bucket_name}/{blob.name}",
+                "_identity": identity,
+                "_state": state,
+            }
+        )
+
+    return items
+
+
+def _canonicalize_saved_word_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    chosen: dict[str, dict[str, Any]] = {}
+    for item in items:
+        identity = str(item.get("_identity", "")).strip()
+        if not identity:
+            continue
+
+        existing = chosen.get(identity)
+        current_state = str(item.get("_state", "")).strip()
+        current_time = str(item.get("time", "")).strip()
+        if not existing:
+            chosen[identity] = item
+            continue
+
+        existing_state = str(existing.get("_state", "")).strip()
+        existing_time = str(existing.get("time", "")).strip()
+        if (
+            _saved_word_state_rank(current_state) > _saved_word_state_rank(existing_state)
+            or (current_state == existing_state and current_time > existing_time)
+        ):
+            chosen[identity] = item
+
+    return list(chosen.values())
+
+
+def _delete_saved_word_identity(client: Any, bucket_name: str, resolved_sub: str, identity: str) -> None:
+    if not identity:
+        return
+
+    bucket = client.bucket(bucket_name)
+    for state in ("confident-words", "needs-focus-words"):
+        prefix = f"users/{_sanitize_path_segment(resolved_sub)}/{state}/"
+        for blob in client.list_blobs(bucket, prefix=prefix):
+            try:
+                raw = blob.download_as_text()
+                payload = json.loads(raw)
+            except Exception:
+                continue
+
+            if not isinstance(payload, dict):
+                continue
+
+            if _saved_word_identity(payload) != identity:
+                continue
+
+            try:
+                blob.delete()
+            except Exception:
+                continue
 
 
 def _confident_payload(payload: ConfidentWordRequest) -> dict[str, Any]:
@@ -193,10 +328,11 @@ def _confident_item_from_payload(payload: dict[str, Any], bucket_name: str, blob
         "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip(),
         "query": str(payload.get("query", "")).strip(),
         "mode": str(payload.get("mode", "")).strip(),
-        "title": str(metadata.get("title", "")).strip() or str(analysis.get("title", "")).strip(),
-        "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
-        "playerEmail": str(player.get("email", "")).strip() or fallback_email,
-        "country": str(player.get("country", "")).strip(),
+        "title": str(payload.get("title", "")).strip() or str(metadata.get("title", "")).strip() or str(analysis.get("title", "")).strip(),
+        "playerName": str(payload.get("playerName", "")).strip()
+        or f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
+        "playerEmail": str(payload.get("playerEmail", "")).strip() or str(player.get("email", "")).strip() or fallback_email,
+        "country": str(payload.get("country", "")).strip() or str(player.get("country", "")).strip(),
         "analysis": analysis,
         "bucketObjectName": blob_name,
         "bucketUri": f"gs://{bucket_name}/{blob_name}",
@@ -213,10 +349,11 @@ def _needs_focus_item_from_payload(payload: dict[str, Any], bucket_name: str, bl
         "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip(),
         "query": str(payload.get("query", "")).strip(),
         "mode": str(payload.get("mode", "")).strip(),
-        "title": str(metadata.get("title", "")).strip() or str(analysis.get("title", "")).strip(),
-        "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
-        "playerEmail": str(player.get("email", "")).strip() or fallback_email,
-        "country": str(player.get("country", "")).strip(),
+        "title": str(payload.get("title", "")).strip() or str(metadata.get("title", "")).strip() or str(analysis.get("title", "")).strip(),
+        "playerName": str(payload.get("playerName", "")).strip()
+        or f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
+        "playerEmail": str(payload.get("playerEmail", "")).strip() or str(player.get("email", "")).strip() or fallback_email,
+        "country": str(payload.get("country", "")).strip() or str(player.get("country", "")).strip(),
         "analysis": analysis,
         "bucketObjectName": blob_name,
         "bucketUri": f"gs://{bucket_name}/{blob_name}",
@@ -333,15 +470,13 @@ def save_confident_word(payload: ConfidentWordRequest) -> dict[str, Any]:
 
     now = datetime.now(timezone.utc).isoformat()
     confident_id = str(payload.id or "").strip() or f"confident-{google_sub}-{query}-{mode}"
+    identity = _saved_word_identity({"query": query, "mode": mode, "analysis": payload_data["analysis"], "title": payload_data["analysis"].get("title", "")})
+    if not identity:
+        identity = _sanitize_path_segment(query).lower()
 
     if not confident:
         client, bucket_name = _bucket_client()
-        bucket = client.bucket(bucket_name)
-        blob = bucket.blob(_confident_object_name(google_sub, query, mode))
-        try:
-            blob.delete()
-        except Exception:
-            pass
+        _delete_saved_word_identity(client, bucket_name, google_sub, identity)
         return {
             "id": confident_id,
             "query": query,
@@ -351,7 +486,8 @@ def save_confident_word(payload: ConfidentWordRequest) -> dict[str, Any]:
 
     client, bucket_name = _bucket_client()
     bucket = client.bucket(bucket_name)
-    object_name = _confident_object_name(google_sub, query, mode)
+    _delete_saved_word_identity(client, bucket_name, google_sub, identity)
+    object_name = _confident_object_name(google_sub, identity)
     bucket_payload = {
         "id": confident_id,
         "profileId": f"profile-{google_sub}",
@@ -389,24 +525,17 @@ def get_confident_words(sub: str | None = None, email: str | None = None) -> dic
         return {"items": []}
 
     client, bucket_name = _bucket_client()
-    bucket = client.bucket(bucket_name)
-    prefix = f"users/{_sanitize_path_segment(resolved_sub)}/confident-words/"
-
-    items: list[dict[str, Any]] = []
-    for blob in client.list_blobs(bucket, prefix=prefix):
-        try:
-            raw = blob.download_as_text()
-            payload = json.loads(raw)
-        except Exception:
-            continue
-
-        if not isinstance(payload, dict):
-            continue
-
-        items.append(_confident_item_from_payload(payload, bucket_name, blob.name, mail))
-
-    items.sort(key=lambda item: item.get("time", ""), reverse=True)
-    return {"items": items}
+    items = _canonicalize_saved_word_items(
+        _list_saved_word_items(client, bucket_name, resolved_sub, mail, "confident")
+        + _list_saved_word_items(client, bucket_name, resolved_sub, mail, "needs_focus")
+    )
+    confident_items = [
+        _confident_item_from_payload(item, bucket_name, item["bucketObjectName"], mail)
+        for item in items
+        if item.get("_state") == "confident"
+    ]
+    confident_items.sort(key=lambda item: item.get("time", ""), reverse=True)
+    return {"items": confident_items}
 
 
 @app.post("/needs-focus-words", dependencies=[Depends(_require_secret)])
@@ -427,22 +556,21 @@ def save_needs_focus_word(payload: NeedsFocusWordRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Profile details are required.")
 
     payload_data = _needs_focus_payload(payload)
+    analysis = payload_data["analysis"]
     query = payload_data["query"]
     mode = payload_data["mode"]
     if not query:
-      raise HTTPException(status_code=400, detail="A query is required.")
+        raise HTTPException(status_code=400, detail="A query is required.")
 
     now = datetime.now(timezone.utc).isoformat()
     focus_id = str(payload.id or "").strip() or f"focus-{google_sub}-{query}-{mode}"
+    identity = _saved_word_identity({"query": query, "mode": mode, "analysis": analysis, "title": analysis.get("title", "")})
+    if not identity:
+        identity = _sanitize_path_segment(query).lower()
 
     if not needs_focus:
         client, bucket_name = _bucket_client()
-        bucket = client.bucket(bucket_name)
-        blob = bucket.blob(_needs_focus_object_name(google_sub, query, mode))
-        try:
-            blob.delete()
-        except Exception:
-            pass
+        _delete_saved_word_identity(client, bucket_name, google_sub, identity)
         return {
             "id": focus_id,
             "query": query,
@@ -452,7 +580,8 @@ def save_needs_focus_word(payload: NeedsFocusWordRequest) -> dict[str, Any]:
 
     client, bucket_name = _bucket_client()
     bucket = client.bucket(bucket_name)
-    object_name = _needs_focus_object_name(google_sub, query, mode)
+    _delete_saved_word_identity(client, bucket_name, google_sub, identity)
+    object_name = _needs_focus_object_name(google_sub, identity)
     bucket_payload = {
         "id": focus_id,
         "profileId": f"profile-{google_sub}",
@@ -490,24 +619,17 @@ def get_needs_focus_words(sub: str | None = None, email: str | None = None) -> d
         return {"items": []}
 
     client, bucket_name = _bucket_client()
-    bucket = client.bucket(bucket_name)
-    prefix = f"users/{_sanitize_path_segment(resolved_sub)}/needs-focus-words/"
-
-    items: list[dict[str, Any]] = []
-    for blob in client.list_blobs(bucket, prefix=prefix):
-        try:
-            raw = blob.download_as_text()
-            payload = json.loads(raw)
-        except Exception:
-            continue
-
-        if not isinstance(payload, dict):
-            continue
-
-        items.append(_needs_focus_item_from_payload(payload, bucket_name, blob.name, mail))
-
-    items.sort(key=lambda item: item.get("time", ""), reverse=True)
-    return {"items": items}
+    items = _canonicalize_saved_word_items(
+        _list_saved_word_items(client, bucket_name, resolved_sub, mail, "confident")
+        + _list_saved_word_items(client, bucket_name, resolved_sub, mail, "needs_focus")
+    )
+    focus_items = [
+        _needs_focus_item_from_payload(item, bucket_name, item["bucketObjectName"], mail)
+        for item in items
+        if item.get("_state") == "needs_focus"
+    ]
+    focus_items.sort(key=lambda item: item.get("time", ""), reverse=True)
+    return {"items": focus_items}
 
 
 @app.get("/quiz-history", dependencies=[Depends(_require_secret)])
