@@ -236,7 +236,7 @@ def _list_saved_word_items(
     state: str,
 ) -> list[dict[str, Any]]:
     bucket = client.bucket(bucket_name)
-    prefix = f"users/{_sanitize_path_segment(resolved_sub)}/{state.replace('_', '-')}/"
+    prefix = f"users/{_sanitize_path_segment(resolved_sub)}/{state.replace('_', '-')}-words/"
 
     items: list[dict[str, Any]] = []
     for blob in client.list_blobs(bucket, prefix=prefix):
