@@ -2428,7 +2428,12 @@ export class App implements OnInit, AfterViewInit {
     }
 
     const entries = this.getRootInventoryEntries();
+    if (entries.length === 0) {
+      return null;
+    }
+
     for (const candidate of candidates) {
+      // Try indexed lookup
       const indexed = this.inventoryIndex.get(candidate);
       if (indexed && typeof indexed === 'object') {
         const indexedEntry = indexed as RootInventoryEntry;
@@ -2441,9 +2446,18 @@ export class App implements OnInit, AfterViewInit {
         }
       }
 
-      const direct = entries.find((entry: RootInventoryEntry) => entry.root.trim().toLowerCase() === candidate);
-      if (direct) {
-        return direct;
+      // Try direct match on roots
+      const directRoot = entries.find((entry: RootInventoryEntry) => entry.root.trim().toLowerCase() === candidate);
+      if (directRoot) {
+        return directRoot;
+      }
+
+      // Try matching on assembled words
+      for (const entry of entries) {
+        const matchedWord = entry.assembledWords.find((word) => word.word.trim().toLowerCase() === candidate);
+        if (matchedWord) {
+          return entry;
+        }
       }
     }
 
