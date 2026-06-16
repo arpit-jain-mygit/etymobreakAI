@@ -737,7 +737,7 @@ h1 {
 
 .family-list {
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .family-item {
@@ -834,13 +834,13 @@ h1 {
 }
 
 .root-pill-row {
-  margin-top: 2px;
+  margin-top: 0px;
 }
 
 .root-assembled-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 6px;
+  gap: 4px;
 }
 
 .root-assembled-card {
