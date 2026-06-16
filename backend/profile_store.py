@@ -165,18 +165,6 @@ def _sanitize_path_segment(value: str) -> str:
 
 
 
-def _broker_url() -> str:
-    return os.getenv("BROKER_URL", "").strip().rstrip("/")
-
-
-def _broker_secret() -> str:
-    return os.getenv("BROKER_SHARED_SECRET", "").strip()
-
-
-def _broker_is_configured() -> bool:
-    return bool(_broker_url() and _broker_secret())
-
-
 def _cache_confident_word_to_db(word_data: dict[str, Any]) -> None:
     try:
         google_sub = str(word_data.get("googleSub", "")).strip()
@@ -371,52 +359,6 @@ def _list_needs_focus_words_from_db(google_sub: str) -> list[dict[str, Any]]:
         return result
     except Exception:
         return []
-
-
-def _call_broker(
-    method: str,
-    path: str,
-    *,
-    payload: dict[str, Any] | None = None,
-    params: dict[str, str] | None = None,
-) -> dict[str, Any]:
-    base_url = _broker_url()
-    secret = _broker_secret()
-    if not base_url:
-        raise ProfileStoreError("Quiz history broker URL is not configured.")
-    if not secret:
-        raise ProfileStoreError("Quiz history broker secret is not configured.")
-
-    url = f"{base_url}{path}"
-    if params:
-        query = parse.urlencode({key: value for key, value in params.items() if value})
-        if query:
-            url = f"{url}?{query}"
-    data = None if payload is None else json.dumps(payload).encode("utf-8")
-    headers = {
-        "Content-Type": "application/json",
-        "X-EtymoBreak-Broker-Secret": secret,
-    }
-    http_request = request.Request(url, data=data, headers=headers, method=method.upper())
-
-    try:
-        with request.urlopen(http_request, timeout=45) as response:
-            raw = response.read().decode("utf-8")
-    except error.HTTPError as exc:
-        details = exc.read().decode("utf-8", errors="replace") if exc.fp else str(exc)
-        raise ProfileStoreError(f"Quiz history broker request failed: {details[:400]}") from exc
-    except Exception as exc:
-        raise ProfileStoreError(f"Quiz history broker request failed: {exc}") from exc
-
-    try:
-        parsed = json.loads(raw) if raw.strip() else {}
-    except Exception as exc:
-        raise ProfileStoreError(f"Quiz history broker returned invalid JSON: {exc}") from exc
-
-    if not isinstance(parsed, dict):
-        raise ProfileStoreError("Quiz history broker returned an unexpected response.")
-
-    return parsed
 
 
 def _saved_word_identity(item: dict[str, Any]) -> str:

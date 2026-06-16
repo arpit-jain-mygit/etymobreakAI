@@ -15,9 +15,3 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
-      - key: BROKER_URL
-        sync: false
-      - key: BROKER_SHARED_SECRET
-        sync: false
-      - key: GCP_ETYMOBREAK_BUCKET
-        sync: false
