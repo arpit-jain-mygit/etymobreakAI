@@ -337,6 +337,9 @@ export class App implements OnInit, AfterViewInit {
   protected readonly googleButtonRendered = signal(false);
   protected readonly inventoryEntries = signal<unknown[]>([]);
   protected readonly quizHistory = signal<QuizHistoryEntry[]>([]);
+  protected readonly quizAnswerFeedback = signal<{ type: 'correct' | 'wrong' | null; questionId?: string }>({ type: null });
+  protected readonly quizHighestScore = signal(0);
+  protected readonly quizIsNewHighScore = signal(false);
   protected readonly confidentWords = signal<ConfidentWordEntry[]>([]);
   protected readonly needsFocusWords = signal<NeedsFocusWordEntry[]>([]);
   protected readonly quizHistoryLoading = signal(false);
@@ -1626,6 +1629,16 @@ export class App implements OnInit, AfterViewInit {
         const message = payload?.error || 'Your quiz history could not be saved.';
         const details = payload?.details ? ` ${payload.details}` : '';
         throw new Error(`${message}${details}`.trim());
+      }
+
+      // Check if this is a new high score
+      const currentScore = marks;
+      const highestScore = this.quizHighestScore();
+      if (currentScore > highestScore) {
+        this.quizHighestScore.set(currentScore);
+        this.quizIsNewHighScore.set(true);
+        // Reset the flag after animation
+        setTimeout(() => this.quizIsNewHighScore.set(false), 5000);
       }
 
       const saved = (await response.json().catch(() => null)) as QuizHistoryEntry | null;
@@ -3524,8 +3537,15 @@ export class App implements OnInit, AfterViewInit {
       history.sort((a, b) => b.time.localeCompare(a.time));
 
       this.quizHistory.set(history);
-      if (history.length && !history.some((item) => item.id === this.selectedQuizHistoryId())) {
-        this.selectedQuizHistoryId.set(history[0]!.id);
+
+      // Calculate highest score
+      if (history.length) {
+        const highestScore = Math.max(...history.map((entry) => entry.marks || 0));
+        this.quizHighestScore.set(highestScore);
+
+        if (!history.some((item) => item.id === this.selectedQuizHistoryId())) {
+          this.selectedQuizHistoryId.set(history[0]!.id);
+        }
       }
     } catch {
       this.quizHistory.set([]);

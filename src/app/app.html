@@ -1036,6 +1036,9 @@
                       >
                         <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>
                         <span class="quiz-option-text">{{ option }}</span>
+                        @if (question.selectedIndex === optionIndex) {
+                          <span class="option-indicator">✓ Selected</span>
+                        }
                       </button>
                     }
                   </div>
@@ -1111,10 +1114,18 @@
           </div>
 
           <div class="quiz-summary-hero">
-            <article class="info-card summary-metric summary-metric-primary">
+            <article
+              class="info-card summary-metric summary-metric-primary"
+              [class.new-high-score]="quizIsNewHighScore()"
+            >
               <p class="card-label">Score</p>
               <p class="card-value formula">{{ quizTotalMarks() }}</p>
               <p class="card-arrow">{{ quizCorrectCount() }} right • {{ quizWrongCount() }} wrong</p>
+              @if (quizIsNewHighScore()) {
+                <div class="high-score-badge">
+                  <span class="badge-text">🎉 NEW HIGH SCORE! 🎉</span>
+                </div>
+              }
             </article>
             <article class="info-card summary-metric summary-metric-secondary">
               <p class="card-label">Time</p>
