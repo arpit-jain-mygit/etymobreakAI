@@ -4329,6 +4329,18 @@ export class App implements OnInit, AfterViewInit {
     this.autocompleteOpen.set(false);
   }
 
+  protected navigateToRoot(rootName: string): void {
+    const entries = this.getRootInventoryEntries();
+    const normalizedSearch = rootName.trim().toLowerCase();
+    const index = entries.findIndex(
+      (entry) => entry.root.trim().toLowerCase() === normalizedSearch
+    );
+    if (index >= 0) {
+      this.experimentIndex.set(index);
+      this.setActiveTab('all_words');
+    }
+  }
+
   protected openAutocomplete(): void {
     this.autocompleteOpen.set(true);
   }

@@ -254,7 +254,7 @@
                     type="button"
                     class="autocomplete-item"
                     (mousedown)="$event.preventDefault()"
-                    (click)="chooseAutocomplete(item); experimentIndex.set(searchResults().findIndex(e => e.root.toLowerCase() === item.toLowerCase())); setActiveTab('all_words')"
+                    (click)="navigateToRoot(item)"
                   >
                     <span>{{ item }}</span>
                   </button>
@@ -266,11 +266,11 @@
               <section class="notice calm-notice">Searching...</section>
             } @else if (searchResults().length > 0) {
               <div class="search-results-list">
-                @for (entry of searchResults(); track entry.root; let idx = $index) {
+                @for (entry of searchResults(); track entry.root) {
                   <button
                     type="button"
                     class="search-result-item"
-                    (click)="experimentIndex.set(idx); setActiveTab('all_words')"
+                    (click)="navigateToRoot(entry.root)"
                   >
                     {{ entry.root }}
                   </button>
