@@ -453,13 +453,16 @@ export class App implements OnInit, AfterViewInit {
 
     return [];
   });
-  protected readonly activeWordSlides = computed(() =>
-    this.activeTab() === 'root_suffix'
+  protected readonly activeWordSlides = computed(() => {
+    if (this.query() && this.searchResults().length) {
+      return this.searchResults();
+    }
+    return this.activeTab() === 'root_suffix'
       ? this.rootSuffixSlides()
       : this.activeTab() === 'confident_words' || this.activeTab() === 'needs_focus_words'
         ? this.activeSavedWordEntries()
-        : this.allWordSlides()
-  );
+        : this.allWordSlides();
+  });
   protected readonly experimentSlide = computed(() => {
     const slides = this.activeWordSlides();
     if (!slides.length) {
