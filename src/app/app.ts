@@ -1517,6 +1517,11 @@ export class App implements OnInit, AfterViewInit {
     this.quizQuestions.set(updated);
     this.persistQuizDraft(false);
     this.quizNotice.set('');
+
+    // Auto-advance after 2 seconds to let kids see the feedback
+    setTimeout(() => {
+      this.markCurrentQuestionSubmitted();
+    }, 2000);
   }
 
   protected saveCurrentQuizAnswerLocally(): void {

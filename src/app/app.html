@@ -1100,15 +1100,7 @@
                   }
 
                   <div class="quiz-actions">
-                    @if (question.selectedIndex !== null && !question.submitted && question.selectedIndex !== question.correctIndex) {
-                      <button
-                        type="button"
-                        class="primary check-answer-btn"
-                        (click)="markCurrentQuestionSubmitted()"
-                      >
-                        ✓ Got it, Next Question
-                      </button>
-                    } @else if (!question.submitted) {
+                    @if (!question.submitted) {
                       <button type="button" class="primary" (click)="skipCurrentQuizQuestion()">Skip Que</button>
                       <button type="button" class="tab-chip quiz-save" (click)="saveCurrentQuizAnswerLocally()">
                         Save me answer
