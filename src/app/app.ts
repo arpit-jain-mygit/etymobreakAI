@@ -3627,7 +3627,6 @@ export class App implements OnInit, AfterViewInit {
         }
 
         const payload = (await response.json().catch(() => null)) as { items?: unknown[] } | null;
-        this.confidentWordsApiResponse.set(JSON.stringify(payload ?? {}, null, 2));
         const entries = (payload?.items ?? [])
           .map((item) => this.rawSavedWordEntry(item))
           .filter((item): item is ConfidentWordEntry => item !== null)
@@ -3742,7 +3741,6 @@ export class App implements OnInit, AfterViewInit {
         }
 
         const payload = (await response.json().catch(() => null)) as { items?: unknown[] } | null;
-        this.needsFocusWordsApiResponse.set(JSON.stringify(payload ?? {}, null, 2));
         const entries = (payload?.items ?? [])
           .map((item) => this.rawSavedWordEntry(item))
           .filter((item): item is NeedsFocusWordEntry => item !== null)

@@ -768,13 +768,6 @@
           </div>
         </div>
 
-        @if (activeTab() === 'confident_words' || activeTab() === 'needs_focus_words') {
-          <section class="notice calm-notice raw-response-panel">
-            <strong>Raw API response</strong>
-            <pre>{{ activeTab() === 'confident_words' ? confidentWordsApiResponse() : needsFocusWordsApiResponse() }}</pre>
-          </section>
-        }
-
         @if (experimentSlide(); as entry) {
           <div class="flash-stage word-stage">
             <button
