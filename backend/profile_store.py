@@ -839,7 +839,12 @@ def list_quiz_history_by_google_identity(google_sub: str | None, email: str | No
                 for row in rows:
                     item = dict(row) if row else {}
                     try:
-                        attempt_data = json.loads(item.get("questions", "{}") or "{}")
+                        raw_attempt = item.get("questions", "{}")
+                        # Handle both string (if returned as JSON text) and dict (if auto-parsed by psycopg)
+                        if isinstance(raw_attempt, str):
+                            attempt_data = json.loads(raw_attempt or "{}")
+                        else:
+                            attempt_data = raw_attempt if isinstance(raw_attempt, dict) else {}
                         item["questions"] = attempt_data.get("questions", [])
                     except (json.JSONDecodeError, TypeError):
                         item["questions"] = []
