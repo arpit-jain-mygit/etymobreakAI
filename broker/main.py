@@ -171,6 +171,8 @@ def _saved_word_identity(payload: dict[str, Any]) -> str:
         str(root_family.get("root", "")).strip(),
         str(payload.get("query", "")).strip(),
         str(analysis.get("query", "")).strip(),
+        str(payload.get("root", "")).strip(),
+        str(analysis.get("root", "")).strip(),
         str(payload.get("title", "")).strip(),
         str(analysis.get("title", "")).strip(),
     ]
@@ -191,6 +193,39 @@ def _saved_word_time(payload: dict[str, Any], blob_updated: Any = None) -> str:
 
 def _saved_word_state_rank(state: str) -> int:
     return 1 if state == "needs_focus" else 0
+
+
+def _saved_word_analysis(payload: dict[str, Any]) -> dict[str, Any]:
+    analysis = payload.get("analysis", {})
+    if isinstance(analysis, dict):
+        return analysis
+    return payload
+
+
+def _saved_word_query(payload: dict[str, Any], analysis: dict[str, Any]) -> str:
+    root_family = analysis.get("rootFamily", {}) if isinstance(analysis.get("rootFamily", {}), dict) else {}
+    candidates = [
+        payload.get("query", ""),
+        analysis.get("query", ""),
+        payload.get("root", ""),
+        analysis.get("root", ""),
+        root_family.get("root", ""),
+        payload.get("title", ""),
+        analysis.get("title", ""),
+    ]
+    for candidate in candidates:
+        query = str(candidate).strip()
+        if query:
+            return query
+    return ""
+
+
+def _saved_word_mode(payload: dict[str, Any], analysis: dict[str, Any]) -> str:
+    for candidate in (payload.get("mode", ""), analysis.get("mode", ""), payload.get("type", "")):
+        mode = str(candidate).strip()
+        if mode:
+            return mode
+    return "word"
 
 
 def _list_saved_word_items(
@@ -219,21 +254,27 @@ def _list_saved_word_items(
             continue
 
         player = payload.get("player", {})
-        analysis = payload.get("analysis", {})
         if not isinstance(player, dict):
             player = {}
+        analysis = _saved_word_analysis(payload)
         if not isinstance(analysis, dict):
             analysis = {}
+        metadata = payload.get("metadata", {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+        query = _saved_word_query(payload, analysis)
+        mode = _saved_word_mode(payload, analysis)
+        title = str(payload.get("title", "")).strip() or str(metadata.get("title", "")).strip() or str(analysis.get("title", "")).strip()
+        if not title:
+            title = query.upper()
 
         items.append(
             {
                 "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
                 "time": _saved_word_time(payload, getattr(blob, "updated", None)),
-                "query": str(payload.get("query", "")).strip(),
-                "mode": str(payload.get("mode", "")).strip(),
-                "title": str(payload.get("metadata", {}).get("title", "")).strip()
-                if isinstance(payload.get("metadata", {}), dict)
-                else str(analysis.get("title", "")).strip(),
+                "query": query,
+                "mode": mode,
+                "title": title,
                 "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
                 "playerEmail": str(player.get("email", "")).strip() or fallback_email,
                 "country": str(player.get("country", "")).strip(),

@@ -202,6 +202,8 @@ def _saved_word_identity(item: dict[str, Any]) -> str:
         str(root_family.get("root", "")).strip(),
         str(item.get("query", "")).strip(),
         str(analysis.get("query", "")).strip(),
+        str(item.get("root", "")).strip(),
+        str(analysis.get("root", "")).strip(),
         str(item.get("title", "")).strip(),
         str(analysis.get("title", "")).strip(),
     ]
@@ -269,81 +271,134 @@ def _list_saved_words_from_bucket(
     client, bucket_name = _bucket_client()
     bucket = client.bucket(bucket_name)
 
-    confident_entries: list[dict[str, Any]] = []
-    for blob in client.list_blobs(bucket, prefix=f"users/{_sanitize_path_segment(resolved_sub)}/confident-words/"):
+    def infer_state(blob_name: str, payload: dict[str, Any]) -> str:
+        normalized_name = blob_name.replace("\\", "/").lower()
+        if "/needs-focus-words/" in normalized_name or "/needs_focus_words/" in normalized_name:
+            return "needs_focus"
+        if "/confident-words/" in normalized_name or "/confident_words/" in normalized_name:
+            return "confident"
+
+        for key in ("state", "bucketState", "savedState"):
+            value = str(payload.get(key, "")).strip().lower()
+            if value in {"confident", "needs_focus", "needs-focus"}:
+                return "needs_focus" if value.startswith("needs") else "confident"
+
+        if bool(payload.get("needsFocus", False)):
+            return "needs_focus"
+        if bool(payload.get("confident", False)):
+            return "confident"
+        return ""
+
+    def extract_analysis(payload: dict[str, Any]) -> dict[str, Any]:
+        if isinstance(payload.get("analysis"), dict):
+            return payload["analysis"]
+        return payload
+
+    def extract_query(payload: dict[str, Any], analysis: dict[str, Any]) -> str:
+        root_family = analysis.get("rootFamily", {}) if isinstance(analysis.get("rootFamily", {}), dict) else {}
+        candidates = [
+            payload.get("query", ""),
+            analysis.get("query", ""),
+            payload.get("root", ""),
+            analysis.get("root", ""),
+            root_family.get("root", ""),
+            payload.get("title", ""),
+            analysis.get("title", ""),
+        ]
+        for candidate in candidates:
+            query = str(candidate).strip()
+            if query:
+                return query
+        return ""
+
+    def extract_mode(payload: dict[str, Any], analysis: dict[str, Any]) -> str:
+        candidates = [
+            payload.get("mode", ""),
+            analysis.get("mode", ""),
+            payload.get("type", ""),
+        ]
+        for candidate in candidates:
+            mode = str(candidate).strip()
+            if mode:
+                return mode
+        return "word"
+
+    def ingest_blob(blob: Any, explicit_state: str = "") -> dict[str, Any] | None:
         try:
             raw = blob.download_as_text()
             payload = json.loads(raw)
         except Exception:
-            continue
+            return None
 
         if not isinstance(payload, dict):
-            continue
+            return None
 
         player = payload.get("player", {})
-        analysis = payload.get("analysis", {})
         if not isinstance(player, dict):
             player = {}
+        analysis = extract_analysis(payload)
         if not isinstance(analysis, dict):
             analysis = {}
+        metadata = payload.get("metadata", {})
+        if not isinstance(metadata, dict):
+            metadata = {}
 
-        confident_entries.append(
-            {
-                "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
-                "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip() or (
-                    blob.updated.isoformat() if getattr(blob, "updated", None) else ""
-                ),
-                "query": str(payload.get("query", "")).strip(),
-                "mode": str(payload.get("mode", "")).strip(),
-                "title": str(payload.get("metadata", {}).get("title", "")).strip()
-                if isinstance(payload.get("metadata", {}), dict)
-                else str(analysis.get("title", "")).strip(),
-                "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
-                "playerEmail": str(player.get("email", "")).strip() or fallback_email,
-                "country": str(player.get("country", "")).strip(),
-                "analysis": analysis,
-                "bucketObjectName": blob.name,
-                "bucketUri": f"gs://{bucket_name}/{blob.name}",
-            }
-        )
+        state = explicit_state or infer_state(blob.name, payload)
+        if state not in {"confident", "needs_focus"}:
+            return None
+
+        query = extract_query(payload, analysis)
+        mode = extract_mode(payload, analysis)
+        title = str(payload.get("title", "")).strip() or str(metadata.get("title", "")).strip() or str(analysis.get("title", "")).strip()
+        if not title:
+            title = query.upper()
+
+        return {
+            "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
+            "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip() or (
+                blob.updated.isoformat() if getattr(blob, "updated", None) else ""
+            ),
+            "query": query,
+            "mode": mode,
+            "title": title,
+            "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
+            "playerEmail": str(player.get("email", "")).strip() or fallback_email,
+            "country": str(player.get("country", "")).strip(),
+            "analysis": analysis,
+            "bucketObjectName": blob.name,
+            "bucketUri": f"gs://{bucket_name}/{blob.name}",
+            "_identity": _saved_word_identity(payload),
+            "_state": state,
+        }
+
+    confident_entries: list[dict[str, Any]] = []
+    for blob in client.list_blobs(bucket, prefix=f"users/{_sanitize_path_segment(resolved_sub)}/confident-words/"):
+        entry = ingest_blob(blob, "confident")
+        if not entry:
+            continue
+        confident_entries.append(entry)
 
     focus_entries: list[dict[str, Any]] = []
     for blob in client.list_blobs(bucket, prefix=f"users/{_sanitize_path_segment(resolved_sub)}/needs-focus-words/"):
-        try:
-            raw = blob.download_as_text()
-            payload = json.loads(raw)
-        except Exception:
+        entry = ingest_blob(blob, "needs_focus")
+        if not entry:
             continue
+        focus_entries.append(entry)
 
-        if not isinstance(payload, dict):
-            continue
-
-        player = payload.get("player", {})
-        analysis = payload.get("analysis", {})
-        if not isinstance(player, dict):
-            player = {}
-        if not isinstance(analysis, dict):
-            analysis = {}
-
-        focus_entries.append(
-            {
-                "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
-                "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip() or (
-                    blob.updated.isoformat() if getattr(blob, "updated", None) else ""
-                ),
-                "query": str(payload.get("query", "")).strip(),
-                "mode": str(payload.get("mode", "")).strip(),
-                "title": str(payload.get("metadata", {}).get("title", "")).strip()
-                if isinstance(payload.get("metadata", {}), dict)
-                else str(analysis.get("title", "")).strip(),
-                "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
-                "playerEmail": str(player.get("email", "")).strip() or fallback_email,
-                "country": str(player.get("country", "")).strip(),
-                "analysis": analysis,
-                "bucketObjectName": blob.name,
-                "bucketUri": f"gs://{bucket_name}/{blob.name}",
-            }
-        )
+    if not confident_entries and not focus_entries:
+        user_prefix = f"users/{_sanitize_path_segment(resolved_sub)}/"
+        seen_names = set()
+        for blob in client.list_blobs(bucket, prefix=user_prefix):
+            if blob.name in seen_names:
+                continue
+            seen_names.add(blob.name)
+            entry = ingest_blob(blob)
+            if not entry:
+                continue
+            if entry["_state"] == "confident":
+                confident_entries.append(entry)
+            elif entry["_state"] == "needs_focus":
+                focus_entries.append(entry)
 
     return _canonical_saved_words(confident_entries, focus_entries)
 

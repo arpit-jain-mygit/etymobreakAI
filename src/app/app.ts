@@ -1035,11 +1035,15 @@ export class App implements OnInit, AfterViewInit {
     }
 
     const analysis = 'analysis' in value ? (value.analysis as AnalysisResult | null) : (value as AnalysisResult);
+    const rawValue = value as unknown as Record<string, unknown>;
+    const rawAnalysis = analysis as AnalysisResult & { root?: string };
     const root = String(
-      analysis?.rootFamily?.root ||
-        analysis?.query ||
-        ('query' in value ? value.query : '') ||
-        ('title' in value ? value.title : '') ||
+      rawAnalysis?.rootFamily?.root ||
+        rawAnalysis?.query ||
+        rawAnalysis?.root ||
+        String(rawValue['root'] || '') ||
+        String(rawValue['query'] || '') ||
+        String(rawValue['title'] || '') ||
         ''
     )
       .trim()
@@ -3511,8 +3515,16 @@ export class App implements OnInit, AfterViewInit {
     const rawAnalysis =
       entry['analysis'] && typeof entry['analysis'] === 'object' ? (entry['analysis'] as unknown) : entry;
     const rawAnalysisRecord = rawAnalysis as { [key: string]: unknown };
-    const query = String(entry['query'] || rawAnalysisRecord['query'] || '').trim();
-    const mode = String(entry['mode'] || rawAnalysisRecord['mode'] || 'word').trim() || 'word';
+    const query = String(
+      entry['query'] ||
+        rawAnalysisRecord['query'] ||
+        rawAnalysisRecord['root'] ||
+        rawAnalysisRecord['title'] ||
+        entry['root'] ||
+        entry['title'] ||
+        ''
+    ).trim();
+    const mode = String(entry['mode'] || rawAnalysisRecord['mode'] || rawAnalysisRecord['type'] || 'word').trim() || 'word';
     const analysis = this.normalizeAnalysisResult(rawAnalysis, query);
     if (!query || this.isEmptyAnalysis(analysis)) {
       return null;
