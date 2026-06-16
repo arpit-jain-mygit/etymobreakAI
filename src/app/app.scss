@@ -5,7 +5,7 @@
 
 .shell {
   min-height: 100dvh;
-  padding: 18px;
+  padding: 10px;
   background:
     radial-gradient(circle at top left, rgba(188, 220, 208, 0.42), transparent 28%),
     radial-gradient(circle at top right, rgba(214, 228, 255, 0.52), transparent 24%),
@@ -14,26 +14,72 @@
 
 .hero {
   display: grid;
-  gap: 14px;
+  gap: 8px;
   max-width: 1400px;
   margin: 0 auto;
 }
 
 .hero-copy {
   display: grid;
-  gap: 8px;
+  gap: 4px;
   max-width: 920px;
 }
 
 .tab-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   width: 100%;
+  flex-wrap: wrap;
 }
 
 .tab-row .tab-chip:last-child {
   margin-left: auto;
+}
+
+.header-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 1px solid rgba(150, 171, 185, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  max-width: 250px;
+}
+
+.header-search-bar input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.85rem;
+  color: #486178;
+  padding: 4px 0;
+}
+
+.header-search-bar input::placeholder {
+  color: rgba(96, 116, 141, 0.5);
+}
+
+.search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #7f92a7;
+  cursor: pointer;
+  font-size: 16px;
+  transition: color 0.2s ease;
+}
+
+.search-clear:hover {
+  color: #486178;
 }
 
 .tab-chip {
@@ -491,7 +537,7 @@ h1 {
 .info-card,
 .panel {
   border-radius: 14px;
-  padding: 12px;
+  padding: 8px;
 }
 
 .literal-card {

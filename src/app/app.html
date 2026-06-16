@@ -216,20 +216,32 @@
           <button
             type="button"
             class="tab-chip"
-            [class.active]="activeTab() === 'search'"
-            (click)="setActiveTab('search')"
-          >
-            Search
-          </button>
-          <button
-            type="button"
-            class="tab-chip"
             [class.active]="activeTab() === 'history'"
             (click)="setActiveTab('history')"
           >
             History
           </button>
         </div>
+
+        <!-- Top Right Search Bar -->
+        <form class="header-search-bar" (submit)="$event.preventDefault(); analyze()">
+          <input
+            name="query"
+            [ngModel]="query()"
+            (ngModelChange)="query.set($event); openAutocomplete()"
+            (focus)="openAutocomplete()"
+            (blur)="closeAutocomplete()"
+            placeholder="Search words..."
+            autocomplete="off"
+            spellcheck="false"
+            aria-label="Search term"
+          />
+          @if (query()) {
+            <button type="button" class="search-clear" aria-label="Clear search" (click)="query.set('')">
+              ✕
+            </button>
+          }
+        </form>
       </div>
 
       @if (activeTab() === 'search') {
