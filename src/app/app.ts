@@ -3035,19 +3035,18 @@ export class App implements OnInit, AfterViewInit {
 
     if (mode === 'confident') {
       addAll(confidentCandidates);
-      return selected.length ? selected : confidentCandidates.slice(0, Math.max(1, confidentEntries.length));
+      return selected;
     }
 
     if (mode === 'needs_focus') {
       addAll(focusCandidates);
-      return selected.length ? selected : focusCandidates.slice(0, Math.max(1, focusEntries.length));
+      return selected;
     }
 
     const totalTarget = Math.max(1, Math.floor(Number(targetCount || 0)) || 1);
-    const confidentTarget = Math.min(confidentAnalyses.length, totalTarget);
-    const remainingTarget = Math.max(0, totalTarget - confidentTarget);
-    const focusTarget = Math.floor(remainingTarget / 2);
-    const newTarget = remainingTarget - focusTarget;
+    const confidentTarget = Math.min(Math.floor(totalTarget * 0.8), confidentAnalyses.length);
+    const focusTarget = Math.min(Math.floor(totalTarget * 0.1), focusAnalyses.length);
+    const newTarget = Math.min(totalTarget - confidentTarget - focusTarget, newAnalyses.length);
     const newFallbackCandidates = this.shuffle(this.buildRevisionCandidates(newAnalyses, 1, allInventoryAnalyses));
 
     takeFrom(confidentCandidates, confidentTarget);
