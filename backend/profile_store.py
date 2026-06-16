@@ -14,12 +14,6 @@ except ImportError:  # pragma: no cover - dependency is installed in deployment
     psycopg = None  # type: ignore[assignment]
     dict_row = None  # type: ignore[assignment]
 
-try:
-    from google.cloud import storage
-    from google.oauth2 import service_account
-except ImportError:  # pragma: no cover - dependency is installed in deployment
-    storage = None  # type: ignore[assignment]
-    service_account = None  # type: ignore[assignment]
 
 
 class ProfileStoreError(Exception):
@@ -141,40 +135,6 @@ def _sanitize_path_segment(value: str) -> str:
     return cleaned.strip("._-") or "unknown"
 
 
-def _bucket_name() -> str:
-    return (
-        os.getenv("GCP_ETYMOBREAK_BUCKET", "").strip()
-        or os.getenv("GCP_QUIZ_BUCKET", "").strip()
-        or os.getenv("GCS_BUCKET_NAME", "").strip()
-        or os.getenv("QUIZ_BUCKET_NAME", "").strip()
-        or "etymobreak-ai-quizzes"
-    )
-
-
-def _bucket_client() -> tuple[Any, str]:
-    bucket_name = _bucket_name()
-    if not bucket_name:
-        raise ProfileStoreError("GCP quiz bucket is not configured.")
-    if storage is None:
-        raise ProfileStoreError("google-cloud-storage is not installed.")
-
-    raw_credentials = (
-        os.getenv("GCP_SERVICE_ACCOUNT_JSON", "").strip()
-        or os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON", "").strip()
-    )
-    if raw_credentials:
-        if service_account is None:
-            raise ProfileStoreError("google-auth is not installed.")
-        try:
-            credentials_info = json.loads(raw_credentials)
-        except Exception as exc:
-            raise ProfileStoreError(f"Invalid GCP service account JSON: {exc}") from exc
-
-        credentials = service_account.Credentials.from_service_account_info(credentials_info)
-        project_id = str(credentials_info.get("project_id", "")).strip() or os.getenv("GCP_PROJECT_ID", "").strip()
-        return storage.Client(project=project_id or None, credentials=credentials), bucket_name
-
-    return storage.Client(), bucket_name
 
 
 def _broker_url() -> str:
@@ -1097,13 +1057,6 @@ def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat()
 
     if not bool(payload.get("confident", True)):
-        if _broker_is_configured():
-            try:
-                return _call_broker("POST", "/confident-words", payload=payload)
-            except ProfileStoreError:
-                pass
-
-        _delete_confident_word_from_bucket(google_sub, query, mode)
         return {
             "id": confident_id,
             "query": query,
@@ -1111,20 +1064,6 @@ def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
             "removed": True,
         }
 
-    if _broker_is_configured():
-        try:
-            return _call_broker("POST", "/confident-words", payload=payload)
-        except ProfileStoreError:
-            pass
-
-    bucket_object_name, bucket_uri = _write_confident_word_to_bucket(
-        confident_id=confident_id,
-        profile_id=profile_id,
-        google_sub=google_sub,
-        profile_data=profile,
-        payload=payload,
-        created_at=now,
-    )
     analysis = _confident_analysis_payload(payload)
     response = {
         "id": confident_id,
@@ -1136,8 +1075,6 @@ def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
         "playerEmail": email,
         "country": country,
         "analysis": analysis,
-        "bucketObjectName": bucket_object_name,
-        "bucketUri": bucket_uri,
     }
     _cache_confident_word_to_db({
         "id": confident_id,
@@ -1148,8 +1085,8 @@ def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
         "mode": mode,
         "title": response["title"],
         "analysis": analysis,
-        "bucketObjectName": bucket_object_name,
-        "bucketUri": bucket_uri,
+        "bucketObjectName": None,
+        "bucketUri": None,
         "player": {"email": email},
     })
     return response
@@ -1176,13 +1113,6 @@ def upsert_needs_focus_word(payload: dict[str, Any]) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat()
 
     if not bool(payload.get("needsFocus", True)):
-        if _broker_is_configured():
-            try:
-                return _call_broker("POST", "/needs-focus-words", payload=payload)
-            except ProfileStoreError:
-                pass
-
-        _delete_needs_focus_word_from_bucket(google_sub, query, mode)
         return {
             "id": focus_id,
             "query": query,
@@ -1190,20 +1120,6 @@ def upsert_needs_focus_word(payload: dict[str, Any]) -> dict[str, Any]:
             "removed": True,
         }
 
-    if _broker_is_configured():
-        try:
-            return _call_broker("POST", "/needs-focus-words", payload=payload)
-        except ProfileStoreError:
-            pass
-
-    bucket_object_name, bucket_uri = _write_needs_focus_word_to_bucket(
-        focus_id=focus_id,
-        profile_id=profile_id,
-        google_sub=google_sub,
-        profile_data=profile,
-        payload=payload,
-        created_at=now,
-    )
     response = {
         "id": focus_id,
         "time": now,
@@ -1214,8 +1130,6 @@ def upsert_needs_focus_word(payload: dict[str, Any]) -> dict[str, Any]:
         "playerEmail": email,
         "country": country,
         "analysis": analysis,
-        "bucketObjectName": bucket_object_name,
-        "bucketUri": bucket_uri,
     }
     _cache_needs_focus_word_to_db({
         "id": focus_id,
@@ -1226,8 +1140,8 @@ def upsert_needs_focus_word(payload: dict[str, Any]) -> dict[str, Any]:
         "mode": mode,
         "title": response["title"],
         "analysis": analysis,
-        "bucketObjectName": bucket_object_name,
-        "bucketUri": bucket_uri,
+        "bucketObjectName": None,
+        "bucketUri": None,
         "player": {"email": email},
     })
     return response
@@ -1247,37 +1161,7 @@ def list_confident_words_by_google_identity(google_sub: str | None, email: str |
     if not resolved_sub:
         return []
 
-    db_words = _list_confident_words_from_db(resolved_sub)
-    if db_words:
-        return db_words
-
-    canonical_confident: list[dict[str, Any]] = []
-    try:
-        confident_entries, focus_entries = _list_saved_words_from_bucket(resolved_sub, mail)
-        canonical_confident, _ = _canonical_saved_words(confident_entries, focus_entries)
-        if canonical_confident:
-            return canonical_confident
-    except Exception:
-        canonical_confident = []
-
-    if _broker_is_configured():
-        try:
-            broker_payload = _call_broker("GET", "/confident-words", params={"sub": resolved_sub, "email": mail})
-            confident_items = broker_payload.get("items", [])
-            confident_items = confident_items if isinstance(confident_items, list) else []
-            focus_items = []
-            try:
-                focus_payload = _call_broker("GET", "/needs-focus-words", params={"sub": resolved_sub, "email": mail})
-                focus_items = focus_payload.get("items", []) if isinstance(focus_payload.get("items", []), list) else []
-            except ProfileStoreError:
-                focus_items = []
-            canonical_confident, _ = _canonical_saved_words(confident_items, focus_items)
-            if canonical_confident:
-                return canonical_confident
-        except ProfileStoreError:
-            pass
-
-    return canonical_confident
+    return _list_confident_words_from_db(resolved_sub)
 
 
 def list_needs_focus_words_by_google_identity(google_sub: str | None, email: str | None) -> list[dict[str, Any]]:
@@ -1294,34 +1178,4 @@ def list_needs_focus_words_by_google_identity(google_sub: str | None, email: str
     if not resolved_sub:
         return []
 
-    db_words = _list_needs_focus_words_from_db(resolved_sub)
-    if db_words:
-        return db_words
-
-    canonical_focus: list[dict[str, Any]] = []
-    try:
-        confident_entries, focus_entries = _list_saved_words_from_bucket(resolved_sub, mail)
-        _, canonical_focus = _canonical_saved_words(confident_entries, focus_entries)
-        if canonical_focus:
-            return canonical_focus
-    except Exception:
-        canonical_focus = []
-
-    if _broker_is_configured():
-        try:
-            broker_payload = _call_broker("GET", "/needs-focus-words", params={"sub": resolved_sub, "email": mail})
-            focus_items = broker_payload.get("items", [])
-            focus_items = focus_items if isinstance(focus_items, list) else []
-            confident_items = []
-            try:
-                confident_payload = _call_broker("GET", "/confident-words", params={"sub": resolved_sub, "email": mail})
-                confident_items = confident_payload.get("items", []) if isinstance(confident_payload.get("items", []), list) else []
-            except ProfileStoreError:
-                confident_items = []
-            _, canonical_focus = _canonical_saved_words(confident_items, focus_items)
-            if canonical_focus:
-                return canonical_focus
-        except ProfileStoreError:
-            pass
-
-    return canonical_focus
+    return _list_needs_focus_words_from_db(resolved_sub)
