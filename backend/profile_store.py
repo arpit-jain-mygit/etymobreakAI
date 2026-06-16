@@ -921,10 +921,14 @@ def list_confident_words_by_google_identity(google_sub: str | None, email: str |
     if not resolved_sub:
         return []
 
-    confident_entries, focus_entries = _list_saved_words_from_bucket(resolved_sub, mail)
-    canonical_confident, _ = _canonical_saved_words(confident_entries, focus_entries)
-    if canonical_confident:
-        return canonical_confident
+    canonical_confident: list[dict[str, Any]] = []
+    try:
+        confident_entries, focus_entries = _list_saved_words_from_bucket(resolved_sub, mail)
+        canonical_confident, _ = _canonical_saved_words(confident_entries, focus_entries)
+        if canonical_confident:
+            return canonical_confident
+    except Exception:
+        canonical_confident = []
 
     if _broker_is_configured():
         try:
@@ -960,10 +964,14 @@ def list_needs_focus_words_by_google_identity(google_sub: str | None, email: str
     if not resolved_sub:
         return []
 
-    confident_entries, focus_entries = _list_saved_words_from_bucket(resolved_sub, mail)
-    _, canonical_focus = _canonical_saved_words(confident_entries, focus_entries)
-    if canonical_focus:
-        return canonical_focus
+    canonical_focus: list[dict[str, Any]] = []
+    try:
+        confident_entries, focus_entries = _list_saved_words_from_bucket(resolved_sub, mail)
+        _, canonical_focus = _canonical_saved_words(confident_entries, focus_entries)
+        if canonical_focus:
+            return canonical_focus
+    except Exception:
+        canonical_focus = []
 
     if _broker_is_configured():
         try:
