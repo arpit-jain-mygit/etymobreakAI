@@ -247,11 +247,6 @@
 
       @if (query()) {
       <section class="search-results-section">
-        <div class="search-panel-header">
-          <h3>Search Results</h3>
-          <span class="result-count">{{ searchResults().length }} results</span>
-        </div>
-
         @if (showAutocomplete()) {
           <div class="autocomplete-panel" role="listbox" aria-label="Autocomplete suggestions">
             @for (item of autocompleteOptions(); track item) {
@@ -259,10 +254,9 @@
                 type="button"
                 class="autocomplete-item"
                 (mousedown)="$event.preventDefault()"
-                (click)="chooseAutocomplete(item)"
+                (click)="chooseAutocomplete(item); experimentIndex.set(searchResults().findIndex(e => e.root.toLowerCase() === item.toLowerCase())); setActiveTab('all_words')"
               >
                 <span>{{ item }}</span>
-                <small class="autocomplete-kind">root</small>
               </button>
             }
           </div>
@@ -272,18 +266,18 @@
           <section class="notice calm-notice">Searching...</section>
         } @else if (searchResults().length > 0) {
           <div class="search-results-list">
-            @for (entry of searchResults(); track entry.root) {
-              <article class="info-card search-result-item">
-                <div class="result-header">
-                  <strong>{{ entry.root }}</strong>
-                  <span class="result-count-badge">{{ entry.assembledWords.length }} examples</span>
-                </div>
-                <p>{{ entry.meaning }}</p>
-              </article>
+            @for (entry of searchResults(); track entry.root; let idx = $index) {
+              <button
+                type="button"
+                class="search-result-item"
+                (click)="experimentIndex.set(idx); setActiveTab('all_words')"
+              >
+                {{ entry.root }}
+              </button>
             }
           </div>
         } @else if (!loading()) {
-          <section class="notice calm-notice">No results found for "{{ query() }}"</section>
+          <section class="notice calm-notice">No results found</section>
         }
       </section>
       }
