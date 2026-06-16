@@ -224,63 +224,65 @@
         </div>
 
         <!-- Top Right Search Bar -->
-        <form class="header-search-bar" (submit)="$event.preventDefault(); analyze()">
-          <input
-            name="query"
-            [ngModel]="query()"
-            (ngModelChange)="query.set($event); openAutocomplete(); analyze()"
-            (keydown.enter)="analyze()"
-            (focus)="openAutocomplete()"
-            (blur)="closeAutocomplete()"
-            placeholder="Search words..."
-            autocomplete="off"
-            spellcheck="false"
-            aria-label="Search term"
-          />
+        <div class="header-search-wrapper">
+          <form class="header-search-bar" (submit)="$event.preventDefault(); analyze()">
+            <input
+              name="query"
+              [ngModel]="query()"
+              (ngModelChange)="query.set($event); openAutocomplete(); analyze()"
+              (keydown.enter)="analyze()"
+              (focus)="openAutocomplete()"
+              (blur)="closeAutocomplete()"
+              placeholder="Search words..."
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Search term"
+            />
+            @if (query()) {
+              <button type="button" class="search-clear" aria-label="Clear search" (click)="query.set(''); searchResults.set([])">
+                ✕
+              </button>
+            }
+          </form>
+
           @if (query()) {
-            <button type="button" class="search-clear" aria-label="Clear search" (click)="query.set(''); searchResults.set([])">
-              ✕
-            </button>
+          <section class="search-results-section">
+            @if (showAutocomplete()) {
+              <div class="autocomplete-panel" role="listbox" aria-label="Autocomplete suggestions">
+                @for (item of autocompleteOptions(); track item) {
+                  <button
+                    type="button"
+                    class="autocomplete-item"
+                    (mousedown)="$event.preventDefault()"
+                    (click)="chooseAutocomplete(item); experimentIndex.set(searchResults().findIndex(e => e.root.toLowerCase() === item.toLowerCase())); setActiveTab('all_words')"
+                  >
+                    <span>{{ item }}</span>
+                  </button>
+                }
+              </div>
+            }
+
+            @if (loading()) {
+              <section class="notice calm-notice">Searching...</section>
+            } @else if (searchResults().length > 0) {
+              <div class="search-results-list">
+                @for (entry of searchResults(); track entry.root; let idx = $index) {
+                  <button
+                    type="button"
+                    class="search-result-item"
+                    (click)="experimentIndex.set(idx); setActiveTab('all_words')"
+                  >
+                    {{ entry.root }}
+                  </button>
+                }
+              </div>
+            } @else if (!loading()) {
+              <section class="notice calm-notice">No results found</section>
+            }
+          </section>
           }
-        </form>
+        </div>
       </div>
-
-      @if (query()) {
-      <section class="search-results-section">
-        @if (showAutocomplete()) {
-          <div class="autocomplete-panel" role="listbox" aria-label="Autocomplete suggestions">
-            @for (item of autocompleteOptions(); track item) {
-              <button
-                type="button"
-                class="autocomplete-item"
-                (mousedown)="$event.preventDefault()"
-                (click)="chooseAutocomplete(item); experimentIndex.set(searchResults().findIndex(e => e.root.toLowerCase() === item.toLowerCase())); setActiveTab('all_words')"
-              >
-                <span>{{ item }}</span>
-              </button>
-            }
-          </div>
-        }
-
-        @if (loading()) {
-          <section class="notice calm-notice">Searching...</section>
-        } @else if (searchResults().length > 0) {
-          <div class="search-results-list">
-            @for (entry of searchResults(); track entry.root; let idx = $index) {
-              <button
-                type="button"
-                class="search-result-item"
-                (click)="experimentIndex.set(idx); setActiveTab('all_words')"
-              >
-                {{ entry.root }}
-              </button>
-            }
-          </div>
-        } @else if (!loading()) {
-          <section class="notice calm-notice">No results found</section>
-        }
-      </section>
-      }
     </section>
 
     @if (error()) {
