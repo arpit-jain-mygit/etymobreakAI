@@ -607,7 +607,12 @@ h1 {
 .info-card,
 .panel {
   border-radius: 14px;
-  padding: 8px;
+  padding: 6px;
+}
+
+.word-slideshow-panel {
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .literal-card {
@@ -760,9 +765,9 @@ h1 {
 
 .root-card {
   display: grid;
-  gap: 10px;
-  padding: 14px;
-  border-radius: 18px;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
   border: 1px solid rgba(158, 177, 184, 0.18);
   background: linear-gradient(180deg, rgba(241, 247, 255, 0.98), rgba(235, 244, 250, 0.96));
   box-shadow:
@@ -781,7 +786,7 @@ h1 {
 .root-card-head {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   align-items: flex-start;
 }
 
@@ -839,9 +844,9 @@ h1 {
 
 .root-assembled-card {
   display: grid;
-  gap: 4px;
-  padding: 10px;
-  border-radius: 14px;
+  gap: 3px;
+  padding: 8px;
+  border-radius: 12px;
   border: 1px solid rgba(158, 177, 184, 0.18);
   background: rgba(255, 255, 255, 0.74);
 }
