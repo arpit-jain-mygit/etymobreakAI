@@ -349,10 +349,12 @@ export class App implements OnInit, AfterViewInit {
   protected readonly confidentWordsSaving = signal(false);
   protected readonly confidentWordsError = signal('');
   protected readonly confidentWordNotice = signal('');
+  protected readonly confidentWordsApiResponse = signal('');
   protected readonly needsFocusWordsLoading = signal(false);
   protected readonly needsFocusWordsSaving = signal(false);
   protected readonly needsFocusWordsError = signal('');
   protected readonly needsFocusWordNotice = signal('');
+  protected readonly needsFocusWordsApiResponse = signal('');
   protected readonly quizTimeLabel = computed(() => {
     const remaining = Math.max(0, this.quizTimeRemaining());
     const minutes = Math.floor(remaining / 60);
@@ -3547,6 +3549,48 @@ export class App implements OnInit, AfterViewInit {
     };
   }
 
+  private rawSavedWordEntry(item: unknown): ConfidentWordEntry | null {
+    if (!item || typeof item !== 'object') {
+      return null;
+    }
+
+    const entry = item as { [key: string]: unknown };
+    const rawAnalysis =
+      entry['analysis'] && typeof entry['analysis'] === 'object' ? (entry['analysis'] as unknown) : entry;
+    const rawAnalysisRecord = rawAnalysis as { [key: string]: unknown };
+    const query = String(
+      entry['query'] ||
+        rawAnalysisRecord['query'] ||
+        rawAnalysisRecord['root'] ||
+        rawAnalysisRecord['title'] ||
+        entry['root'] ||
+        entry['title'] ||
+        ''
+    ).trim();
+
+    if (!query) {
+      return null;
+    }
+
+    const mode = String(entry['mode'] || rawAnalysisRecord['mode'] || rawAnalysisRecord['type'] || 'word').trim() || 'word';
+    const analysis = this.normalizeAnalysisResult(rawAnalysis, query);
+    const player = entry['player'] && typeof entry['player'] === 'object' ? (entry['player'] as { [key: string]: unknown }) : {};
+
+    return {
+      id: String(entry['id'] || `${query}-${mode}`).trim(),
+      time: String(entry['time'] || entry['updatedAt'] || entry['createdAt'] || '').trim(),
+      query,
+      mode,
+      title: String(entry['title'] || rawAnalysisRecord['title'] || analysis.title || query).trim(),
+      playerName: String(entry['playerName'] || '').trim() || `${String(player['firstName'] || '').trim()} ${String(player['lastName'] || '').trim()}`.trim(),
+      playerEmail: String(entry['playerEmail'] || '').trim() || String(player['email'] || '').trim(),
+      country: String(entry['country'] || '').trim() || String(player['country'] || '').trim(),
+      analysis,
+      bucketObjectName: String(entry['bucketObjectName'] || '').trim() || undefined,
+      bucketUri: String(entry['bucketUri'] || '').trim() || undefined,
+    };
+  }
+
   private async loadConfidentWordsFromServer(): Promise<void> {
     const profile = this.profile();
     if (!profile) {
@@ -3585,8 +3629,9 @@ export class App implements OnInit, AfterViewInit {
         }
 
         const payload = (await response.json().catch(() => null)) as { items?: unknown[] } | null;
+        this.confidentWordsApiResponse.set(JSON.stringify(payload ?? {}, null, 2));
         const entries = (payload?.items ?? [])
-          .map((item) => this.normalizeConfidentEntry(item))
+          .map((item) => this.rawSavedWordEntry(item))
           .filter((item): item is ConfidentWordEntry => item !== null)
           .sort((a, b) => b.time.localeCompare(a.time));
 
@@ -3699,8 +3744,9 @@ export class App implements OnInit, AfterViewInit {
         }
 
         const payload = (await response.json().catch(() => null)) as { items?: unknown[] } | null;
+        this.needsFocusWordsApiResponse.set(JSON.stringify(payload ?? {}, null, 2));
         const entries = (payload?.items ?? [])
-          .map((item) => this.normalizeNeedsFocusEntry(item))
+          .map((item) => this.rawSavedWordEntry(item))
           .filter((item): item is NeedsFocusWordEntry => item !== null)
           .sort((a, b) => b.time.localeCompare(a.time));
 
