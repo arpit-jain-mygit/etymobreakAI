@@ -1032,6 +1032,7 @@
                         type="button"
                         class="quiz-option"
                         [class.selected]="question.selectedIndex === optionIndex"
+                        [disabled]="question.selectedIndex !== null"
                         (click)="selectQuizOption(optionIndex)"
                       >
                         <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>

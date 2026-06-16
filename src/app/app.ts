@@ -1534,7 +1534,7 @@ export class App implements OnInit, AfterViewInit {
     const questions = this.quizQuestions();
     const currentIndex = this.quizIndex();
     const question = questions[currentIndex];
-    if (!question) {
+    if (!question || question.selectedIndex !== null) {
       return;
     }
 

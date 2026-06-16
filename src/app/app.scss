@@ -1513,7 +1513,12 @@ h1 {
 }
 
 .quiz-option:disabled {
-  cursor: default;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.quiz-option:disabled:not(.selected) {
+  color: rgba(48, 68, 84, 0.6);
 }
 
 .quiz-option-key {
