@@ -2,13 +2,129 @@
 
 This guide explains how to migrate existing confident and needs-focus words from GCS bucket to Postgres database.
 
+**Choose your approach:**
+- **Option A**: Migrate from **local JSON files** (folder of JSON files) - See [Local JSON Migration](#local-json-migration)
+- **Option B**: Migrate directly from **GCS bucket** - See [GCS Direct Migration](#gcs-direct-migration)
+
 ## Why Migrate?
 
 - **Performance**: Database queries (1-50ms) vs GCS scans (2000-5000ms)
 - **User Experience**: First request is also fast (no cold start)
 - **Scalability**: Database handles large datasets better than GCS
 
-## Prerequisites
+---
+
+## Local JSON Migration
+
+### Recommended for most users!
+
+If you have a folder of exported JSON files from GCS, use this approach.
+
+### Prerequisites
+
+1. **Environment Variable**:
+   - `DATABASE_URL` or `DATABASE_URL_EXTERNAL` - Postgres connection string
+
+2. **Python Package**:
+   ```bash
+   pip install psycopg
+   ```
+   (That's it! No GCP credentials needed)
+
+3. **Folder Structure**:
+   ```
+   /path/to/json/files/
+   └── users/
+       ├── 100219244219086008584/
+       │   ├── confident-words/
+       │   │   ├── word1.json
+       │   │   ├── word2.json
+       │   │   └── ...
+       │   └── needs-focus-words/
+       │       ├── word3.json
+       │       └── ...
+       ├── 987654321234567890/
+       │   ├── confident-words/
+       │   └── needs-focus-words/
+       └── ...
+   ```
+
+### How to Run
+
+**1. Prepare your JSON folder**
+
+You should have all JSON files exported/downloaded from GCS in this structure:
+```
+users/
+├── user1_id/
+│   ├── confident-words/*.json
+│   └── needs-focus-words/*.json
+├── user2_id/
+│   ├── confident-words/*.json
+│   └── needs-focus-words/*.json
+└── ...
+```
+
+**2. Set environment variable**
+
+```bash
+export DATABASE_URL="postgresql://user:pass@host:port/database"
+```
+
+**3. Run migration**
+
+```bash
+cd etymobreakAI/backend
+
+python migrate_local_json_to_db.py /path/to/json/files
+```
+
+**Example:**
+```bash
+python migrate_local_json_to_db.py ~/Downloads/gcs-backup
+python migrate_local_json_to_db.py /tmp/etymobreak-words
+python migrate_local_json_to_db.py ./json-files
+```
+
+### Example Output
+
+```
+============================================================
+Local JSON to Postgres Migration
+============================================================
+Database: etymobreak-prod.postgres.render.com
+JSON Folder: /Users/username/Downloads/gcs-backup
+
+Found 157 confident word files
+Found 203 needs-focus word files
+
+Migrating confident words from local JSON files...
+  Migrated 50 confident words...
+  Migrated 100 confident words...
+✓ Migrated 157 confident words (0 errors)
+
+Migrating needs-focus words from local JSON files...
+  Migrated 50 needs-focus words...
+  Migrated 100 needs-focus words...
+✓ Migrated 203 needs-focus words (1 error)
+
+============================================================
+Migration Complete!
+Total migrated: 360 words
+============================================================
+```
+
+### Advantages
+
+✓ **No GCP credentials needed**
+✓ **No internet access to GCS required**
+✓ **Faster** (reads from local disk)
+✓ **Flexible** (can migrate any time)
+✓ **Works offline** (once files are downloaded)
+
+---
+
+## GCS Direct Migration
 
 1. **Environment Variables Set**: 
    - `DATABASE_URL` or `DATABASE_URL_EXTERNAL` - Postgres connection string
