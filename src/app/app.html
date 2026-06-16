@@ -764,7 +764,6 @@
             <span>{{ activeTab() === 'all_words' ? 'All words' : 'Saved words' }}</span>
             @if (activeTab() !== 'all_words') {
               <button type="button" class="tab-chip" (click)="downloadSavedWordsAsCSV()">Download CSV</button>
-              <button type="button" class="tab-chip" (click)="exportActiveSavedWordsAsPdf()">Export PDF</button>
             }
           </div>
         </div>
