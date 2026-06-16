@@ -228,7 +228,8 @@
           <input
             name="query"
             [ngModel]="query()"
-            (ngModelChange)="query.set($event); openAutocomplete()"
+            (ngModelChange)="query.set($event); openAutocomplete(); analyze()"
+            (keydown.enter)="analyze()"
             (focus)="openAutocomplete()"
             (blur)="closeAutocomplete()"
             placeholder="Search words..."
@@ -237,67 +238,54 @@
             aria-label="Search term"
           />
           @if (query()) {
-            <button type="button" class="search-clear" aria-label="Clear search" (click)="query.set('')">
+            <button type="button" class="search-clear" aria-label="Clear search" (click)="query.set(''); searchResults.set([])">
               ✕
             </button>
           }
         </form>
       </div>
 
-      @if (activeTab() === 'search') {
-      <form class="search-panel" (submit)="$event.preventDefault(); analyze()">
-        <label class="field">
-          <div class="input-wrap">
-            <input
-              name="query"
-              [ngModel]="query()"
-              (ngModelChange)="query.set($event); openAutocomplete()"
-              (focus)="openAutocomplete()"
-              (blur)="closeAutocomplete()"
-              placeholder="Type any word to analyze"
-              autocomplete="off"
-              spellcheck="false"
-              aria-autocomplete="list"
-              aria-label="Search term"
-            />
-            @if (query()) {
-              <button type="button" class="icon-button" aria-label="Clear search" (click)="query.set('')">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
+      @if (query()) {
+      <section class="search-results-section">
+        <div class="search-panel-header">
+          <h3>Search Results</h3>
+          <span class="result-count">{{ searchResults().length }} results</span>
+        </div>
+
+        @if (showAutocomplete()) {
+          <div class="autocomplete-panel" role="listbox" aria-label="Autocomplete suggestions">
+            @for (item of autocompleteOptions(); track item) {
+              <button
+                type="button"
+                class="autocomplete-item"
+                (mousedown)="$event.preventDefault()"
+                (click)="chooseAutocomplete(item)"
+              >
+                <span>{{ item }}</span>
+                <small class="autocomplete-kind">root</small>
               </button>
             }
           </div>
-          @if (showAutocomplete()) {
-            <div class="autocomplete-panel" role="listbox" aria-label="Autocomplete suggestions">
-              @for (item of autocompleteOptions(); track item) {
-                <button
-                  type="button"
-                  class="autocomplete-item"
-                  (mousedown)="$event.preventDefault()"
-                  (click)="chooseAutocomplete(item)"
-                >
-                  <span>{{ item }}</span>
-                  <small class="autocomplete-kind">root</small>
-                </button>
-              }
-            </div>
-          }
-        </label>
+        }
 
-        <div class="actions">
-          <button class="primary" type="submit" [disabled]="loading()">
-            @if (loading()) {
-              <span class="spinner" aria-hidden="true"></span>
-            } @else {
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M10 4a6 6 0 1 0 3.87 10.61l4.26 4.26 1.41-1.41-4.26-4.26A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z" />
-              </svg>
+        @if (loading()) {
+          <section class="notice calm-notice">Searching...</section>
+        } @else if (searchResults().length > 0) {
+          <div class="search-results-list">
+            @for (entry of searchResults(); track entry.root) {
+              <article class="info-card search-result-item">
+                <div class="result-header">
+                  <strong>{{ entry.root }}</strong>
+                  <span class="result-count-badge">{{ entry.assembledWords.length }} examples</span>
+                </div>
+                <p>{{ entry.meaning }}</p>
+              </article>
             }
-            <span>{{ loading() ? 'Searching' : 'Search' }}</span>
-          </button>
-        </div>
-      </form>
+          </div>
+        } @else if (!loading()) {
+          <section class="notice calm-notice">No results found for "{{ query() }}"</section>
+        }
+      </section>
       }
     </section>
 
