@@ -40,6 +40,44 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 """
 
+CONFIDENT_WORDS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS confident_words (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT NOT NULL,
+    google_sub TEXT NOT NULL,
+    email TEXT NOT NULL,
+    query TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    title TEXT NOT NULL,
+    analysis TEXT NOT NULL,
+    bucket_object_name TEXT,
+    bucket_uri TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(google_sub, query, mode)
+);
+CREATE INDEX IF NOT EXISTS idx_confident_words_google_sub ON confident_words(google_sub);
+"""
+
+NEEDS_FOCUS_WORDS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS needs_focus_words (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT NOT NULL,
+    google_sub TEXT NOT NULL,
+    email TEXT NOT NULL,
+    query TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    title TEXT NOT NULL,
+    analysis TEXT NOT NULL,
+    bucket_object_name TEXT,
+    bucket_uri TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(google_sub, query, mode)
+);
+CREATE INDEX IF NOT EXISTS idx_needs_focus_words_google_sub ON needs_focus_words(google_sub);
+"""
+
 
 def database_url() -> str:
     primary = os.getenv("DATABASE_URL", "").strip()
@@ -64,6 +102,8 @@ def ensure_schema() -> None:
     with _connect() as conn:
         with conn.cursor() as cursor:
             cursor.execute(PROFILE_TABLE_SQL)
+            cursor.execute(CONFIDENT_WORDS_TABLE_SQL)
+            cursor.execute(NEEDS_FOCUS_WORDS_TABLE_SQL)
         conn.commit()
 
 
@@ -147,6 +187,202 @@ def _broker_secret() -> str:
 
 def _broker_is_configured() -> bool:
     return bool(_broker_url() and _broker_secret())
+
+
+def _cache_confident_word_to_db(word_data: dict[str, Any]) -> None:
+    try:
+        google_sub = str(word_data.get("googleSub", "")).strip()
+        profile_id = str(word_data.get("profileId", "")).strip()
+        email = str(word_data.get("player", {}).get("email", "")).strip() if isinstance(word_data.get("player"), dict) else ""
+        query = str(word_data.get("query", "")).strip()
+        mode = str(word_data.get("mode", "")).strip() or "word"
+        title = str(word_data.get("title", "")).strip()
+        analysis = json.dumps(word_data.get("analysis", {}))
+        now = datetime.now(timezone.utc).isoformat()
+
+        if not google_sub or not query:
+            return
+
+        with _connect() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO confident_words (
+                        id, profile_id, google_sub, email, query, mode, title, analysis,
+                        bucket_object_name, bucket_uri, created_at, updated_at
+                    ) VALUES (
+                        %(id)s, %(profile_id)s, %(google_sub)s, %(email)s, %(query)s, %(mode)s,
+                        %(title)s, %(analysis)s, %(bucket_object_name)s, %(bucket_uri)s, %(created_at)s, %(updated_at)s
+                    )
+                    ON CONFLICT (google_sub, query, mode) DO UPDATE SET
+                        title = EXCLUDED.title,
+                        analysis = EXCLUDED.analysis,
+                        bucket_object_name = EXCLUDED.bucket_object_name,
+                        bucket_uri = EXCLUDED.bucket_uri,
+                        updated_at = EXCLUDED.updated_at
+                    """,
+                    {
+                        "id": str(word_data.get("id", "")).strip() or f"confident-{google_sub}-{query}",
+                        "profile_id": profile_id,
+                        "google_sub": google_sub,
+                        "email": email,
+                        "query": query,
+                        "mode": mode,
+                        "title": title,
+                        "analysis": analysis,
+                        "bucket_object_name": str(word_data.get("bucketObjectName", "")).strip() or None,
+                        "bucket_uri": str(word_data.get("bucketUri", "")).strip() or None,
+                        "created_at": str(word_data.get("createdAt", "")).strip() or now,
+                        "updated_at": now,
+                    },
+                )
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _cache_needs_focus_word_to_db(word_data: dict[str, Any]) -> None:
+    try:
+        google_sub = str(word_data.get("googleSub", "")).strip()
+        profile_id = str(word_data.get("profileId", "")).strip()
+        email = str(word_data.get("player", {}).get("email", "")).strip() if isinstance(word_data.get("player"), dict) else ""
+        query = str(word_data.get("query", "")).strip()
+        mode = str(word_data.get("mode", "")).strip() or "word"
+        title = str(word_data.get("title", "")).strip()
+        analysis = json.dumps(word_data.get("analysis", {}))
+        now = datetime.now(timezone.utc).isoformat()
+
+        if not google_sub or not query:
+            return
+
+        with _connect() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO needs_focus_words (
+                        id, profile_id, google_sub, email, query, mode, title, analysis,
+                        bucket_object_name, bucket_uri, created_at, updated_at
+                    ) VALUES (
+                        %(id)s, %(profile_id)s, %(google_sub)s, %(email)s, %(query)s, %(mode)s,
+                        %(title)s, %(analysis)s, %(bucket_object_name)s, %(bucket_uri)s, %(created_at)s, %(updated_at)s
+                    )
+                    ON CONFLICT (google_sub, query, mode) DO UPDATE SET
+                        title = EXCLUDED.title,
+                        analysis = EXCLUDED.analysis,
+                        bucket_object_name = EXCLUDED.bucket_object_name,
+                        bucket_uri = EXCLUDED.bucket_uri,
+                        updated_at = EXCLUDED.updated_at
+                    """,
+                    {
+                        "id": str(word_data.get("id", "")).strip() or f"focus-{google_sub}-{query}",
+                        "profile_id": profile_id,
+                        "google_sub": google_sub,
+                        "email": email,
+                        "query": query,
+                        "mode": mode,
+                        "title": title,
+                        "analysis": analysis,
+                        "bucket_object_name": str(word_data.get("bucketObjectName", "")).strip() or None,
+                        "bucket_uri": str(word_data.get("bucketUri", "")).strip() or None,
+                        "created_at": str(word_data.get("createdAt", "")).strip() or now,
+                        "updated_at": now,
+                    },
+                )
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _list_confident_words_from_db(google_sub: str) -> list[dict[str, Any]]:
+    try:
+        sub = str(google_sub or "").strip()
+        if not sub:
+            return []
+
+        with _connect() as conn:
+            with conn.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, profile_id, google_sub, email, query, mode, title, analysis,
+                           bucket_object_name, bucket_uri, created_at, updated_at
+                    FROM confident_words
+                    WHERE google_sub = %s
+                    ORDER BY updated_at DESC
+                    """,
+                    (sub,),
+                )
+                rows = cursor.fetchall()
+
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                analysis = json.loads(str(row.get("analysis", "{}") or "{}"))
+            except Exception:
+                analysis = {}
+
+            result.append({
+                "id": row.get("id", ""),
+                "time": row.get("updated_at", ""),
+                "query": row.get("query", ""),
+                "mode": row.get("mode", "word"),
+                "title": row.get("title", ""),
+                "playerName": "",
+                "playerEmail": row.get("email", ""),
+                "country": "",
+                "analysis": analysis,
+                "bucketObjectName": row.get("bucket_object_name", ""),
+                "bucketUri": row.get("bucket_uri", ""),
+            })
+
+        return result
+    except Exception:
+        return []
+
+
+def _list_needs_focus_words_from_db(google_sub: str) -> list[dict[str, Any]]:
+    try:
+        sub = str(google_sub or "").strip()
+        if not sub:
+            return []
+
+        with _connect() as conn:
+            with conn.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, profile_id, google_sub, email, query, mode, title, analysis,
+                           bucket_object_name, bucket_uri, created_at, updated_at
+                    FROM needs_focus_words
+                    WHERE google_sub = %s
+                    ORDER BY updated_at DESC
+                    """,
+                    (sub,),
+                )
+                rows = cursor.fetchall()
+
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                analysis = json.loads(str(row.get("analysis", "{}") or "{}"))
+            except Exception:
+                analysis = {}
+
+            result.append({
+                "id": row.get("id", ""),
+                "time": row.get("updated_at", ""),
+                "query": row.get("query", ""),
+                "mode": row.get("mode", "word"),
+                "title": row.get("title", ""),
+                "playerName": "",
+                "playerEmail": row.get("email", ""),
+                "country": "",
+                "analysis": analysis,
+                "bucketObjectName": row.get("bucket_object_name", ""),
+                "bucketUri": row.get("bucket_uri", ""),
+            })
+
+        return result
+    except Exception:
+        return []
 
 
 def _call_broker(
@@ -890,7 +1126,7 @@ def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
         created_at=now,
     )
     analysis = _confident_analysis_payload(payload)
-    return {
+    response = {
         "id": confident_id,
         "time": now,
         "query": query,
@@ -903,6 +1139,20 @@ def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
         "bucketObjectName": bucket_object_name,
         "bucketUri": bucket_uri,
     }
+    _cache_confident_word_to_db({
+        "id": confident_id,
+        "profileId": profile_id,
+        "googleSub": google_sub,
+        "createdAt": now,
+        "query": query,
+        "mode": mode,
+        "title": response["title"],
+        "analysis": analysis,
+        "bucketObjectName": bucket_object_name,
+        "bucketUri": bucket_uri,
+        "player": {"email": email},
+    })
+    return response
 
 
 def upsert_needs_focus_word(payload: dict[str, Any]) -> dict[str, Any]:
@@ -954,7 +1204,7 @@ def upsert_needs_focus_word(payload: dict[str, Any]) -> dict[str, Any]:
         payload=payload,
         created_at=now,
     )
-    return {
+    response = {
         "id": focus_id,
         "time": now,
         "query": query,
@@ -967,6 +1217,20 @@ def upsert_needs_focus_word(payload: dict[str, Any]) -> dict[str, Any]:
         "bucketObjectName": bucket_object_name,
         "bucketUri": bucket_uri,
     }
+    _cache_needs_focus_word_to_db({
+        "id": focus_id,
+        "profileId": profile_id,
+        "googleSub": google_sub,
+        "createdAt": now,
+        "query": query,
+        "mode": mode,
+        "title": response["title"],
+        "analysis": analysis,
+        "bucketObjectName": bucket_object_name,
+        "bucketUri": bucket_uri,
+        "player": {"email": email},
+    })
+    return response
 
 
 def list_confident_words_by_google_identity(google_sub: str | None, email: str | None) -> list[dict[str, Any]]:
@@ -982,6 +1246,10 @@ def list_confident_words_by_google_identity(google_sub: str | None, email: str |
 
     if not resolved_sub:
         return []
+
+    db_words = _list_confident_words_from_db(resolved_sub)
+    if db_words:
+        return db_words
 
     canonical_confident: list[dict[str, Any]] = []
     try:
@@ -1025,6 +1293,10 @@ def list_needs_focus_words_by_google_identity(google_sub: str | None, email: str
 
     if not resolved_sub:
         return []
+
+    db_words = _list_needs_focus_words_from_db(resolved_sub)
+    if db_words:
+        return db_words
 
     canonical_focus: list[dict[str, Any]] = []
     try:
