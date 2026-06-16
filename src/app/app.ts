@@ -439,11 +439,11 @@ export class App implements OnInit, AfterViewInit {
   });
   protected readonly activeSavedWordEntries = computed(() => {
     if (this.activeTab() === 'confident_words') {
-      return this.getSavedWordInventoryEntries('', 'confident');
+      return this.convertSavedWordsToInventoryEntries(this.confidentWords());
     }
 
     if (this.activeTab() === 'needs_focus_words') {
-      return this.getSavedWordInventoryEntries('', 'needs_focus');
+      return this.convertSavedWordsToInventoryEntries(this.needsFocusWords());
     }
 
     return [];
@@ -2374,6 +2374,28 @@ export class App implements OnInit, AfterViewInit {
         a.score - b.score || a.entry.root.localeCompare(b.entry.root, undefined, { sensitivity: 'base' })
       )
       .map((item) => item.entry);
+  }
+
+  private convertSavedWordsToInventoryEntries(words: ConfidentWordEntry[]): RootInventoryEntry[] {
+    return words
+      .map((word) => {
+        const analysis = word.analysis || {};
+        const rootFamily = (analysis as any)?.rootFamily || {};
+
+        return {
+          root: word.query,
+          type: 'word',
+          meaning: (analysis as any)?.actualMeaning || (analysis as any)?.summary || word.title || '',
+          origin: '',
+          source: 'saved',
+          exampleSentence: '',
+          slideNumbers: [],
+          alternateForms: [],
+          assembledWords: [],
+          familyMemory: [],
+        };
+      })
+      .sort((a, b) => a.root.localeCompare(b.root, undefined, { sensitivity: 'base' }));
   }
 
   private getSavedWordInventoryEntries(letter = '', source: 'confident' | 'needs_focus'): RootInventoryEntry[] {
