@@ -846,10 +846,13 @@ def list_quiz_history_by_google_identity(google_sub: str | None, email: str | No
                         else:
                             attempt_data = raw_attempt if isinstance(raw_attempt, dict) else {}
                         item["questions"] = attempt_data.get("questions", [])
-                    except (json.JSONDecodeError, TypeError):
+                    except (json.JSONDecodeError, TypeError) as e:
                         item["questions"] = []
                     history.append(item)
 
+                # Debug: log number of quizzes retrieved
+                import sys
+                print(f"[DEBUG] Retrieved {len(history)} quizzes for google_sub={resolved_sub}", file=sys.stderr)
                 return history
     except Exception as exc:
         raise ProfileStoreError(f"Could not list quiz history: {exc}") from exc
