@@ -1203,6 +1203,24 @@
               Skipped
               <span>{{ quizSummaryFilterCounts().skipped }}</span>
             </button>
+            <button
+              type="button"
+              class="quiz-review-filter"
+              [class.active]="quizReviewFilter() === 'confident'"
+              (click)="quizReviewFilter.set('confident')"
+            >
+              Confident
+              <span>{{ quizSummaryFilterCounts().confident }}</span>
+            </button>
+            <button
+              type="button"
+              class="quiz-review-filter"
+              [class.active]="quizReviewFilter() === 'needs_focus'"
+              (click)="quizReviewFilter.set('needs_focus')"
+            >
+              Needs Focus
+              <span>{{ quizSummaryFilterCounts().needs_focus }}</span>
+            </button>
           </div>
 
           <div class="quiz-summary-list">

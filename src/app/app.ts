@@ -175,7 +175,7 @@ type QuizBankType =
   | 'confident'
   | 'needs_focus';
 type QuizFlowStage = 'setup' | 'taking' | 'summary';
-type QuizReviewFilter = 'all' | 'correct' | 'wrong' | 'skipped';
+type QuizReviewFilter = 'all' | 'correct' | 'wrong' | 'skipped' | 'confident' | 'needs_focus';
 
 type BreakdownRow = AnalysisPart[];
 type AppTab = 'search' | 'all_words' | 'root_suffix' | 'confident_words' | 'needs_focus_words' | 'quiz' | 'history';
@@ -231,6 +231,8 @@ interface QuizSummaryQuestion extends QuizQuestion {
   userAnswerLabel: string;
   correctAnswerLabel: string;
   status: 'correct' | 'wrong' | 'skipped';
+  isConfident: boolean;
+  isNeedsFocus: boolean;
 }
 
 interface QuizDraftState {
@@ -514,28 +516,44 @@ export class App implements OnInit, AfterViewInit {
   protected readonly quizCompleted = computed(
     () => this.quizQuestions().length > 0 && this.quizQuestions().every((question) => question.submitted)
   );
-  protected readonly quizSummaryItems = computed<QuizSummaryQuestion[]>(() =>
-    this.quizQuestions().map((question) => {
+  protected readonly quizSummaryItems = computed<QuizSummaryQuestion[]>(() => {
+    const confidentWords = new Set(this.confidentWords().map((w) => w.query.toLowerCase().trim()));
+    const needsFocusWords = new Set(this.needsFocusWords().map((w) => w.query.toLowerCase().trim()));
+    const questionRoot = (question: QuizQuestion) => (question.sourceRoot || question.sourceTitle || '').toLowerCase().trim();
+
+    return this.quizQuestions().map((question) => {
       const selectedIndex = question.selectedIndex;
       const selectedText = selectedIndex === null ? '' : question.options[selectedIndex] ?? '';
       const correctText = question.options[question.correctIndex] ?? '';
       const isSkipped = question.skipped || selectedIndex === null;
       const userAnswerLabel = isSkipped ? 'Skipped' : selectedText || 'Unanswered';
       const isCorrect = !isSkipped && selectedIndex === question.correctIndex;
+      const root = questionRoot(question);
+
       return {
         ...question,
         userAnswer: selectedText,
         userAnswerLabel,
         correctAnswerLabel: correctText,
         status: isCorrect ? 'correct' : isSkipped ? 'skipped' : 'wrong',
+        isConfident: confidentWords.has(root),
+        isNeedsFocus: needsFocusWords.has(root),
       };
-    })
-  );
+    });
+  });
   protected readonly quizSummaryFilteredItems = computed(() => {
     const filter = this.quizReviewFilter();
     const items = this.quizSummaryItems();
     if (filter === 'all') {
       return items;
+    }
+
+    if (filter === 'confident') {
+      return items.filter((item) => item.isConfident);
+    }
+
+    if (filter === 'needs_focus') {
+      return items.filter((item) => item.isNeedsFocus);
     }
 
     return items.filter((item) => item.status === filter);
@@ -547,6 +565,8 @@ export class App implements OnInit, AfterViewInit {
       correct: items.filter((item) => item.status === 'correct').length,
       wrong: items.filter((item) => item.status === 'wrong').length,
       skipped: items.filter((item) => item.status === 'skipped').length,
+      confident: items.filter((item) => item.isConfident).length,
+      needs_focus: items.filter((item) => item.isNeedsFocus).length,
     };
   });
   protected readonly quizCurrentQuestionSubmitted = computed(() => this.quizQuestion()?.submitted ?? false);
@@ -603,14 +623,17 @@ export class App implements OnInit, AfterViewInit {
   protected readonly historyReviewFilter = signal<QuizReviewFilter>('all');
   protected readonly historyReviewFilterCounts = computed(() => {
     const questions = this.selectedQuizHistory()?.questions ?? [];
+    const result = { all: 0, correct: 0, wrong: 0, skipped: 0, confident: 0, needs_focus: 0 };
     return questions.reduce(
       (counts, question) => {
         const status = this.historyQuestionStatus(question);
-        counts[status] += 1;
+        if (status in counts) {
+          counts[status as keyof typeof counts] += 1;
+        }
         counts.all += 1;
         return counts;
       },
-      { all: 0, correct: 0, wrong: 0, skipped: 0 }
+      result
     );
   });
   protected readonly historyReviewFilteredQuestions = computed(() => {
