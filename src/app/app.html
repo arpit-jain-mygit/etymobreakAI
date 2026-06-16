@@ -270,6 +270,7 @@
                   <button
                     type="button"
                     class="search-result-item"
+                    (mousedown)="$event.preventDefault()"
                     (click)="navigateToRoot(entry.root)"
                   >
                     {{ entry.root }}

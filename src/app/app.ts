@@ -4338,6 +4338,8 @@ export class App implements OnInit, AfterViewInit {
     if (index >= 0) {
       this.experimentIndex.set(index);
       this.setActiveTab('all_words');
+      this.query.set('');
+      this.closeAutocomplete();
     }
   }
 
