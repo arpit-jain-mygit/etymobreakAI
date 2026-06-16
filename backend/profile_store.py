@@ -820,13 +820,13 @@ def list_quiz_history_by_google_identity(google_sub: str | None, email: str | No
                 cursor.execute(
                     """
                     SELECT
-                        id, player_name as playerName, email as playerEmail, country,
-                        quiz_scope as quizScope, quiz_type as quizType, difficulty,
-                        question_count as questionCount, time_limit_minutes as timeLimitMinutes,
-                        correct_count as correct, wrong_count as wrong,
-                        marks, percentage, total_possible as total,
-                        time_spent_seconds as timeSpentSeconds, attempt_data as questions,
-                        created_at as time
+                        id, player_name as "playerName", email as "playerEmail", country,
+                        quiz_scope as "quizScope", quiz_type as "quizType", difficulty,
+                        question_count as "questionCount", time_limit_minutes as "timeLimitMinutes",
+                        correct_count as "correct", wrong_count as "wrong",
+                        marks, percentage, total_possible as "total",
+                        time_spent_seconds as "timeSpentSeconds", attempt_data as "questions",
+                        created_at as "time"
                     FROM quiz_history
                     WHERE google_sub = %s
                     ORDER BY created_at DESC
