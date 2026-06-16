@@ -162,69 +162,70 @@
         <p class="eyebrow">EtymoBreak AI</p>
         <h1>Break words.</h1>
         <div class="tab-row" role="tablist" aria-label="App tabs">
-          <button
-            type="button"
-            class="tab-chip"
-            [class.active]="activeTab() === 'all_words'"
-            (click)="setActiveTab('all_words')"
-          >
-            <span>All Words list</span>
-            <span class="tab-count">{{ rootInventoryCount() }}</span>
-          </button>
-          <button
-            type="button"
-            class="tab-chip"
-            [class.active]="activeTab() === 'confident_words'"
-            (click)="setActiveTab('confident_words')"
-            title="My Confident Words"
-          >
-            <span class="tab-icon">💪</span>
-            <span>My Confident Words</span>
-            <span class="tab-count" [class.tab-count-loading]="confidentWordsLoading()" aria-live="polite">
-              @if (confidentWordsLoading()) {
-                <span class="mini-spinner" aria-hidden="true"></span>
-              } @else {
-                {{ confidentWordsDisplayCount() }}
-              }
-            </span>
-          </button>
-          <button
-            type="button"
-            class="tab-chip"
-            [class.active]="activeTab() === 'needs_focus_words'"
-            (click)="setActiveTab('needs_focus_words')"
-            title="Words need more Focus"
-          >
-            <span class="tab-icon">🎯</span>
-            <span>Words need more Focus</span>
-            <span class="tab-count" [class.tab-count-loading]="needsFocusWordsLoading()" aria-live="polite">
-              @if (needsFocusWordsLoading()) {
-                <span class="mini-spinner" aria-hidden="true"></span>
-              } @else {
-                {{ needsFocusWordsDisplayCount() }}
-              }
-            </span>
-          </button>
-          <button
-            type="button"
-            class="tab-chip"
-            [class.active]="activeTab() === 'quiz'"
-            (click)="setActiveTab('quiz')"
-          >
-            Quiz
-          </button>
-          <button
-            type="button"
-            class="tab-chip"
-            [class.active]="activeTab() === 'history'"
-            (click)="setActiveTab('history')"
-          >
-            History
-          </button>
-        </div>
+          <div class="tab-row-buttons">
+            <button
+              type="button"
+              class="tab-chip"
+              [class.active]="activeTab() === 'all_words'"
+              (click)="setActiveTab('all_words')"
+            >
+              <span>All Words list</span>
+              <span class="tab-count">{{ rootInventoryCount() }}</span>
+            </button>
+            <button
+              type="button"
+              class="tab-chip"
+              [class.active]="activeTab() === 'confident_words'"
+              (click)="setActiveTab('confident_words')"
+              title="My Confident Words"
+            >
+              <span class="tab-icon">💪</span>
+              <span>My Confident Words</span>
+              <span class="tab-count" [class.tab-count-loading]="confidentWordsLoading()" aria-live="polite">
+                @if (confidentWordsLoading()) {
+                  <span class="mini-spinner" aria-hidden="true"></span>
+                } @else {
+                  {{ confidentWordsDisplayCount() }}
+                }
+              </span>
+            </button>
+            <button
+              type="button"
+              class="tab-chip"
+              [class.active]="activeTab() === 'needs_focus_words'"
+              (click)="setActiveTab('needs_focus_words')"
+              title="Words need more Focus"
+            >
+              <span class="tab-icon">🎯</span>
+              <span>Words need more Focus</span>
+              <span class="tab-count" [class.tab-count-loading]="needsFocusWordsLoading()" aria-live="polite">
+                @if (needsFocusWordsLoading()) {
+                  <span class="mini-spinner" aria-hidden="true"></span>
+                } @else {
+                  {{ needsFocusWordsDisplayCount() }}
+                }
+              </span>
+            </button>
+            <button
+              type="button"
+              class="tab-chip"
+              [class.active]="activeTab() === 'quiz'"
+              (click)="setActiveTab('quiz')"
+            >
+              Quiz
+            </button>
+            <button
+              type="button"
+              class="tab-chip"
+              [class.active]="activeTab() === 'history'"
+              (click)="setActiveTab('history')"
+            >
+              History
+            </button>
+          </div>
 
-        <!-- Top Right Search Bar -->
-        <div class="header-search-wrapper">
+          <!-- Top Right Search Bar -->
+          <div class="header-search-wrapper">
           <form class="header-search-bar" (submit)="$event.preventDefault(); analyze()">
             <input
               name="query"
@@ -282,6 +283,7 @@
             }
           </section>
           }
+          </div>
         </div>
       </div>
     </section>

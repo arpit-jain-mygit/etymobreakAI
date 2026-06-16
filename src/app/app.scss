@@ -33,14 +33,21 @@
   flex-wrap: wrap;
 }
 
-.tab-row .tab-chip:last-child {
+.tab-row-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.header-search-wrapper {
   margin-left: auto;
 }
 
 .header-search-wrapper {
   position: relative;
-  margin-left: auto;
   width: 250px;
+  flex-shrink: 0;
 }
 
 .header-search-bar {
