@@ -229,6 +229,10 @@
           <!-- Top Right Search Bar -->
           <div class="header-search-wrapper">
           <form class="header-search-bar" (submit)="$event.preventDefault(); analyze()">
+            <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="m14.5 14.5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
             <input
               name="query"
               [ngModel]="query()"
@@ -752,20 +756,8 @@
     @if (activeTab() === 'all_words' || activeTab() === 'confident_words' || activeTab() === 'needs_focus_words') {
       <section class="experiment-panel root-browser-panel word-slideshow-panel">
         <div class="experiment-toolbar">
-          <div class="alphabet-row">
-            <span class="quiz-counter">
-              {{
-                activeTab() === 'all_words'
-                  ? 'Root inventory'
-                  : activeTab() === 'confident_words'
-                    ? 'My Confident Words'
-                    : 'Words need more Focus'
-              }}
-            </span>
-          </div>
           <div class="quiz-meta">
             <span>{{ experimentSlidePosition() }} / {{ experimentSlideCount() }}</span>
-            <span>{{ activeTab() === 'all_words' ? 'All words' : 'Saved words' }}</span>
             @if (activeTab() !== 'all_words') {
               <button type="button" class="tab-chip" (click)="downloadSavedWordsAsCSV()">Download CSV</button>
             }
