@@ -1082,11 +1082,38 @@
                     </section>
                   }
 
+                  @if (!question.submitted && question.selectedIndex !== null) {
+                    <div class="quiz-feedback-animation">
+                      @if (question.selectedIndex === question.correctIndex) {
+                        <div class="celebration-animation">
+                          <span class="celebration-emoji">🎉</span>
+                          <p class="celebration-text">Awesome! That's correct!</p>
+                        </div>
+                      } @else {
+                        <div class="disappointment-animation">
+                          <span class="disappointment-emoji">💭</span>
+                          <p class="disappointment-text">Not quite! The correct answer is:</p>
+                          <p class="correct-answer">{{ question.options[question.correctIndex] }}</p>
+                        </div>
+                      }
+                    </div>
+                  }
+
                   <div class="quiz-actions">
-                    <button type="button" class="primary" (click)="skipCurrentQuizQuestion()">Skip Que</button>
-                    <button type="button" class="tab-chip quiz-save" (click)="saveCurrentQuizAnswerLocally()">
-                      Save me answer
-                    </button>
+                    @if (question.selectedIndex !== null && !question.submitted) {
+                      <button
+                        type="button"
+                        class="primary check-answer-btn"
+                        (click)="markCurrentQuestionSubmitted()"
+                      >
+                        ✓ Got it, Next Question
+                      </button>
+                    } @else {
+                      <button type="button" class="primary" (click)="skipCurrentQuizQuestion()">Skip Que</button>
+                      <button type="button" class="tab-chip quiz-save" (click)="saveCurrentQuizAnswerLocally()">
+                        Save me answer
+                      </button>
+                    }
                     <button
                       type="button"
                       class="primary quiz-submit"

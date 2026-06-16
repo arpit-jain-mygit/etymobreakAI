@@ -1532,6 +1532,31 @@ export class App implements OnInit, AfterViewInit {
     }
   }
 
+  protected markCurrentQuestionSubmitted(): void {
+    const questions = this.quizQuestions();
+    const currentIndex = this.quizIndex();
+    const question = questions[currentIndex];
+    if (!question || question.selectedIndex === null) {
+      return;
+    }
+
+    const isCorrect = question.selectedIndex === question.correctIndex;
+    const updated = [...questions];
+    updated[currentIndex] = {
+      ...question,
+      submitted: true,
+      isCorrect,
+    };
+    this.quizQuestions.set(updated);
+
+    // Auto-advance to next question after animation delay
+    setTimeout(() => {
+      if (this.quizIndex() < this.quizQuestionCount() - 1) {
+        this.nextQuizQuestion();
+      }
+    }, 2000);
+  }
+
   protected async submitQuizAttempt(): Promise<void> {
     if (!this.profile()) {
       this.quizHistoryError.set('Sign in first to save quiz history.');
