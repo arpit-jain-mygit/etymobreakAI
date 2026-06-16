@@ -72,6 +72,33 @@ CREATE TABLE IF NOT EXISTS needs_focus_words (
 CREATE INDEX IF NOT EXISTS idx_needs_focus_words_google_sub ON needs_focus_words(google_sub);
 """
 
+QUIZ_HISTORY_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS quiz_history (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT NOT NULL,
+    google_sub TEXT NOT NULL,
+    email TEXT NOT NULL,
+    player_name TEXT NOT NULL,
+    country TEXT NOT NULL,
+    quiz_scope TEXT NOT NULL,
+    quiz_type TEXT NOT NULL,
+    difficulty INTEGER NOT NULL,
+    question_count INTEGER NOT NULL,
+    time_limit_minutes INTEGER NOT NULL,
+    correct_count INTEGER NOT NULL,
+    wrong_count INTEGER NOT NULL,
+    marks INTEGER NOT NULL,
+    percentage INTEGER NOT NULL,
+    total_possible INTEGER NOT NULL,
+    time_spent_seconds INTEGER NOT NULL,
+    attempt_data TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_quiz_history_google_sub ON quiz_history(google_sub);
+CREATE INDEX IF NOT EXISTS idx_quiz_history_created_at ON quiz_history(created_at DESC);
+"""
+
 
 def database_url() -> str:
     primary = os.getenv("DATABASE_URL", "").strip()
@@ -98,6 +125,7 @@ def ensure_schema() -> None:
             cursor.execute(PROFILE_TABLE_SQL)
             cursor.execute(CONFIDENT_WORDS_TABLE_SQL)
             cursor.execute(NEEDS_FOCUS_WORDS_TABLE_SQL)
+            cursor.execute(QUIZ_HISTORY_TABLE_SQL)
         conn.commit()
 
 
@@ -760,6 +788,7 @@ def insert_quiz_history(payload: dict[str, Any]) -> dict[str, Any]:
     google_data = google if isinstance(google, dict) else {}
 
     quiz_scope = str(payload.get("quizScope", "")).strip().upper() or "ALL"
+    quiz_type = str(payload.get("quizType", "")).strip() or quiz_scope
     attempt = payload.get("attempt", {})
     attempt_data = attempt if isinstance(attempt, dict) else {}
     now = datetime.now(timezone.utc).isoformat()
@@ -778,17 +807,42 @@ def insert_quiz_history(payload: dict[str, Any]) -> dict[str, Any]:
     profile_id = f"profile-{google_sub}"
     quiz_history_id = str(payload.get("id", "")).strip() or f"quiz-{google_sub}-{now}"
 
-    if _broker_is_configured():
-        return _call_broker("POST", "/quiz-history", payload=payload)
+    with _connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO quiz_history (
+                    id, profile_id, google_sub, email, player_name, country,
+                    quiz_scope, quiz_type, difficulty, question_count, time_limit_minutes,
+                    correct_count, wrong_count, marks, percentage, total_possible,
+                    time_spent_seconds, attempt_data, created_at, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    quiz_history_id,
+                    profile_id,
+                    google_sub,
+                    email,
+                    f"{first_name} {last_name}".strip(),
+                    country,
+                    quiz_scope,
+                    quiz_type,
+                    int(payload.get("difficulty", 0) or 0),
+                    int(payload.get("questionCount", 0) or 0),
+                    int(payload.get("timeLimitMinutes", 25) or 25),
+                    int(payload.get("correctCount", 0) or 0),
+                    int(payload.get("wrongCount", 0) or 0),
+                    int(payload.get("marks", 0) or 0),
+                    int(payload.get("percentage", 0) or 0),
+                    int(payload.get("totalPossible", 0) or 0),
+                    int(payload.get("timeSpentSeconds", 0) or 0),
+                    json.dumps(attempt_data, ensure_ascii=False),
+                    now,
+                    now,
+                ),
+            )
+            conn.commit()
 
-    bucket_object_name, bucket_uri = _write_quiz_attempt_to_bucket(
-        quiz_history_id=quiz_history_id,
-        profile_id=profile_id,
-        google_sub=google_sub,
-        profile_data=profile_data,
-        payload=payload,
-        created_at=now,
-    )
     return {
         "id": quiz_history_id,
         "time": now,
@@ -801,8 +855,6 @@ def insert_quiz_history(payload: dict[str, Any]) -> dict[str, Any]:
         "marks": int(payload.get("marks", 0) or 0),
         "percentage": int(payload.get("percentage", 0) or 0),
         "total": int(payload.get("totalPossible", 0) or 0),
-        "bucketObjectName": bucket_object_name,
-        "bucketUri": bucket_uri,
     }
 
 
@@ -820,68 +872,39 @@ def list_quiz_history_by_google_identity(google_sub: str | None, email: str | No
     if not resolved_sub:
         return []
 
-    def read_from_bucket() -> list[dict[str, Any]]:
-        client, bucket_name = _bucket_client()
-        bucket = client.bucket(bucket_name)
-        prefix = f"users/{_sanitize_path_segment(resolved_sub)}/quiz-attempts/"
-
-        history: list[dict[str, Any]] = []
-        for blob in client.list_blobs(bucket, prefix=prefix):
-            try:
-                raw = blob.download_as_text()
-                payload = json.loads(raw)
-            except Exception:
-                continue
-
-            if not isinstance(payload, dict):
-                continue
-
-            metadata = payload.get("metadata", {})
-            summary = payload.get("summary", {})
-            player = payload.get("player", {})
-            attempt = payload.get("attempt", {})
-            history.append(
-                {
-                    "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
-                    "time": str(payload.get("createdAt", "")).strip() or (
-                        blob.updated.isoformat() if getattr(blob, "updated", None) else ""
-                    ),
-                    "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
-                    "playerEmail": str(player.get("email", "")).strip() or mail,
-                    "country": str(player.get("country", "")).strip(),
-                    "quizScope": str(metadata.get("quizScope", "")).strip(),
-                    "correct": int(metadata.get("correctCount", 0) or 0),
-                    "wrong": int(metadata.get("wrongCount", 0) or 0),
-                    "marks": int(metadata.get("marks", 0) or 0),
-                    "percentage": int(metadata.get("percentage", 0) or 0),
-                    "total": int(metadata.get("totalPossible", 0) or 0),
-                    "bucketObjectName": blob.name,
-                    "bucketUri": f"gs://{bucket_name}/{blob.name}",
-                    "quizType": str(summary.get("quizType", "")).strip(),
-                    "difficulty": int(summary.get("difficulty", 0) or 0),
-                    "questionCount": int(summary.get("questionCount", 0) or 0),
-                    "timeLimitMinutes": int(summary.get("timeLimitMinutes", 0) or 0),
-                    "timeSpentSeconds": int(summary.get("timeSpentSeconds", 0) or 0),
-                    "questions": attempt.get("questions", []),
-                }
-            )
-
-        history.sort(key=lambda item: item.get("time", ""), reverse=True)
-        return history
-
     try:
-        return read_from_bucket()
-    except ProfileStoreError:
-        if _broker_is_configured():
-            broker_payload = _call_broker("GET", "/quiz-history", params={"sub": resolved_sub, "email": mail})
-            items = broker_payload.get("items", [])
-            return items if isinstance(items, list) else []
-        raise
+        with _connect() as conn:
+            with conn.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT
+                        id, player_name as playerName, email as playerEmail, country,
+                        quiz_scope as quizScope, quiz_type as quizType, difficulty,
+                        question_count as questionCount, time_limit_minutes as timeLimitMinutes,
+                        correct_count as correct, wrong_count as wrong,
+                        marks, percentage, total_possible as total,
+                        time_spent_seconds as timeSpentSeconds, attempt_data as questions,
+                        created_at as time
+                    FROM quiz_history
+                    WHERE google_sub = %s
+                    ORDER BY created_at DESC
+                    """,
+                    (resolved_sub,),
+                )
+                rows = cursor.fetchall()
+
+                history: list[dict[str, Any]] = []
+                for row in rows:
+                    item = dict(row) if row else {}
+                    try:
+                        attempt_data = json.loads(item.get("questions", "{}") or "{}")
+                        item["questions"] = attempt_data.get("questions", [])
+                    except (json.JSONDecodeError, TypeError):
+                        item["questions"] = []
+                    history.append(item)
+
+                return history
     except Exception as exc:
-        if _broker_is_configured():
-            broker_payload = _call_broker("GET", "/quiz-history", params={"sub": resolved_sub, "email": mail})
-            items = broker_payload.get("items", [])
-            return items if isinstance(items, list) else []
         raise ProfileStoreError(f"Could not list quiz history: {exc}") from exc
 
 
