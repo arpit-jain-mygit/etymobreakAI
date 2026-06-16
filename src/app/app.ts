@@ -937,9 +937,9 @@ export class App implements OnInit, AfterViewInit {
     this.tryRenderGoogleButton();
   }
 
-  protected setActiveTab(tab: AppTab): void {
+  protected setActiveTab(tab: AppTab, preserveIndex: boolean = false): void {
     this.activeTab.set(tab);
-    if (tab === 'all_words' || tab === 'confident_words' || tab === 'needs_focus_words') {
+    if (!preserveIndex && (tab === 'all_words' || tab === 'confident_words' || tab === 'needs_focus_words')) {
       this.experimentIndex.set(0);
     }
     if (tab === 'history' && !this.selectedQuizHistoryId() && this.quizHistory().length) {
@@ -4337,7 +4337,7 @@ export class App implements OnInit, AfterViewInit {
     );
     if (index >= 0) {
       this.experimentIndex.set(index);
-      this.setActiveTab('all_words');
+      this.setActiveTab('all_words', true);
       this.query.set('');
       this.closeAutocomplete();
     }
