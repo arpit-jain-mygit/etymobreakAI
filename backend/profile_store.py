@@ -107,6 +107,7 @@ def _bucket_name() -> str:
         or os.getenv("GCP_QUIZ_BUCKET", "").strip()
         or os.getenv("GCS_BUCKET_NAME", "").strip()
         or os.getenv("QUIZ_BUCKET_NAME", "").strip()
+        or "etymobreak-ai-quizzes"
     )
 
 
