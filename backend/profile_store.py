@@ -213,8 +213,8 @@ def _cache_confident_word_to_db(word_data: dict[str, Any]) -> None:
                     },
                 )
             conn.commit()
-    except Exception:
-        pass
+    except Exception as exc:
+        raise ProfileStoreError(f"Could not save confident word: {exc}") from exc
 
 
 def _cache_needs_focus_word_to_db(word_data: dict[str, Any]) -> None:
@@ -265,8 +265,8 @@ def _cache_needs_focus_word_to_db(word_data: dict[str, Any]) -> None:
                     },
                 )
             conn.commit()
-    except Exception:
-        pass
+    except Exception as exc:
+        raise ProfileStoreError(f"Could not save needs-focus word: {exc}") from exc
 
 
 def _list_confident_words_from_db(google_sub: str) -> list[dict[str, Any]]:
