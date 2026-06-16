@@ -261,6 +261,92 @@ def _canonical_saved_words(confident_items: list[dict[str, Any]], focus_items: l
     return confident, focus
 
 
+def _list_saved_words_from_bucket(
+    resolved_sub: str,
+    fallback_email: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    client, bucket_name = _bucket_client()
+    bucket = client.bucket(bucket_name)
+
+    confident_entries: list[dict[str, Any]] = []
+    for blob in client.list_blobs(bucket, prefix=f"users/{_sanitize_path_segment(resolved_sub)}/confident-words/"):
+        try:
+            raw = blob.download_as_text()
+            payload = json.loads(raw)
+        except Exception:
+            continue
+
+        if not isinstance(payload, dict):
+            continue
+
+        player = payload.get("player", {})
+        analysis = payload.get("analysis", {})
+        if not isinstance(player, dict):
+            player = {}
+        if not isinstance(analysis, dict):
+            analysis = {}
+
+        confident_entries.append(
+            {
+                "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
+                "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip() or (
+                    blob.updated.isoformat() if getattr(blob, "updated", None) else ""
+                ),
+                "query": str(payload.get("query", "")).strip(),
+                "mode": str(payload.get("mode", "")).strip(),
+                "title": str(payload.get("metadata", {}).get("title", "")).strip()
+                if isinstance(payload.get("metadata", {}), dict)
+                else str(analysis.get("title", "")).strip(),
+                "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
+                "playerEmail": str(player.get("email", "")).strip() or fallback_email,
+                "country": str(player.get("country", "")).strip(),
+                "analysis": analysis,
+                "bucketObjectName": blob.name,
+                "bucketUri": f"gs://{bucket_name}/{blob.name}",
+            }
+        )
+
+    focus_entries: list[dict[str, Any]] = []
+    for blob in client.list_blobs(bucket, prefix=f"users/{_sanitize_path_segment(resolved_sub)}/needs-focus-words/"):
+        try:
+            raw = blob.download_as_text()
+            payload = json.loads(raw)
+        except Exception:
+            continue
+
+        if not isinstance(payload, dict):
+            continue
+
+        player = payload.get("player", {})
+        analysis = payload.get("analysis", {})
+        if not isinstance(player, dict):
+            player = {}
+        if not isinstance(analysis, dict):
+            analysis = {}
+
+        focus_entries.append(
+            {
+                "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
+                "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip() or (
+                    blob.updated.isoformat() if getattr(blob, "updated", None) else ""
+                ),
+                "query": str(payload.get("query", "")).strip(),
+                "mode": str(payload.get("mode", "")).strip(),
+                "title": str(payload.get("metadata", {}).get("title", "")).strip()
+                if isinstance(payload.get("metadata", {}), dict)
+                else str(analysis.get("title", "")).strip(),
+                "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
+                "playerEmail": str(player.get("email", "")).strip() or fallback_email,
+                "country": str(player.get("country", "")).strip(),
+                "analysis": analysis,
+                "bucketObjectName": blob.name,
+                "bucketUri": f"gs://{bucket_name}/{blob.name}",
+            }
+        )
+
+    return _canonical_saved_words(confident_entries, focus_entries)
+
+
 def upsert_profile(payload: dict[str, Any]) -> dict[str, Any]:
     first_name = str(payload.get("firstName", "")).strip()
     last_name = str(payload.get("lastName", "")).strip()
@@ -835,6 +921,11 @@ def list_confident_words_by_google_identity(google_sub: str | None, email: str |
     if not resolved_sub:
         return []
 
+    confident_entries, focus_entries = _list_saved_words_from_bucket(resolved_sub, mail)
+    canonical_confident, _ = _canonical_saved_words(confident_entries, focus_entries)
+    if canonical_confident:
+        return canonical_confident
+
     if _broker_is_configured():
         try:
             broker_payload = _call_broker("GET", "/confident-words", params={"sub": resolved_sub, "email": mail})
@@ -847,91 +938,11 @@ def list_confident_words_by_google_identity(google_sub: str | None, email: str |
             except ProfileStoreError:
                 focus_items = []
             canonical_confident, _ = _canonical_saved_words(confident_items, focus_items)
-            return canonical_confident
+            if canonical_confident:
+                return canonical_confident
         except ProfileStoreError:
             pass
 
-    client, bucket_name = _bucket_client()
-    bucket = client.bucket(bucket_name)
-    prefix = f"users/{_sanitize_path_segment(resolved_sub)}/confident-words/"
-
-    confident_entries: list[dict[str, Any]] = []
-    for blob in client.list_blobs(bucket, prefix=prefix):
-        try:
-            raw = blob.download_as_text()
-            payload = json.loads(raw)
-        except Exception:
-            continue
-
-        if not isinstance(payload, dict):
-            continue
-
-        player = payload.get("player", {})
-        analysis = payload.get("analysis", {})
-        if not isinstance(player, dict):
-            player = {}
-        if not isinstance(analysis, dict):
-            analysis = {}
-
-        confident_entries.append(
-            {
-                "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
-                "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip() or (
-                    blob.updated.isoformat() if getattr(blob, "updated", None) else ""
-                ),
-                "query": str(payload.get("query", "")).strip(),
-                "mode": str(payload.get("mode", "")).strip(),
-                "title": str(payload.get("metadata", {}).get("title", "")).strip()
-                if isinstance(payload.get("metadata", {}), dict)
-                else str(analysis.get("title", "")).strip(),
-                "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
-                "playerEmail": str(player.get("email", "")).strip() or mail,
-                "country": str(player.get("country", "")).strip(),
-                "analysis": analysis,
-                "bucketObjectName": blob.name,
-                "bucketUri": f"gs://{bucket_name}/{blob.name}",
-            }
-        )
-
-    focus_entries: list[dict[str, Any]] = []
-    for blob in client.list_blobs(bucket, prefix=f"users/{_sanitize_path_segment(resolved_sub)}/needs-focus-words/"):
-        try:
-            raw = blob.download_as_text()
-            payload = json.loads(raw)
-        except Exception:
-            continue
-
-        if not isinstance(payload, dict):
-            continue
-
-        player = payload.get("player", {})
-        analysis = payload.get("analysis", {})
-        if not isinstance(player, dict):
-            player = {}
-        if not isinstance(analysis, dict):
-            analysis = {}
-
-        focus_entries.append(
-            {
-                "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
-                "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip() or (
-                    blob.updated.isoformat() if getattr(blob, "updated", None) else ""
-                ),
-                "query": str(payload.get("query", "")).strip(),
-                "mode": str(payload.get("mode", "")).strip(),
-                "title": str(payload.get("metadata", {}).get("title", "")).strip()
-                if isinstance(payload.get("metadata", {}), dict)
-                else str(analysis.get("title", "")).strip(),
-                "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
-                "playerEmail": str(player.get("email", "")).strip() or mail,
-                "country": str(player.get("country", "")).strip(),
-                "analysis": analysis,
-                "bucketObjectName": blob.name,
-                "bucketUri": f"gs://{bucket_name}/{blob.name}",
-            }
-        )
-
-    canonical_confident, _ = _canonical_saved_words(confident_entries, focus_entries)
     return canonical_confident
 
 
@@ -949,6 +960,11 @@ def list_needs_focus_words_by_google_identity(google_sub: str | None, email: str
     if not resolved_sub:
         return []
 
+    confident_entries, focus_entries = _list_saved_words_from_bucket(resolved_sub, mail)
+    _, canonical_focus = _canonical_saved_words(confident_entries, focus_entries)
+    if canonical_focus:
+        return canonical_focus
+
     if _broker_is_configured():
         try:
             broker_payload = _call_broker("GET", "/needs-focus-words", params={"sub": resolved_sub, "email": mail})
@@ -961,89 +977,9 @@ def list_needs_focus_words_by_google_identity(google_sub: str | None, email: str
             except ProfileStoreError:
                 confident_items = []
             _, canonical_focus = _canonical_saved_words(confident_items, focus_items)
-            return canonical_focus
+            if canonical_focus:
+                return canonical_focus
         except ProfileStoreError:
             pass
 
-    client, bucket_name = _bucket_client()
-    bucket = client.bucket(bucket_name)
-    prefix = f"users/{_sanitize_path_segment(resolved_sub)}/needs-focus-words/"
-
-    confident_entries: list[dict[str, Any]] = []
-    for blob in client.list_blobs(bucket, prefix=f"users/{_sanitize_path_segment(resolved_sub)}/confident-words/"):
-        try:
-            raw = blob.download_as_text()
-            payload = json.loads(raw)
-        except Exception:
-            continue
-
-        if not isinstance(payload, dict):
-            continue
-
-        player = payload.get("player", {})
-        analysis = payload.get("analysis", {})
-        if not isinstance(player, dict):
-            player = {}
-        if not isinstance(analysis, dict):
-            analysis = {}
-
-        confident_entries.append(
-            {
-                "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
-                "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip() or (
-                    blob.updated.isoformat() if getattr(blob, "updated", None) else ""
-                ),
-                "query": str(payload.get("query", "")).strip(),
-                "mode": str(payload.get("mode", "")).strip(),
-                "title": str(payload.get("metadata", {}).get("title", "")).strip()
-                if isinstance(payload.get("metadata", {}), dict)
-                else str(analysis.get("title", "")).strip(),
-                "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
-                "playerEmail": str(player.get("email", "")).strip() or mail,
-                "country": str(player.get("country", "")).strip(),
-                "analysis": analysis,
-                "bucketObjectName": blob.name,
-                "bucketUri": f"gs://{bucket_name}/{blob.name}",
-            }
-        )
-
-    focus_entries: list[dict[str, Any]] = []
-    for blob in client.list_blobs(bucket, prefix=prefix):
-        try:
-            raw = blob.download_as_text()
-            payload = json.loads(raw)
-        except Exception:
-            continue
-
-        if not isinstance(payload, dict):
-            continue
-
-        player = payload.get("player", {})
-        analysis = payload.get("analysis", {})
-        if not isinstance(player, dict):
-            player = {}
-        if not isinstance(analysis, dict):
-            analysis = {}
-
-        focus_entries.append(
-            {
-                "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
-                "time": str(payload.get("updatedAt", "")).strip() or str(payload.get("createdAt", "")).strip() or (
-                    blob.updated.isoformat() if getattr(blob, "updated", None) else ""
-                ),
-                "query": str(payload.get("query", "")).strip(),
-                "mode": str(payload.get("mode", "")).strip(),
-                "title": str(payload.get("metadata", {}).get("title", "")).strip()
-                if isinstance(payload.get("metadata", {}), dict)
-                else str(analysis.get("title", "")).strip(),
-                "playerName": f"{str(player.get('firstName', '')).strip()} {str(player.get('lastName', '')).strip()}".strip(),
-                "playerEmail": str(player.get("email", "")).strip() or mail,
-                "country": str(player.get("country", "")).strip(),
-                "analysis": analysis,
-                "bucketObjectName": blob.name,
-                "bucketUri": f"gs://{bucket_name}/{blob.name}",
-            }
-        )
-
-    _, canonical_focus = _canonical_saved_words(confident_entries, focus_entries)
     return canonical_focus
