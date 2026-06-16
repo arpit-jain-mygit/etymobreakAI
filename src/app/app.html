@@ -176,7 +176,9 @@
             class="tab-chip"
             [class.active]="activeTab() === 'confident_words'"
             (click)="setActiveTab('confident_words')"
+            title="My Confident Words"
           >
+            <span class="tab-icon">💪</span>
             <span>My Confident Words</span>
             <span class="tab-count" [class.tab-count-loading]="confidentWordsLoading()" aria-live="polite">
               @if (confidentWordsLoading()) {
@@ -191,7 +193,9 @@
             class="tab-chip"
             [class.active]="activeTab() === 'needs_focus_words'"
             (click)="setActiveTab('needs_focus_words')"
+            title="Words need more Focus"
           >
+            <span class="tab-icon">🎯</span>
             <span>Words need more Focus</span>
             <span class="tab-count" [class.tab-count-loading]="needsFocusWordsLoading()" aria-live="polite">
               @if (needsFocusWordsLoading()) {
@@ -1172,7 +1176,9 @@
               class="quiz-review-filter"
               [class.active]="quizReviewFilter() === 'all'"
               (click)="quizReviewFilter.set('all')"
+              title="Show all questions"
             >
+              <span class="filter-icon">📋</span>
               All
               <span>{{ quizSummaryFilterCounts().all }}</span>
             </button>
@@ -1181,7 +1187,9 @@
               class="quiz-review-filter"
               [class.active]="quizReviewFilter() === 'correct'"
               (click)="quizReviewFilter.set('correct')"
+              title="Show correct answers"
             >
+              <span class="filter-icon">✓</span>
               Correct
               <span>{{ quizSummaryFilterCounts().correct }}</span>
             </button>
@@ -1190,7 +1198,9 @@
               class="quiz-review-filter"
               [class.active]="quizReviewFilter() === 'wrong'"
               (click)="quizReviewFilter.set('wrong')"
+              title="Show wrong answers"
             >
+              <span class="filter-icon">✗</span>
               Wrong
               <span>{{ quizSummaryFilterCounts().wrong }}</span>
             </button>
@@ -1199,7 +1209,9 @@
               class="quiz-review-filter"
               [class.active]="quizReviewFilter() === 'skipped'"
               (click)="quizReviewFilter.set('skipped')"
+              title="Show skipped questions"
             >
+              <span class="filter-icon">⊘</span>
               Skipped
               <span>{{ quizSummaryFilterCounts().skipped }}</span>
             </button>
@@ -1208,7 +1220,9 @@
               class="quiz-review-filter"
               [class.active]="quizReviewFilter() === 'confident'"
               (click)="quizReviewFilter.set('confident')"
+              title="Show confident word questions"
             >
+              <span class="filter-icon">💪</span>
               Confident
               <span>{{ quizSummaryFilterCounts().confident }}</span>
             </button>
@@ -1217,7 +1231,9 @@
               class="quiz-review-filter"
               [class.active]="quizReviewFilter() === 'needs_focus'"
               (click)="quizReviewFilter.set('needs_focus')"
+              title="Show needs-focus word questions"
             >
+              <span class="filter-icon">🎯</span>
               Needs Focus
               <span>{{ quizSummaryFilterCounts().needs_focus }}</span>
             </button>
