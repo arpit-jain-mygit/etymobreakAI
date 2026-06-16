@@ -347,11 +347,17 @@ def _list_saved_words_from_bucket(
         if state not in {"confident", "needs_focus"}:
             return None
 
+        blob_identity = _sanitize_path_segment(blob.name.rsplit("/", 1)[-1].removesuffix(".json")).lower()
         query = extract_query(payload, analysis)
+        if not query:
+            query = blob_identity.replace("--", " ").replace("-", " ").strip()
         mode = extract_mode(payload, analysis)
         title = str(payload.get("title", "")).strip() or str(metadata.get("title", "")).strip() or str(analysis.get("title", "")).strip()
         if not title:
             title = query.upper()
+        identity = _saved_word_identity(payload) or blob_identity
+        if not identity:
+            return None
 
         return {
             "id": str(payload.get("id", "")).strip() or blob.name.rsplit("/", 1)[-1].removesuffix(".json"),
@@ -367,7 +373,7 @@ def _list_saved_words_from_bucket(
             "analysis": analysis,
             "bucketObjectName": blob.name,
             "bucketUri": f"gs://{bucket_name}/{blob.name}",
-            "_identity": _saved_word_identity(payload),
+            "_identity": identity,
             "_state": state,
         }
 
