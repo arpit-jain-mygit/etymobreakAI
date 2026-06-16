@@ -251,6 +251,8 @@ def _list_saved_word_items(
 
         identity = _saved_word_identity(payload)
         if not identity:
+            identity = _sanitize_path_segment(blob.name.rsplit("/", 1)[-1].removesuffix(".json")).lower()
+        if not identity:
             continue
 
         player = payload.get("player", {})
@@ -263,6 +265,8 @@ def _list_saved_word_items(
         if not isinstance(metadata, dict):
             metadata = {}
         query = _saved_word_query(payload, analysis)
+        if not query:
+            query = identity.replace("--", " ").replace("-", " ").strip()
         mode = _saved_word_mode(payload, analysis)
         title = str(payload.get("title", "")).strip() or str(metadata.get("title", "")).strip() or str(analysis.get("title", "")).strip()
         if not title:
