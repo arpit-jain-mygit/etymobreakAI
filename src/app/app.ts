@@ -2377,18 +2377,33 @@ export class App implements OnInit, AfterViewInit {
   }
 
   private convertSavedWordsToInventoryEntries(words: ConfidentWordEntry[]): RootInventoryEntry[] {
+    const allEntries = this.getRootInventoryEntries();
+
     return words
       .map((word) => {
+        const rootQuery = word.query.toLowerCase().trim();
+
+        // Try to find the root in the full inventory
+        const inventoryEntry = allEntries.find(
+          (entry) => entry.root.toLowerCase().trim() === rootQuery
+        );
+
+        // If found in inventory, return the full entry (with all assembled words, examples, etc.)
+        if (inventoryEntry) {
+          return inventoryEntry;
+        }
+
+        // Fallback: create a minimal entry from saved word data
         const analysis = word.analysis || {};
         const rootFamily = (analysis as any)?.rootFamily || {};
 
         return {
           root: word.query,
-          type: 'word',
-          meaning: (analysis as any)?.actualMeaning || (analysis as any)?.summary || word.title || '',
-          origin: '',
+          type: 'root',
+          meaning: (analysis as any)?.actualMeaning || (analysis as any)?.summary || word.title || rootFamily.meaning || '',
+          origin: rootFamily.origin || '',
           source: 'saved',
-          exampleSentence: '',
+          exampleSentence: (analysis as any)?.exampleSentence || '',
           slideNumbers: [],
           alternateForms: [],
           assembledWords: [],
