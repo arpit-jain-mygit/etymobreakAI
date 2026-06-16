@@ -77,12 +77,19 @@ def migrate_confident_words(json_folder: Path) -> int:
                         continue
 
                     # Extract google_sub from file path
-                    # Path: users/{google_sub}/confident-words/word.json
+                    # Path can be either:
+                    # - users/{google_sub}/confident-words/word.json (if parent is passed)
+                    # - {google_sub}/confident-words/word.json (if users folder is passed)
                     parts = json_file.relative_to(json_folder).parts
-                    if len(parts) < 3 or parts[0] != "users":
-                        continue
 
-                    google_sub = parts[1]
+                    google_sub = None
+                    if len(parts) >= 3 and parts[0] == "users":
+                        google_sub = parts[1]
+                    elif len(parts) >= 2:
+                        google_sub = parts[0]
+
+                    if not google_sub:
+                        continue
 
                     # Extract fields
                     profile_id = str(payload.get("profileId", "")).strip() or f"profile-{google_sub}"
@@ -179,12 +186,19 @@ def migrate_needs_focus_words(json_folder: Path) -> int:
                         continue
 
                     # Extract google_sub from file path
-                    # Path: users/{google_sub}/needs-focus-words/word.json
+                    # Path can be either:
+                    # - users/{google_sub}/needs-focus-words/word.json (if parent is passed)
+                    # - {google_sub}/needs-focus-words/word.json (if users folder is passed)
                     parts = json_file.relative_to(json_folder).parts
-                    if len(parts) < 3 or parts[0] != "users":
-                        continue
 
-                    google_sub = parts[1]
+                    google_sub = None
+                    if len(parts) >= 3 and parts[0] == "users":
+                        google_sub = parts[1]
+                    elif len(parts) >= 2:
+                        google_sub = parts[0]
+
+                    if not google_sub:
+                        continue
 
                     # Extract fields
                     profile_id = str(payload.get("profileId", "")).strip() or f"profile-{google_sub}"
