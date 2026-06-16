@@ -590,11 +590,10 @@ export class App implements OnInit, AfterViewInit {
     return [profile?.firstName, profile?.lastName].map((part) => String(part || '').trim()).filter(Boolean).join(' ');
   });
   protected readonly quizHistoryCount = computed(() => this.quizHistory().length);
-  protected readonly confidentWordsCount = computed(() => this.getSavedWordInventoryEntries('', 'confident').length);
-  protected readonly needsFocusWordsCount = computed(() => this.getSavedWordInventoryEntries('', 'needs_focus').length);
+  protected readonly confidentWordsCount = computed(() => this.getSavedWordAnalyses('', 'confident').length);
+  protected readonly needsFocusWordsCount = computed(() => this.getSavedWordAnalyses('', 'needs_focus').length);
   protected readonly confidentWordsDisplayCount = computed(() => this.confidentWordsCount());
   protected readonly needsFocusWordsDisplayCount = computed(() => this.needsFocusWordsCount());
-  protected readonly activeSavedWordCount = computed(() => this.activeSavedWordEntries().length);
   protected readonly selectedQuizHistory = computed(() =>
     this.quizHistory().find((item) => item.id === this.selectedQuizHistoryId()) ?? null
   );
