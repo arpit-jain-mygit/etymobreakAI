@@ -1717,6 +1717,140 @@ h1 {
   }
 }
 
+/* Navigation Arrow Buttons */
+.nav-button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 50px;
+  height: 50px;
+  padding: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid rgba(126, 156, 214, 0.4);
+  color: #486178;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.nav-button:hover:not(:disabled) {
+  background: rgba(126, 156, 214, 0.15);
+  border-color: rgba(126, 156, 214, 0.6);
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 4px 12px rgba(126, 156, 214, 0.2);
+}
+
+.nav-button:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.nav-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.nav-button svg {
+  width: 28px;
+  height: 28px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.nav-prev {
+  left: 16px;
+}
+
+.nav-next {
+  right: 16px;
+}
+
+/* Improve Tab Styling */
+.tab-chip {
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.tab-chip:hover:not(.active) {
+  background: rgba(232, 239, 255, 0.6);
+  transform: translateY(-2px);
+}
+
+.tab-chip.active {
+  box-shadow: 0 4px 12px rgba(126, 156, 214, 0.2);
+}
+
+/* Card Improvements */
+.root-card {
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.root-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Mobile Responsive Nav Buttons */
+@media (max-width: 640px) {
+  .nav-button {
+    width: 44px;
+    height: 44px;
+    padding: 6px;
+  }
+
+  .nav-button svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .nav-prev {
+    left: 8px;
+  }
+
+  .nav-next {
+    right: 8px;
+  }
+
+  .tab-row {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tab-chip {
+    font-size: 0.9rem;
+    padding: 8px 12px;
+  }
+
+  .tab-count {
+    min-width: 1.6rem;
+    padding: 2px 6px;
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tab-chip span:not(.tab-icon):not(.tab-count):not(.mini-spinner) {
+    display: none;
+  }
+
+  .tab-icon {
+    font-size: 1.4em;
+  }
+}
+
 @media (max-width: 880px) {
   .meaning-grid,
   .content-grid {
