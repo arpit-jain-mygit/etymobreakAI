@@ -181,8 +181,8 @@
 .section-label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
+  gap: 4px;
+  padding: 3px 8px;
   border-radius: 999px;
   background: rgba(96, 116, 141, 0.08);
   font-weight: 700;
@@ -575,10 +575,11 @@ h1 {
 }
 
 .example-pill {
-  padding: 10px 14px;
+  padding: 6px 10px;
   border-radius: 999px;
   background: rgba(244, 247, 243, 0.95);
   color: #526372;
+  font-size: 0.85rem;
 }
 
 .notice {
@@ -730,8 +731,8 @@ h1 {
 .examples-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
+  gap: 4px;
+  margin-top: 2px;
 }
 
 .family-list {
@@ -765,9 +766,9 @@ h1 {
 
 .root-card {
   display: grid;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 16px;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 14px;
   border: 1px solid rgba(158, 177, 184, 0.18);
   background: linear-gradient(180deg, rgba(241, 247, 255, 0.98), rgba(235, 244, 250, 0.96));
   box-shadow:
@@ -792,7 +793,7 @@ h1 {
 
 .root-card-title {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .root-card-title h2 {
@@ -814,11 +815,11 @@ h1 {
 .root-card-example {
   margin: 0;
   color: #4f6374;
-  line-height: 1.5;
+  line-height: 1.3;
 }
 
 .root-card-meaning {
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: #304454;
   font-weight: 600;
 }
@@ -853,26 +854,26 @@ h1 {
 
 .root-assembled-roots {
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .root-assembled-root {
   display: grid;
-  gap: 4px;
-  padding-top: 2px;
+  gap: 2px;
+  padding-top: 0px;
 }
 
 .root-assembled-card strong {
   color: #28465a;
-  font-size: 0.96rem;
+  font-size: 0.9rem;
 }
 
 .root-assembled-card p,
 .root-assembled-card em {
   margin: 0;
   color: #526372;
-  line-height: 1.45;
-  font-size: 0.88rem;
+  line-height: 1.25;
+  font-size: 0.82rem;
 }
 
 .root-assembled-card em {
