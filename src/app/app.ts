@@ -712,14 +712,40 @@ export class App implements OnInit, AfterViewInit {
     ].filter(Boolean));
   }
 
+  private findParentRoot(word: string): string {
+    // If sourceRoot is explicitly provided, use it as-is (it's already a root)
+    // Otherwise, check if the word is an assembled word and find its parent root
+    const normalized = word.toLowerCase().trim();
+    const entries = this.getRootInventoryEntries();
+
+    // Try to find the word in assembled words
+    for (const entry of entries) {
+      for (const assembled of entry.assembledWords) {
+        if (assembled.word.toLowerCase().trim() === normalized) {
+          // Found it as an assembled word, return the parent root
+          return entry.root;
+        }
+      }
+    }
+
+    // If not found as assembled word, return as-is (it's a root)
+    return word;
+  }
+
   private quizQuestionRootAnalysis(question: QuizQuestion | QuizAttemptQuestion | null): AnalysisResult | null {
     if (!question) {
       return null;
     }
 
-    const root = String((question as { sourceRoot?: string }).sourceRoot || question.sourceTitle || '').trim();
+    let root = String((question as { sourceRoot?: string }).sourceRoot || question.sourceTitle || '').trim();
     if (!root) {
       return null;
+    }
+
+    // If sourceRoot is not explicitly set, check if sourceTitle is an assembled word
+    // and find its parent root instead
+    if (!(question as { sourceRoot?: string }).sourceRoot) {
+      root = this.findParentRoot(root);
     }
 
     const meaning = String((question as { sourceRootMeaning?: string }).sourceRootMeaning || '').trim();
