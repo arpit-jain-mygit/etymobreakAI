@@ -776,6 +776,36 @@ export class App implements OnInit, AfterViewInit {
     };
   }
 
+  protected downloadSavedWordsAsCSV(): void {
+    const entries = this.activeSavedWordEntries();
+    if (!entries.length || typeof window === 'undefined') {
+      return;
+    }
+
+    // Extract just the root words (one per line)
+    const rootWords = entries.map((entry) => entry.root).join('\n');
+
+    // Create blob and download
+    const blob = new Blob([rootWords], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    const filename =
+      this.activeTab() === 'confident_words'
+        ? 'confident-words.csv'
+        : 'needs-focus-words.csv';
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  }
+
   private normalizeForMatch(value: string): string {
     return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
