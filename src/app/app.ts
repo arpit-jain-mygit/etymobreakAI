@@ -867,7 +867,7 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
-    this.generateQuizHistoryCSV(quiz);
+    this.generateQuizHistoryCSV(quiz, this.historyReviewFilter());
   }
 
   protected downloadSelectedQuizHistory(): void {
@@ -876,13 +876,24 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
-    this.generateQuizHistoryCSV(quiz);
+    this.generateQuizHistoryCSV(quiz, this.historyReviewFilter());
   }
 
-  private generateQuizHistoryCSV(quiz: QuizHistoryEntry): void {
-    const answeredCount = quiz.correct + quiz.wrong;
-    const skippedCount = quiz.total - answeredCount;
+  private generateQuizHistoryCSV(quiz: QuizHistoryEntry, filter: QuizReviewFilter = 'all'): void {
     const dateStr = new Date(quiz.time).toLocaleString();
+
+    // Filter questions based on current filter
+    let questionsToDownload = quiz.questions;
+    if (filter !== 'all') {
+      questionsToDownload = quiz.questions.filter((q) => this.historyQuestionStatus(q) === filter);
+    }
+
+    // Calculate counts from filtered questions
+    const correctCount = questionsToDownload.filter(q => q.isCorrect).length;
+    const wrongCount = questionsToDownload.filter(q => !q.skipped && !q.isCorrect).length;
+    const skippedCount = questionsToDownload.filter(q => q.skipped).length;
+    const answeredCount = correctCount + wrongCount;
+    const totalCount = questionsToDownload.length;
 
     // Build formatted text content
     let content = '';
@@ -890,10 +901,11 @@ export class App implements OnInit, AfterViewInit {
     // Add summary section
     content += `Quiz Date,${dateStr}\n`;
     content += `Quiz Type,${quiz.quizType || 'mixed'}\n`;
-    content += `Total Questions,${quiz.total}\n`;
+    content += `Filter,${filter}\n`;
+    content += `Total Questions,${totalCount}\n`;
     content += `Answered,${answeredCount}\n`;
-    content += `Correct,${quiz.correct}\n`;
-    content += `Wrong,${quiz.wrong}\n`;
+    content += `Correct,${correctCount}\n`;
+    content += `Wrong,${wrongCount}\n`;
     content += `Skipped,${skippedCount}\n`;
     content += `Score,${quiz.marks}\n`;
     content += `Percentage,${quiz.percentage}%\n`;
@@ -902,7 +914,7 @@ export class App implements OnInit, AfterViewInit {
     content += '\n';
 
     // Add each question with detailed breakdown
-    quiz.questions.forEach((question, index) => {
+    questionsToDownload.forEach((question, index) => {
       content += `Question #${index + 1} - ${question.prompt || 'Question'}\n`;
 
       // Add options
