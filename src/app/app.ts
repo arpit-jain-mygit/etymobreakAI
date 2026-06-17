@@ -880,84 +880,53 @@ export class App implements OnInit, AfterViewInit {
   }
 
   private generateQuizHistoryCSV(quiz: QuizHistoryEntry): void {
-    // Build CSV headers
-    const headers = [
-      'Quiz Date',
-      'Quiz Type',
-      'Total Questions',
-      'Answered',
-      'Correct',
-      'Wrong',
-      'Skipped',
-      'Score',
-      'Percentage',
-      '',
-      'Question #',
-      'Root/Query',
-      'Type',
-      'Your Answer',
-      'Correct Answer',
-      'Status',
-      'Points'
-    ];
-
-    // Build CSV rows
-    const rows = [headers];
-
-    // Add summary row
     const answeredCount = quiz.correct + quiz.wrong;
     const skippedCount = quiz.total - answeredCount;
+    const dateStr = new Date(quiz.time).toLocaleString();
 
-    rows.push([
-      new Date(quiz.time).toLocaleString(),
-      quiz.quizType || 'mixed',
-      quiz.total.toString(),
-      answeredCount.toString(),
-      quiz.correct.toString(),
-      quiz.wrong.toString(),
-      skippedCount.toString(),
-      quiz.marks.toString(),
-      quiz.percentage.toString() + '%',
-      '', // empty column
-      '', '', '', '', '', '', ''
-    ]);
+    // Build formatted text content
+    let content = '';
 
-    rows.push([]);
-    rows.push(['QUESTION DETAILS', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
-    rows.push([]);
+    // Add summary section
+    content += `Quiz Date,${dateStr}\n`;
+    content += `Quiz Type,${quiz.quizType || 'mixed'}\n`;
+    content += `Total Questions,${quiz.total}\n`;
+    content += `Answered,${answeredCount}\n`;
+    content += `Correct,${quiz.correct}\n`;
+    content += `Wrong,${quiz.wrong}\n`;
+    content += `Skipped,${skippedCount}\n`;
+    content += `Score,${quiz.marks}\n`;
+    content += `Percentage,${quiz.percentage}%\n`;
+    content += '\n';
+    content += 'QUESTION DETAILS\n';
+    content += '\n';
 
-    // Add each question
+    // Add each question with detailed breakdown
     quiz.questions.forEach((question, index) => {
-      const status = question.skipped ? 'Skipped' : question.isCorrect ? 'Correct' : 'Wrong';
-      const points = question.skipped ? '0' : question.isCorrect ? '3' : '-1';
+      content += `Question #${index + 1} - ${question.prompt || 'Question'}\n`;
 
-      rows.push([
-        (index + 1).toString(),
-        question.root || question.sourceQuery || '',
-        question.type || '',
-        question.selectedText || '',
-        question.correctText || '',
-        status,
-        points
-      ]);
+      // Add options
+      if (question.options && question.options.length > 0) {
+        const options = ['A', 'B', 'C', 'D'];
+        question.options.forEach((option, optIndex) => {
+          const optText = typeof option === 'string' ? option : option.text || '';
+          content += `Option ${options[optIndex] || optIndex} - ${optText}\n`;
+        });
+      }
+
+      content += '\n';
+      content += `Your answer - ${question.selectedText || 'Not answered'}\n`;
+      content += `Correct answer - ${question.correctText || 'N/A'}\n`;
+      content += '\n';
     });
 
-    // Convert to CSV string
-    const csvContent = rows.map(row =>
-      row.map(cell => {
-        // Escape quotes and wrap in quotes if contains comma
-        const escaped = (cell || '').replace(/"/g, '""');
-        return escaped.includes(',') ? `"${escaped}"` : escaped;
-      }).join(',')
-    ).join('\n');
-
     // Create blob and download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
 
     const date = new Date(quiz.time).toISOString().split('T')[0];
-    const filename = `quiz-history-${date}-${quiz.quizType || 'mixed'}.csv`;
+    const filename = `quiz-history-${date}-${quiz.quizType || 'mixed'}.txt`;
 
     link.setAttribute('href', url);
     link.setAttribute('download', filename);
