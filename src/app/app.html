@@ -839,7 +839,10 @@
                     <p class="section-label">{{ entry.type }}</p>
                     <h2>{{ entry.root }}</h2>
                   </div>
-                  <span>{{ entry.assembledWords.length }} examples</span>
+                  <div style="display: flex; gap: 12px; align-items: center;">
+                    <span class="word-counter">{{ experimentSlidePosition() }} / {{ experimentSlideCount() }}</span>
+                    <span>{{ entry.assembledWords.length }} examples</span>
+                  </div>
                 </div>
 
                 <p class="root-card-meaning">{{ entry.meaning }}</p>
