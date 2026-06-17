@@ -2960,8 +2960,8 @@ export class App implements OnInit, AfterViewInit {
       return null;
     }
 
-    const answerKey = String(record.answer || '').trim().toUpperCase();
-    const correctIndex = options.findIndex((option) => option.id.toUpperCase() === answerKey);
+    const answerKey = String(record.answer || '').trim();
+    const correctIndex = options.findIndex((option) => option.id === answerKey);
     if (correctIndex < 0) {
       return null;
     }
