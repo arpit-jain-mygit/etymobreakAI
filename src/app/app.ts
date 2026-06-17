@@ -3181,16 +3181,27 @@ export class App implements OnInit, AfterViewInit {
 
       root = (analysis.query || '').trim().toLowerCase();
       if (root) {
+        console.warn(`[Quiz] No rootFamily.root for "${analysis.title || analysis.query}", using query as fallback:`, root);
         return [root];
       }
 
       root = (analysis.title || '').trim().toLowerCase();
-      return root ? [root] : [];
+      if (root) {
+        console.warn(`[Quiz] No rootFamily.root or query for analysis, using title as fallback:`, root);
+        return [root];
+      }
+
+      console.warn(`[Quiz] Could not extract any root from analysis:`, analysis);
+      return [];
     };
 
     const confidentRootNames = Array.from(
       new Set(confidentAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean))
     );
+
+    if (confidentRootNames.length === 0 && confidentAnalyses.length > 0) {
+      console.error(`[Quiz] Extracted 0 roots from ${confidentAnalyses.length} confident analyses`);
+    }
     const focusRootSet = new Set(focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean));
     confidentRootNames.forEach((r) => focusRootSet.delete(r));
     const focusRootNames = Array.from(focusRootSet);
