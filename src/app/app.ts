@@ -3172,18 +3172,36 @@ export class App implements OnInit, AfterViewInit {
     const confidentAnalyses = this.getSavedWordAnalyses('', 'confident');
     const focusAnalyses = this.getSavedWordAnalyses('', 'needs_focus');
 
-    const extractRootFromAnalysis = (analysis: AnalysisResult): string | null => {
-      const root = analysis.rootFamily?.root || analysis.query || analysis.title || '';
-      return root ? root.trim().toLowerCase() : null;
+    const extractRootsFromAnalysis = (analysis: AnalysisResult): string[] => {
+      const roots: string[] = [];
+
+      if (analysis.rootFamily?.root) {
+        roots.push(analysis.rootFamily.root.trim().toLowerCase());
+      }
+
+      if (analysis.breakdown && analysis.breakdown.length > 0) {
+        for (const part of analysis.breakdown) {
+          if (part.root) {
+            roots.push(part.root.trim().toLowerCase());
+          }
+        }
+      }
+
+      if (roots.length === 0) {
+        const fallback = analysis.query || analysis.title || '';
+        if (fallback) {
+          roots.push(fallback.trim().toLowerCase());
+        }
+      }
+
+      return roots;
     };
 
-    const confidentRootNames = confidentAnalyses.map(extractRootFromAnalysis).filter((r): r is string => r !== null);
-    const focusRootSet = new Set(focusAnalyses.map(extractRootFromAnalysis).filter((r): r is string => r !== null));
-    focusRootSet.forEach((r) => {
-      if (confidentRootNames.includes(r)) {
-        focusRootSet.delete(r);
-      }
-    });
+    const confidentRootNames = Array.from(
+      new Set(confidentAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean))
+    );
+    const focusRootSet = new Set(focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean));
+    confidentRootNames.forEach((r) => focusRootSet.delete(r));
     const focusRootNames = Array.from(focusRootSet);
 
     const allRootEntries = this.getRootInventoryEntries();
