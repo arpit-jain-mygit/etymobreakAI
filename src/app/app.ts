@@ -3164,13 +3164,20 @@ export class App implements OnInit, AfterViewInit {
     await this.loadConfidentWordsFromServer();
     await this.loadNeedsFocusWordsFromServer();
 
+    console.log('[Quiz] confidentWords loaded:', this.confidentWords().length);
+    console.log('[Quiz] needsFocusWords loaded:', this.needsFocusWords().length);
+
     const bank = await this.loadQuizBank('mixed');
     if (!bank || !bank.questions.length) {
+      console.error('[Quiz] Failed to load quiz bank');
       return [];
     }
+    console.log('[Quiz] Quiz bank loaded with', bank.questions.length, 'questions');
 
     const confidentAnalyses = this.getSavedWordAnalyses('', 'confident');
     const focusAnalyses = this.getSavedWordAnalyses('', 'needs_focus');
+    console.log('[Quiz] confidentAnalyses:', confidentAnalyses.length);
+    console.log('[Quiz] focusAnalyses:', focusAnalyses.length);
 
     const extractRootsFromAnalysis = (analysis: AnalysisResult): string[] => {
       let root = (analysis.rootFamily?.root || '').trim().toLowerCase();
