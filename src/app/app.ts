@@ -3164,20 +3164,13 @@ export class App implements OnInit, AfterViewInit {
     await this.loadConfidentWordsFromServer();
     await this.loadNeedsFocusWordsFromServer();
 
-    console.log('[Quiz] confidentWords loaded:', this.confidentWords().length);
-    console.log('[Quiz] needsFocusWords loaded:', this.needsFocusWords().length);
-
     const bank = await this.loadQuizBank('mixed');
     if (!bank || !bank.questions.length) {
-      console.error('[Quiz] Failed to load quiz bank');
       return [];
     }
-    console.log('[Quiz] Quiz bank loaded with', bank.questions.length, 'questions');
 
     const confidentAnalyses = this.getSavedWordAnalyses('', 'confident');
     const focusAnalyses = this.getSavedWordAnalyses('', 'needs_focus');
-    console.log('[Quiz] confidentAnalyses:', confidentAnalyses.length);
-    console.log('[Quiz] focusAnalyses:', focusAnalyses.length);
 
     const extractRootsFromAnalysis = (analysis: AnalysisResult): string[] => {
       let root = (analysis.rootFamily?.root || '').trim().toLowerCase();
@@ -3188,29 +3181,16 @@ export class App implements OnInit, AfterViewInit {
 
       root = (analysis.query || '').trim().toLowerCase();
       if (root) {
-        console.warn(`[Quiz] No rootFamily.root for "${analysis.title || analysis.query}", using query as fallback:`, root);
         return [root];
       }
 
       root = (analysis.title || '').trim().toLowerCase();
-      if (root) {
-        console.warn(`[Quiz] No rootFamily.root or query for analysis, using title as fallback:`, root);
-        return [root];
-      }
-
-      console.warn(`[Quiz] Could not extract any root from analysis:`, analysis);
-      return [];
+      return root ? [root] : [];
     };
 
     const confidentRootNames = Array.from(
       new Set(confidentAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean))
     );
-
-    console.log('[Quiz] Extracted roots:', confidentRootNames.slice(0, 10), `(showing first 10 of ${confidentRootNames.length})`);
-
-    if (confidentRootNames.length === 0 && confidentAnalyses.length > 0) {
-      console.error(`[Quiz] Extracted 0 roots from ${confidentAnalyses.length} confident analyses`);
-    }
     const focusRootSet = new Set(focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean));
     confidentRootNames.forEach((r) => focusRootSet.delete(r));
     const focusRootNames = Array.from(focusRootSet);
@@ -3258,11 +3238,8 @@ export class App implements OnInit, AfterViewInit {
     targetCount: number
   ): QuizQuestion[] {
     if (!rootNames.length || !bank.questions.length) {
-      console.warn('[Quiz] selectQuestionsFromBank: empty rootNames or bank');
       return [];
     }
-
-    console.log('[Quiz] selectQuestionsFromBank: filtering for roots', rootNames.slice(0, 5), 'difficulty', difficulty);
 
     const rootSet = new Set(rootNames.map((r) => r.toLowerCase()));
 
@@ -3270,8 +3247,6 @@ export class App implements OnInit, AfterViewInit {
       const questionRoot = (question.parentRoot || '').trim().toLowerCase();
       return rootSet.has(questionRoot);
     });
-
-    console.log('[Quiz] selectQuestionsFromBank: found', filteredQuestions.length, 'questions matching roots (difficulty filter skipped - bank only has difficulty 5)');
 
     if (!filteredQuestions.length) {
       return [];
@@ -3327,19 +3302,10 @@ export class App implements OnInit, AfterViewInit {
       }
     }
 
-    const shuffled = this.shuffle(selected);
-    console.log('[Quiz] selectQuestionsFromBank: shuffled', shuffled.length, 'questions');
-
-    const normalized = shuffled.map((record, index) => this.normalizeQuizQuestion(record, index));
-    console.log('[Quiz] selectQuestionsFromBank: normalized', normalized.length, 'questions');
-
-    const filtered = normalized.filter((question): question is QuizQuestion => question !== null);
-    console.log('[Quiz] selectQuestionsFromBank: after filter nulls', filtered.length, 'questions');
-
-    const result = filtered.slice(0, target);
-    console.log('[Quiz] selectQuestionsFromBank: final result', result.length, 'questions (target was', target, ')');
-
-    return result;
+    return this.shuffle(selected)
+      .map((record, index) => this.normalizeQuizQuestion(record, index))
+      .filter((question): question is QuizQuestion => question !== null)
+      .slice(0, target);
   }
 
   private buildRevisionCandidates(

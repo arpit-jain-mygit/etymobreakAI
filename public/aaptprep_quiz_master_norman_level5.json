@@ -35,14 +35,9 @@
       "allQuestionsLevel5": true,
       "fourOptionsEach": true
     },
-    "quizStrategy": "equal_weightage_patterns",
-    "description": "All 8 patterns (word_to_meaning, meaning_to_word, fill_blank, root_recognition, usage, synonym, word_family, root_inference) are given equal weightage during quiz generation. Each quiz will select an equal number of questions from each pattern.",
-    "rootCentricPhilosophy": true,
-    "quizCategoryOptions": [
-      "confident",
-      "focus",
-      "mixed"
-    ]
+    "optionFormat": "array_of_objects_with_id_and_text",
+    "answerFormat": "string_option_id",
+    "correctAnswerRemoved": true
   },
   "questions": [
     {
