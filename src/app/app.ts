@@ -3252,6 +3252,12 @@ export class App implements OnInit, AfterViewInit {
       return [];
     }
 
+    console.log('[Quiz] selectQuestionsFromBank:', {
+      requestedRoots: rootNames.length,
+      targetQuestions: target,
+      matchingQuestions: filteredQuestions.length
+    });
+
     const patterns = (bank as any).metadata?.patterns as string[] | undefined;
     const target = Math.max(1, Math.floor(targetCount || 0));
 
@@ -3302,10 +3308,18 @@ export class App implements OnInit, AfterViewInit {
       }
     }
 
-    return this.shuffle(selected)
+    const result = this.shuffle(selected)
       .map((record, index) => this.normalizeQuizQuestion(record, index))
       .filter((question): question is QuizQuestion => question !== null)
       .slice(0, target);
+
+    console.log('[Quiz] selectQuestionsFromBank result:', {
+      selectedCount: selected.length,
+      normalizedCount: result.length,
+      usedRootsCount: usedRoots.size
+    });
+
+    return result;
   }
 
   private buildRevisionCandidates(
