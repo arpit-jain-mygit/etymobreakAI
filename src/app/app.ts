@@ -893,23 +893,19 @@ export class App implements OnInit, AfterViewInit {
     const rows = [headers];
 
     // Add summary row
-    const answeredCount = quiz.questions.filter(q => !q.skipped).length;
-    const correctCount = quiz.questions.filter(q => q.isCorrect).length;
-    const wrongCount = answeredCount - correctCount;
-    const skippedCount = quiz.questions.length - answeredCount;
-    const totalPossible = quiz.questions.length * 3;
-    const percentage = totalPossible > 0 ? Math.round((quiz.score / totalPossible) * 100) : 0;
+    const answeredCount = quiz.correct + quiz.wrong;
+    const skippedCount = quiz.total - answeredCount;
 
     rows.push([
       new Date(quiz.time).toLocaleString(),
       quiz.quizType || 'mixed',
-      quiz.questions.length.toString(),
+      quiz.total.toString(),
       answeredCount.toString(),
-      correctCount.toString(),
-      wrongCount.toString(),
+      quiz.correct.toString(),
+      quiz.wrong.toString(),
       skippedCount.toString(),
-      quiz.score.toString(),
-      percentage.toString() + '%',
+      quiz.marks.toString(),
+      quiz.percentage.toString() + '%',
       '', // empty column
       '', '', '', '', '', '', ''
     ]);
