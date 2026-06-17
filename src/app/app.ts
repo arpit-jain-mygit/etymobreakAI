@@ -3206,6 +3206,8 @@ export class App implements OnInit, AfterViewInit {
       new Set(confidentAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean))
     );
 
+    console.log('[Quiz] Extracted roots:', confidentRootNames.slice(0, 10), `(showing first 10 of ${confidentRootNames.length})`);
+
     if (confidentRootNames.length === 0 && confidentAnalyses.length > 0) {
       console.error(`[Quiz] Extracted 0 roots from ${confidentAnalyses.length} confident analyses`);
     }
@@ -3256,8 +3258,11 @@ export class App implements OnInit, AfterViewInit {
     targetCount: number
   ): QuizQuestion[] {
     if (!rootNames.length || !bank.questions.length) {
+      console.warn('[Quiz] selectQuestionsFromBank: empty rootNames or bank');
       return [];
     }
+
+    console.log('[Quiz] selectQuestionsFromBank: filtering for roots', rootNames.slice(0, 5), 'difficulty', difficulty);
 
     const rootSet = new Set(rootNames.map((r) => r.toLowerCase()));
 
@@ -3266,6 +3271,8 @@ export class App implements OnInit, AfterViewInit {
       const normalizedDifficulty = Math.min(5, Math.max(1, Math.floor(Number(question.difficulty || question.level || 1))));
       return rootSet.has(questionRoot) && normalizedDifficulty === difficulty;
     });
+
+    console.log('[Quiz] selectQuestionsFromBank: found', filteredQuestions.length, 'questions matching roots and difficulty');
 
     if (!filteredQuestions.length) {
       return [];
