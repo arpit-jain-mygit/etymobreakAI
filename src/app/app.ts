@@ -2886,7 +2886,7 @@ export class App implements OnInit, AfterViewInit {
     const fileMap: Record<Exclude<QuizBankType, 'root' | 'confident' | 'needs_focus'>, string> = {
       word: '/question_bank_words.json',
       root_prefix_suffix: '/question_bank_roots_prefixes_suffixes.json',
-      mixed: '/question_bank_mixed.json',
+      mixed: '/aaptprep_quiz_master_norman_level5.json',
       revision: '/question_bank_roots_prefixes_suffixes.json',
     };
 
@@ -3022,17 +3022,58 @@ export class App implements OnInit, AfterViewInit {
       return [];
     }
 
-    const eligible = bank.questions.filter((question) => {
-      const normalizedDifficulty = Math.min(5, Math.max(1, Math.floor(Number(question.difficulty || question.level || 1))));
-      return normalizedDifficulty === difficulty;
-    });
     const target = Math.max(1, Math.floor(Number(targetCount || 0)) || 1);
-    const source = eligible.length >= target ? eligible : bank.questions;
-    const selected = this.shuffle(source).slice(0, target);
 
-    return selected
-      .map((record, index) => this.normalizeQuizQuestion(record, index))
-      .filter((question): question is QuizQuestion => question !== null);
+    // Check if this quiz bank uses equal-weightage strategy for patterns
+    const useEqualWeightage = (bank as any).metadata?.quizStrategy === 'equal_weightage_patterns' &&
+                              (bank as any).metadata?.patterns?.length > 0;
+
+    let selected: QuizQuestion[] = [];
+
+    if (useEqualWeightage) {
+      // Equal weightage: select equal number of questions from each pattern
+      const patterns = (bank as any).metadata.patterns as string[];
+      const questionsPerPattern = Math.floor(target / patterns.length);
+      const remainder = target % patterns.length;
+
+      // Group questions by pattern and difficulty
+      const questionsByPattern: Record<string, QuizBankQuestion[]> = {};
+      for (const pattern of patterns) {
+        questionsByPattern[pattern] = bank.questions.filter((question) => {
+          const normalizedDifficulty = Math.min(5, Math.max(1, Math.floor(Number(question.difficulty || question.level || 1))));
+          const questionPattern = (question as any).metadata?.pattern || 'unknown';
+          return normalizedDifficulty === difficulty && questionPattern === pattern;
+        });
+      }
+
+      // Select equal number from each pattern
+      const allSelected: QuizBankQuestion[] = [];
+      for (let i = 0; i < patterns.length; i++) {
+        const pattern = patterns[i];
+        const count = questionsPerPattern + (i < remainder ? 1 : 0);
+        const patternQuestions = questionsByPattern[pattern] || [];
+        const shuffled = this.shuffle(patternQuestions);
+        allSelected.push(...shuffled.slice(0, count));
+      }
+
+      selected = this.shuffle(allSelected)
+        .map((record, index) => this.normalizeQuizQuestion(record, index))
+        .filter((question): question is QuizQuestion => question !== null)
+        .slice(0, target);
+    } else {
+      // Original logic: random selection by difficulty
+      const eligible = bank.questions.filter((question) => {
+        const normalizedDifficulty = Math.min(5, Math.max(1, Math.floor(Number(question.difficulty || question.level || 1))));
+        return normalizedDifficulty === difficulty;
+      });
+      const source = eligible.length >= target ? eligible : bank.questions;
+      selected = this.shuffle(source)
+        .slice(0, target)
+        .map((record, index) => this.normalizeQuizQuestion(record, index))
+        .filter((question): question is QuizQuestion => question !== null);
+    }
+
+    return selected;
   }
 
   private buildQuestionOptions(correct: string, distractors: string[]): { options: string[]; correctIndex: number } | null {
