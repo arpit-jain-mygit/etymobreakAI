@@ -907,10 +907,9 @@ export class App implements OnInit, AfterViewInit {
 
       // Add options
       if (question.options && question.options.length > 0) {
-        const options = ['A', 'B', 'C', 'D'];
+        const optionLabels = ['A', 'B', 'C', 'D'];
         question.options.forEach((option, optIndex) => {
-          const optText = typeof option === 'string' ? option : option.text || '';
-          content += `Option ${options[optIndex] || optIndex} - ${optText}\n`;
+          content += `Option ${optionLabels[optIndex] || optIndex} - ${option}\n`;
         });
       }
 
