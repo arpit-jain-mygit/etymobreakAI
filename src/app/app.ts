@@ -3229,7 +3229,8 @@ export class App implements OnInit, AfterViewInit {
 
     const filteredQuestions = bank.questions.filter((question) => {
       const questionRoot = (question.parentRoot || '').trim().toLowerCase();
-      return rootSet.has(questionRoot) && (Number(question.difficulty || question.level || 1)) === difficulty;
+      const normalizedDifficulty = Math.min(5, Math.max(1, Math.floor(Number(question.difficulty || question.level || 1))));
+      return rootSet.has(questionRoot) && normalizedDifficulty === difficulty;
     });
 
     if (!filteredQuestions.length) {
