@@ -988,6 +988,7 @@
               [class.active]="quizType() === 'confident'"
               (click)="selectQuizType('confident')"
             >
+              <span class="quiz-mode-icon">💪</span>
               <strong>All confident words</strong>
               <p>Build the quiz from every saved confident word.</p>
             </button>
@@ -997,6 +998,7 @@
               [class.active]="quizType() === 'mixed'"
               (click)="selectQuizType('mixed')"
             >
+              <span class="quiz-mode-icons">💪 🎯</span>
               <strong>Mix</strong>
               <p>Use the current mixed formula with confident, focus, and new roots.</p>
             </button>
@@ -1006,6 +1008,7 @@
               [class.active]="quizType() === 'needs_focus'"
               (click)="selectQuizType('needs_focus')"
             >
+              <span class="quiz-mode-icon">🎯</span>
               <strong>Needs focus</strong>
               <p>Build the quiz from every saved needs-focus word.</p>
             </button>

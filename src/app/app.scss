@@ -1297,6 +1297,23 @@ h1 {
   box-shadow: 0 14px 28px rgba(126, 156, 214, 0.12);
 }
 
+.quiz-mode-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.quiz-mode-icons {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
 .quiz-difficulty-chip {
   width: 40px;
   height: 40px;
