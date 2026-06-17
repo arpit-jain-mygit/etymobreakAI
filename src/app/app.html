@@ -1018,28 +1018,25 @@
                     <span>{{ quizAnsweredCount() }}/{{ quizQuestionCount() }} answered</span>
                   </div>
 
-                  <h2>{{ question.sourceTitle }}</h2>
-                  <p class="quiz-prompt">{{ question.prompt }}</p>
-
-                  <div class="quiz-options" role="list" aria-label="Quiz answers">
-                    @for (option of question.options; track option; let optionIndex = $index) {
-                      <button
-                        type="button"
-                        class="quiz-option"
-                        [class.selected]="question.selectedIndex === optionIndex"
-                        [disabled]="question.selectedIndex !== null"
-                        (click)="selectQuizOption(optionIndex)"
-                      >
-                        <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>
-                        <span class="quiz-option-text">{{ option }}</span>
-                        @if (question.selectedIndex === optionIndex) {
-                          <span class="option-indicator">✓ Selected</span>
-                        }
-                      </button>
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <h2>{{ question.sourceTitle }}</h2>
+                    @if (question.sourceRoot) {
+                      <span style="
+                        background-color: #e8eef7;
+                        color: #2d3748;
+                        padding: 4px 12px;
+                        border-radius: 20px;
+                        font-size: 0.85em;
+                        font-weight: 500;
+                        white-space: nowrap;
+                      ">
+                        Root: {{ question.sourceRoot }}
+                      </span>
                     }
                   </div>
+                  <p class="quiz-prompt">{{ question.prompt }}</p>
 
-                  <div class="quiz-root-actions">
+                  <div class="quiz-root-actions" style="margin-bottom: 24px;">
                     @if (isQuizQuestionRootConfident(question)) {
                       <span class="status-chip confident">Confident</span>
                     } @else if (isQuizQuestionRootNeedsFocus(question)) {
@@ -1052,7 +1049,7 @@
                       >
                         Mark Confident
                       </button>
-                    } @else if (question.selectedIndex !== null || question.skipped) {
+                    } @else {
                       <button
                         type="button"
                         class="tab-chip"
@@ -1068,6 +1065,24 @@
                         (click)="toggleNeedsFocusForQuizQuestion(question)"
                       >
                         Mark Needs Focus
+                      </button>
+                    }
+                  </div>
+
+                  <div class="quiz-options" role="list" aria-label="Quiz answers">
+                    @for (option of question.options; track option; let optionIndex = $index) {
+                      <button
+                        type="button"
+                        class="quiz-option"
+                        [class.selected]="question.selectedIndex === optionIndex"
+                        [disabled]="question.selectedIndex !== null"
+                        (click)="selectQuizOption(optionIndex)"
+                      >
+                        <span class="quiz-option-key">{{ ['A', 'B', 'C', 'D'][optionIndex] }}</span>
+                        <span class="quiz-option-text">{{ option }}</span>
+                        @if (question.selectedIndex === optionIndex) {
+                          <span class="option-indicator">✓ Selected</span>
+                        }
                       </button>
                     }
                   </div>
