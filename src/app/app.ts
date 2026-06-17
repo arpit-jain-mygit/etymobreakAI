@@ -3327,10 +3327,19 @@ export class App implements OnInit, AfterViewInit {
       }
     }
 
-    return this.shuffle(selected)
-      .map((record, index) => this.normalizeQuizQuestion(record, index))
-      .filter((question): question is QuizQuestion => question !== null)
-      .slice(0, target);
+    const shuffled = this.shuffle(selected);
+    console.log('[Quiz] selectQuestionsFromBank: shuffled', shuffled.length, 'questions');
+
+    const normalized = shuffled.map((record, index) => this.normalizeQuizQuestion(record, index));
+    console.log('[Quiz] selectQuestionsFromBank: normalized', normalized.length, 'questions');
+
+    const filtered = normalized.filter((question): question is QuizQuestion => question !== null);
+    console.log('[Quiz] selectQuestionsFromBank: after filter nulls', filtered.length, 'questions');
+
+    const result = filtered.slice(0, target);
+    console.log('[Quiz] selectQuestionsFromBank: final result', result.length, 'questions (target was', target, ')');
+
+    return result;
   }
 
   private buildRevisionCandidates(
