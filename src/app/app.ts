@@ -1639,13 +1639,6 @@ export class App implements OnInit, AfterViewInit {
       isCorrect,
     };
     this.quizQuestions.set(updated);
-
-    // Auto-advance to next question after animation delay
-    setTimeout(() => {
-      if (this.quizIndex() < this.quizQuestionCount() - 1) {
-        this.nextQuizQuestion();
-      }
-    }, 2000);
   }
 
   protected showQuizSubmitConfirmation(): void {
