@@ -213,6 +213,7 @@ interface QuizBankQuestion {
   options: QuizBankOption[];
   answer: string;
   answerText: string;
+  parentRoot?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -3227,7 +3228,7 @@ export class App implements OnInit, AfterViewInit {
     const rootSet = new Set(rootNames.map((r) => r.toLowerCase()));
 
     const filteredQuestions = bank.questions.filter((question) => {
-      const questionRoot = (question.parentRoot || (question as any).metadata?.parentRoot || '').trim().toLowerCase();
+      const questionRoot = (question.parentRoot || '').trim().toLowerCase();
       return rootSet.has(questionRoot) && (Number(question.difficulty || question.level || 1)) === difficulty;
     });
 
@@ -3259,13 +3260,13 @@ export class App implements OnInit, AfterViewInit {
         const patternQuestions = questionsByPattern[pattern] || [];
 
         const filtered = patternQuestions.filter((q) => {
-          const qRoot = (q.parentRoot || (q as any).metadata?.parentRoot || '').trim().toLowerCase();
+          const qRoot = (q.parentRoot || '').trim().toLowerCase();
           return !usedRoots.has(qRoot);
         });
 
         const shuffled = this.shuffle(filtered);
         for (const question of shuffled.slice(0, count)) {
-          const qRoot = (question.parentRoot || (question as any).metadata?.parentRoot || '').trim().toLowerCase();
+          const qRoot = (question.parentRoot || '').trim().toLowerCase();
           usedRoots.add(qRoot);
           selected.push(question);
           if (selected.length >= target) break;
@@ -3276,7 +3277,7 @@ export class App implements OnInit, AfterViewInit {
     } else {
       const shuffled = this.shuffle(filteredQuestions);
       for (const question of shuffled) {
-        const qRoot = (question.parentRoot || (question as any).metadata?.parentRoot || '').trim().toLowerCase();
+        const qRoot = (question.parentRoot || '').trim().toLowerCase();
         if (!usedRoots.has(qRoot)) {
           usedRoots.add(qRoot);
           selected.push(question);
