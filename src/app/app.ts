@@ -626,6 +626,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly selectedQuizHistory = computed(() =>
     this.quizHistory().find((item) => item.id === this.selectedQuizHistoryId()) ?? null
   );
+  protected readonly quizHistorySelectedItem = this.selectedQuizHistory;
   protected readonly historyReviewFilter = signal<QuizReviewFilter>('all');
   protected readonly historyReviewFilterCounts = computed(() => {
     const questions = this.selectedQuizHistory()?.questions ?? [];
@@ -849,6 +850,106 @@ export class App implements OnInit, AfterViewInit {
       this.activeTab() === 'confident_words'
         ? 'confident-words.csv'
         : 'needs-focus-words.csv';
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  }
+
+  protected downloadSelectedQuizHistory(): void {
+    const quiz = this.selectedQuizHistory();
+    if (!quiz || typeof window === 'undefined') {
+      return;
+    }
+
+    // Build CSV headers
+    const headers = [
+      'Quiz Date',
+      'Quiz Type',
+      'Total Questions',
+      'Answered',
+      'Correct',
+      'Wrong',
+      'Skipped',
+      'Score',
+      'Percentage',
+      '',
+      'Question #',
+      'Root/Query',
+      'Type',
+      'Your Answer',
+      'Correct Answer',
+      'Status',
+      'Points'
+    ];
+
+    // Build CSV rows
+    const rows = [headers];
+
+    // Add summary row
+    const answeredCount = quiz.questions.filter(q => !q.skipped).length;
+    const correctCount = quiz.questions.filter(q => q.isCorrect).length;
+    const wrongCount = answeredCount - correctCount;
+    const skippedCount = quiz.questions.length - answeredCount;
+    const totalPossible = quiz.questions.length * 3;
+    const percentage = totalPossible > 0 ? Math.round((quiz.score / totalPossible) * 100) : 0;
+
+    rows.push([
+      new Date(quiz.time).toLocaleString(),
+      quiz.quizType || 'mixed',
+      quiz.questions.length.toString(),
+      answeredCount.toString(),
+      correctCount.toString(),
+      wrongCount.toString(),
+      skippedCount.toString(),
+      quiz.score.toString(),
+      percentage.toString() + '%',
+      '', // empty column
+      '', '', '', '', '', '', ''
+    ]);
+
+    rows.push([]);
+    rows.push(['QUESTION DETAILS', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+    rows.push([]);
+
+    // Add each question
+    quiz.questions.forEach((question, index) => {
+      const status = question.skipped ? 'Skipped' : question.isCorrect ? 'Correct' : 'Wrong';
+      const points = question.skipped ? '0' : question.isCorrect ? '3' : '-1';
+
+      rows.push([
+        (index + 1).toString(),
+        question.root || question.sourceQuery || '',
+        question.type || '',
+        question.selectedText || '',
+        question.correctText || '',
+        status,
+        points
+      ]);
+    });
+
+    // Convert to CSV string
+    const csvContent = rows.map(row =>
+      row.map(cell => {
+        // Escape quotes and wrap in quotes if contains comma
+        const escaped = (cell || '').replace(/"/g, '""');
+        return escaped.includes(',') ? `"${escaped}"` : escaped;
+      }).join(',')
+    ).join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    const date = new Date(quiz.time).toISOString().split('T')[0];
+    const filename = `quiz-history-${date}-${quiz.quizType || 'mixed'}.csv`;
 
     link.setAttribute('href', url);
     link.setAttribute('download', filename);
