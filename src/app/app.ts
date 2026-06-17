@@ -1607,19 +1607,6 @@ export class App implements OnInit, AfterViewInit {
     }, 2000);
   }
 
-  protected saveCurrentQuizAnswerLocally(): void {
-    if (this.quizFlowStage() !== 'taking' || !this.quizQuestions().length) {
-      this.quizNotice.set('Start a quiz first.');
-      return;
-    }
-
-    if (this.persistQuizDraft(true)) {
-      this.quizNotice.set('Answer saved locally on this device.');
-    } else {
-      this.quizNotice.set('Nothing to save yet. Choose an answer first.');
-    }
-  }
-
   protected markCurrentQuestionSubmitted(): void {
     const questions = this.quizQuestions();
     const currentIndex = this.quizIndex();
