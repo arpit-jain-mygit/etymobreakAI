@@ -3163,114 +3163,132 @@ export class App implements OnInit, AfterViewInit {
     await this.loadConfidentWordsFromServer();
     await this.loadNeedsFocusWordsFromServer();
 
+    const bank = await this.loadQuizBank('mixed');
+    if (!bank) {
+      return [];
+    }
+
     const confidentEntries = this.getSavedWordInventoryEntries('', 'confident');
     const focusEntries = this.getSavedWordInventoryEntries('', 'needs_focus').filter(
       (entry) => !confidentEntries.some((confident) => confident.root.trim().toLowerCase() === entry.root.trim().toLowerCase())
     );
 
-    const confidentAnalyses = this.uniqueAnalyses(
-      confidentEntries
-        .map((entry) => this.rootEntryAnalysis(entry))
-        .filter((item): item is AnalysisResult => item !== null && !this.isEmptyAnalysis(item))
-    );
-    const focusAnalyses = this.uniqueAnalyses(
-      focusEntries
-        .map((entry) => this.rootEntryAnalysis(entry))
-        .filter((item): item is AnalysisResult => item !== null && !this.isEmptyAnalysis(item)),
-      confidentAnalyses
-    );
     const allRootEntries = this.getRootInventoryEntries();
     const savedRootKeys = new Set(
       [...confidentEntries, ...focusEntries].map((entry) => entry.root.trim().toLowerCase()).filter(Boolean)
     );
     const newEntries = allRootEntries.filter((entry) => !savedRootKeys.has(entry.root.trim().toLowerCase()));
-    const newAnalyses = this.uniqueAnalyses(
-      newEntries
-        .map((entry) => this.rootEntryAnalysis(entry))
-        .filter((item): item is AnalysisResult => item !== null && !this.isEmptyAnalysis(item)),
-      [...confidentAnalyses, ...focusAnalyses]
-    );
-    const allInventoryAnalyses = this.uniqueAnalyses(
-      allRootEntries
-        .map((entry) => this.rootEntryAnalysis(entry))
-        .filter((analysis): analysis is AnalysisResult => analysis !== null && !this.isEmptyAnalysis(analysis))
-    );
 
-    if (!confidentAnalyses.length && !focusAnalyses.length && !newAnalyses.length) {
-      return [];
-    }
+    const confidentRootNames = confidentEntries.map((e) => e.root.trim().toLowerCase());
+    const focusRootNames = focusEntries.map((e) => e.root.trim().toLowerCase());
+    const newRootNames = newEntries.map((e) => e.root.trim().toLowerCase());
 
-    const confidentCandidates = this.shuffle(this.buildRevisionCandidates(confidentAnalyses, difficulty, allInventoryAnalyses));
-    const focusCandidates = this.shuffle(this.buildRevisionCandidates(focusAnalyses, difficulty, allInventoryAnalyses));
-    const newCandidates = this.shuffle(this.buildRevisionCandidates(newAnalyses, difficulty, allInventoryAnalyses));
-
-    const selected: QuizQuestion[] = [];
-    const used = new Set<string>();
-    const addAll = (pool: QuizQuestion[]): void => {
-      for (const question of pool) {
-        const key = this.revisionQuestionKey(question);
-        if (used.has(key)) {
-          continue;
-        }
-
-        used.add(key);
-        selected.push(question);
-      }
-    };
-
-    const takeFrom = (pool: QuizQuestion[], limit: number): void => {
-      let taken = 0;
-      for (const question of pool) {
-        if (taken >= limit) {
-          break;
-        }
-
-        const key = this.revisionQuestionKey(question);
-        if (used.has(key)) {
-          continue;
-        }
-
-        used.add(key);
-        selected.push(question);
-        taken += 1;
-      }
-    };
+    const target = Math.max(1, Math.floor(Number(targetCount || 0)) || 1);
 
     if (mode === 'confident') {
-      addAll(confidentCandidates);
-      return selected;
+      if (!confidentRootNames.length) return [];
+      return this.selectQuestionsFromBank(bank, confidentRootNames, difficulty, target);
     }
 
     if (mode === 'needs_focus') {
-      addAll(focusCandidates);
-      return selected;
+      if (!focusRootNames.length) return [];
+      return this.selectQuestionsFromBank(bank, focusRootNames, difficulty, target);
     }
 
-    const totalTarget = Math.max(1, Math.floor(Number(targetCount || 0)) || 1);
-    const confidentTarget = Math.min(Math.floor(totalTarget * 0.8), confidentAnalyses.length);
-    const focusTarget = Math.min(Math.floor(totalTarget * 0.1), focusAnalyses.length);
-    const newTarget = Math.min(totalTarget - confidentTarget - focusTarget, newAnalyses.length);
-    const newFallbackCandidates = this.shuffle(this.buildRevisionCandidates(newAnalyses, 1, allInventoryAnalyses));
-
-    takeFrom(confidentCandidates, confidentTarget);
-    takeFrom(focusCandidates, focusTarget);
-    takeFrom(newCandidates, newTarget);
-
-    if (selected.length < totalTarget && newTarget > 0) {
-      takeFrom(newFallbackCandidates, totalTarget - selected.length);
+    if (!confidentRootNames.length && !focusRootNames.length && !newRootNames.length) {
+      return [];
     }
 
-    if (selected.length < totalTarget) {
-      const fallbackPool = this.shuffle([...confidentCandidates, ...focusCandidates, ...newCandidates]);
-      takeFrom(fallbackPool, totalTarget - selected.length);
+    const confidentTarget = Math.min(Math.floor(target * 0.8), confidentRootNames.length);
+    const focusTarget = Math.min(Math.floor(target * 0.1), focusRootNames.length);
+    const newTarget = Math.min(target - confidentTarget - focusTarget, newRootNames.length);
+
+    const confidentQuestions = confidentTarget > 0 ?
+      this.selectQuestionsFromBank(bank, confidentRootNames, difficulty, confidentTarget) : [];
+    const focusQuestions = focusTarget > 0 ?
+      this.selectQuestionsFromBank(bank, focusRootNames, difficulty, focusTarget) : [];
+    const newQuestions = newTarget > 0 ?
+      this.selectQuestionsFromBank(bank, newRootNames, difficulty, newTarget) : [];
+
+    const allSelected = [...confidentQuestions, ...focusQuestions, ...newQuestions];
+    return this.shuffle(allSelected).slice(0, target);
+  }
+
+  private selectQuestionsFromBank(
+    bank: QuizBankFile,
+    rootNames: string[],
+    difficulty: number,
+    targetCount: number
+  ): QuizQuestion[] {
+    if (!rootNames.length || !bank.questions.length) {
+      return [];
     }
 
-    if (selected.length < totalTarget) {
-      const absoluteFallback = this.shuffle(this.buildRevisionCandidates(allInventoryAnalyses, 1, allInventoryAnalyses));
-      takeFrom(absoluteFallback, totalTarget - selected.length);
+    const rootSet = new Set(rootNames.map((r) => r.toLowerCase()));
+
+    const filteredQuestions = bank.questions.filter((question) => {
+      const questionRoot = (question.parentRoot || (question as any).metadata?.parentRoot || '').trim().toLowerCase();
+      return rootSet.has(questionRoot) && (Number(question.difficulty || question.level || 1)) === difficulty;
+    });
+
+    if (!filteredQuestions.length) {
+      return [];
     }
 
-    return this.shuffle(selected).slice(0, totalTarget);
+    const patterns = (bank as any).metadata?.patterns as string[] | undefined;
+    const target = Math.max(1, Math.floor(targetCount || 0));
+
+    let selected: QuizBankQuestion[] = [];
+    const usedRoots = new Set<string>();
+
+    if (patterns && patterns.length > 0) {
+      const questionsPerPattern = Math.floor(target / patterns.length);
+      const remainder = target % patterns.length;
+
+      const questionsByPattern: Record<string, QuizBankQuestion[]> = {};
+      for (const pattern of patterns) {
+        questionsByPattern[pattern] = filteredQuestions.filter((q) => {
+          const qPattern = (q as any).metadata?.pattern || 'unknown';
+          return qPattern === pattern;
+        });
+      }
+
+      for (let i = 0; i < patterns.length; i++) {
+        const pattern = patterns[i];
+        const count = questionsPerPattern + (i < remainder ? 1 : 0);
+        const patternQuestions = questionsByPattern[pattern] || [];
+
+        const filtered = patternQuestions.filter((q) => {
+          const qRoot = (q.parentRoot || (q as any).metadata?.parentRoot || '').trim().toLowerCase();
+          return !usedRoots.has(qRoot);
+        });
+
+        const shuffled = this.shuffle(filtered);
+        for (const question of shuffled.slice(0, count)) {
+          const qRoot = (question.parentRoot || (question as any).metadata?.parentRoot || '').trim().toLowerCase();
+          usedRoots.add(qRoot);
+          selected.push(question);
+          if (selected.length >= target) break;
+        }
+
+        if (selected.length >= target) break;
+      }
+    } else {
+      const shuffled = this.shuffle(filteredQuestions);
+      for (const question of shuffled) {
+        const qRoot = (question.parentRoot || (question as any).metadata?.parentRoot || '').trim().toLowerCase();
+        if (!usedRoots.has(qRoot)) {
+          usedRoots.add(qRoot);
+          selected.push(question);
+          if (selected.length >= target) break;
+        }
+      }
+    }
+
+    return this.shuffle(selected)
+      .map((record, index) => this.normalizeQuizQuestion(record, index))
+      .filter((question): question is QuizQuestion => question !== null)
+      .slice(0, target);
   }
 
   private buildRevisionCandidates(
