@@ -1018,22 +1018,28 @@
                     <span>{{ quizAnsweredCount() }}/{{ quizQuestionCount() }} answered</span>
                   </div>
 
-                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                    <h2>{{ question.sourceTitle }}</h2>
-                    @if (question.sourceRoot) {
+                  <h2>{{ question.sourceTitle }}</h2>
+                  @if (question.sourceRoot) {
+                    <div style="
+                      display: flex;
+                      align-items: center;
+                      gap: 6px;
+                      margin: 8px 0 16px 0;
+                      font-size: 0.95em;
+                    ">
+                      <span style="color: #666; font-weight: 500;">Root Word:</span>
                       <span style="
-                        background-color: #e8eef7;
-                        color: #2d3748;
-                        padding: 4px 12px;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 6px 16px;
                         border-radius: 20px;
-                        font-size: 0.85em;
-                        font-weight: 500;
-                        white-space: nowrap;
+                        font-weight: 600;
+                        font-size: 1.05em;
                       ">
-                        Root: {{ question.sourceRoot }}
+                        {{ question.sourceRoot }}
                       </span>
-                    }
-                  </div>
+                    </div>
+                  }
                   <p class="quiz-prompt">{{ question.prompt }}</p>
 
                   <div class="quiz-root-actions" style="margin-bottom: 24px;">
