@@ -270,21 +270,6 @@
                 <span>History</span>
                 <span class="tab-badge">{{ quizHistoryCount() }}</span>
               </button>
-              @if (activeTab() === 'history' && quizHistorySelectedItem()) {
-                <button
-                  type="button"
-                  class="tab-download-button"
-                  (click)="downloadSelectedQuizHistory()"
-                  title="Download Quiz Details as CSV"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <span>Download</span>
-                </button>
-              }
             </div>
           </div>
 
@@ -400,7 +385,21 @@
                       <p class="section-label">{{ item.quizType || item.quizScope }}</p>
                       <h2>{{ item.playerName }}</h2>
                     </div>
-                    <span>{{ item.percentage }}%</span>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                      <span>{{ item.percentage }}%</span>
+                      <button
+                        type="button"
+                        class="card-icon-button"
+                        (click)="downloadQuizHistoryItem(item); $event.stopPropagation()"
+                        title="Download Quiz Details"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
 
                   <p class="root-card-meaning">{{ item.playerEmail }}</p>

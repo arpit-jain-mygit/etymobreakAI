@@ -862,12 +862,24 @@ export class App implements OnInit, AfterViewInit {
     URL.revokeObjectURL(url);
   }
 
+  protected downloadQuizHistoryItem(quiz: QuizHistoryEntry): void {
+    if (!quiz || typeof window === 'undefined') {
+      return;
+    }
+
+    this.generateQuizHistoryCSV(quiz);
+  }
+
   protected downloadSelectedQuizHistory(): void {
     const quiz = this.selectedQuizHistory();
     if (!quiz || typeof window === 'undefined') {
       return;
     }
 
+    this.generateQuizHistoryCSV(quiz);
+  }
+
+  private generateQuizHistoryCSV(quiz: QuizHistoryEntry): void {
     // Build CSV headers
     const headers = [
       'Quiz Date',
