@@ -3181,8 +3181,8 @@ export class App implements OnInit, AfterViewInit {
 
       if (analysis.breakdown && analysis.breakdown.length > 0) {
         for (const part of analysis.breakdown) {
-          if (part.root) {
-            roots.push(part.root.trim().toLowerCase());
+          if (part.type === 'root' && part.label) {
+            roots.push(part.label.trim().toLowerCase());
           }
         }
       }
