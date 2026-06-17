@@ -3173,7 +3173,18 @@ export class App implements OnInit, AfterViewInit {
     const focusAnalyses = this.getSavedWordAnalyses('', 'needs_focus');
 
     const extractRootsFromAnalysis = (analysis: AnalysisResult): string[] => {
-      const root = (analysis.rootFamily?.root || '').trim().toLowerCase();
+      let root = (analysis.rootFamily?.root || '').trim().toLowerCase();
+
+      if (root) {
+        return [root];
+      }
+
+      root = (analysis.query || '').trim().toLowerCase();
+      if (root) {
+        return [root];
+      }
+
+      root = (analysis.title || '').trim().toLowerCase();
       return root ? [root] : [];
     };
 
