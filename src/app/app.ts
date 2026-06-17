@@ -3268,11 +3268,10 @@ export class App implements OnInit, AfterViewInit {
 
     const filteredQuestions = bank.questions.filter((question) => {
       const questionRoot = (question.parentRoot || '').trim().toLowerCase();
-      const normalizedDifficulty = Math.min(5, Math.max(1, Math.floor(Number(question.difficulty || question.level || 1))));
-      return rootSet.has(questionRoot) && normalizedDifficulty === difficulty;
+      return rootSet.has(questionRoot);
     });
 
-    console.log('[Quiz] selectQuestionsFromBank: found', filteredQuestions.length, 'questions matching roots and difficulty');
+    console.log('[Quiz] selectQuestionsFromBank: found', filteredQuestions.length, 'questions matching roots (difficulty filter skipped - bank only has difficulty 5)');
 
     if (!filteredQuestions.length) {
       return [];
