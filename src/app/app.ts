@@ -3169,41 +3169,42 @@ export class App implements OnInit, AfterViewInit {
       return [];
     }
 
-    const confidentEntries = this.getSavedWordInventoryEntries('', 'confident');
-    const focusEntries = this.getSavedWordInventoryEntries('', 'needs_focus').filter(
-      (entry) => !confidentEntries.some((confident) => confident.root.trim().toLowerCase() === entry.root.trim().toLowerCase())
-    );
+    const confidentAnalyses = this.getSavedWordAnalyses('', 'confident');
+    const focusAnalyses = this.getSavedWordAnalyses('', 'needs_focus');
+
+    const extractRootFromAnalysis = (analysis: AnalysisResult): string | null => {
+      const root = analysis.rootFamily?.root || analysis.query || analysis.title || '';
+      return root ? root.trim().toLowerCase() : null;
+    };
+
+    const confidentRootNames = confidentAnalyses.map(extractRootFromAnalysis).filter((r): r is string => r !== null);
+    const focusRootSet = new Set(focusAnalyses.map(extractRootFromAnalysis).filter((r): r is string => r !== null));
+    focusRootSet.forEach((r) => {
+      if (confidentRootNames.includes(r)) {
+        focusRootSet.delete(r);
+      }
+    });
+    const focusRootNames = Array.from(focusRootSet);
 
     const allRootEntries = this.getRootInventoryEntries();
-    const savedRootKeys = new Set(
-      [...confidentEntries, ...focusEntries].map((entry) => entry.root.trim().toLowerCase()).filter(Boolean)
-    );
+    const savedRootKeys = new Set([...confidentRootNames, ...focusRootNames]);
     const newEntries = allRootEntries.filter((entry) => !savedRootKeys.has(entry.root.trim().toLowerCase()));
-
-    const confidentRootNames = confidentEntries.map((e) => e.root.trim().toLowerCase()).filter(Boolean);
-    const focusRootNames = focusEntries.map((e) => e.root.trim().toLowerCase()).filter(Boolean);
     const newRootNames = newEntries.map((e) => e.root.trim().toLowerCase()).filter(Boolean);
 
     const target = Math.max(1, Math.floor(Number(targetCount || 0)) || 1);
 
     if (mode === 'confident') {
-      if (!confidentRootNames.length) {
-        return this.selectQuestionsFromBank(bank, allRootEntries.map((e) => e.root.trim().toLowerCase()), difficulty, target);
-      }
-      const selected = this.selectQuestionsFromBank(bank, confidentRootNames, difficulty, target);
-      return selected.length > 0 ? selected : this.selectQuestionsFromBank(bank, allRootEntries.map((e) => e.root.trim().toLowerCase()), difficulty, target);
+      if (!confidentRootNames.length) return [];
+      return this.selectQuestionsFromBank(bank, confidentRootNames, difficulty, target);
     }
 
     if (mode === 'needs_focus') {
-      if (!focusRootNames.length) {
-        return this.selectQuestionsFromBank(bank, allRootEntries.map((e) => e.root.trim().toLowerCase()), difficulty, target);
-      }
-      const selected = this.selectQuestionsFromBank(bank, focusRootNames, difficulty, target);
-      return selected.length > 0 ? selected : this.selectQuestionsFromBank(bank, allRootEntries.map((e) => e.root.trim().toLowerCase()), difficulty, target);
+      if (!focusRootNames.length) return [];
+      return this.selectQuestionsFromBank(bank, focusRootNames, difficulty, target);
     }
 
     if (!confidentRootNames.length && !focusRootNames.length && !newRootNames.length) {
-      return this.selectQuestionsFromBank(bank, allRootEntries.map((e) => e.root.trim().toLowerCase()), difficulty, target);
+      return [];
     }
 
     const confidentTarget = Math.min(Math.floor(target * 0.8), confidentRootNames.length);
@@ -3217,13 +3218,7 @@ export class App implements OnInit, AfterViewInit {
     const newQuestions = newTarget > 0 ?
       this.selectQuestionsFromBank(bank, newRootNames, difficulty, newTarget) : [];
 
-    let allSelected = [...confidentQuestions, ...focusQuestions, ...newQuestions];
-    if (allSelected.length < target) {
-      const allRoots = allRootEntries.map((e) => e.root.trim().toLowerCase());
-      const fallback = this.selectQuestionsFromBank(bank, allRoots, difficulty, target - allSelected.length);
-      allSelected = [...allSelected, ...fallback];
-    }
-
+    const allSelected = [...confidentQuestions, ...focusQuestions, ...newQuestions];
     return this.shuffle(allSelected).slice(0, target);
   }
 
