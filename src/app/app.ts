@@ -3165,7 +3165,7 @@ export class App implements OnInit, AfterViewInit {
     await this.loadNeedsFocusWordsFromServer();
 
     const bank = await this.loadQuizBank('mixed');
-    if (!bank) {
+    if (!bank || !bank.questions.length) {
       return [];
     }
 
@@ -3180,24 +3180,30 @@ export class App implements OnInit, AfterViewInit {
     );
     const newEntries = allRootEntries.filter((entry) => !savedRootKeys.has(entry.root.trim().toLowerCase()));
 
-    const confidentRootNames = confidentEntries.map((e) => e.root.trim().toLowerCase());
-    const focusRootNames = focusEntries.map((e) => e.root.trim().toLowerCase());
-    const newRootNames = newEntries.map((e) => e.root.trim().toLowerCase());
+    const confidentRootNames = confidentEntries.map((e) => e.root.trim().toLowerCase()).filter(Boolean);
+    const focusRootNames = focusEntries.map((e) => e.root.trim().toLowerCase()).filter(Boolean);
+    const newRootNames = newEntries.map((e) => e.root.trim().toLowerCase()).filter(Boolean);
 
     const target = Math.max(1, Math.floor(Number(targetCount || 0)) || 1);
 
     if (mode === 'confident') {
-      if (!confidentRootNames.length) return [];
-      return this.selectQuestionsFromBank(bank, confidentRootNames, difficulty, target);
+      if (!confidentRootNames.length) {
+        return this.selectQuestionsFromBank(bank, allRootEntries.map((e) => e.root.trim().toLowerCase()), difficulty, target);
+      }
+      const selected = this.selectQuestionsFromBank(bank, confidentRootNames, difficulty, target);
+      return selected.length > 0 ? selected : this.selectQuestionsFromBank(bank, allRootEntries.map((e) => e.root.trim().toLowerCase()), difficulty, target);
     }
 
     if (mode === 'needs_focus') {
-      if (!focusRootNames.length) return [];
-      return this.selectQuestionsFromBank(bank, focusRootNames, difficulty, target);
+      if (!focusRootNames.length) {
+        return this.selectQuestionsFromBank(bank, allRootEntries.map((e) => e.root.trim().toLowerCase()), difficulty, target);
+      }
+      const selected = this.selectQuestionsFromBank(bank, focusRootNames, difficulty, target);
+      return selected.length > 0 ? selected : this.selectQuestionsFromBank(bank, allRootEntries.map((e) => e.root.trim().toLowerCase()), difficulty, target);
     }
 
     if (!confidentRootNames.length && !focusRootNames.length && !newRootNames.length) {
-      return [];
+      return this.selectQuestionsFromBank(bank, allRootEntries.map((e) => e.root.trim().toLowerCase()), difficulty, target);
     }
 
     const confidentTarget = Math.min(Math.floor(target * 0.8), confidentRootNames.length);
@@ -3211,7 +3217,13 @@ export class App implements OnInit, AfterViewInit {
     const newQuestions = newTarget > 0 ?
       this.selectQuestionsFromBank(bank, newRootNames, difficulty, newTarget) : [];
 
-    const allSelected = [...confidentQuestions, ...focusQuestions, ...newQuestions];
+    let allSelected = [...confidentQuestions, ...focusQuestions, ...newQuestions];
+    if (allSelected.length < target) {
+      const allRoots = allRootEntries.map((e) => e.root.trim().toLowerCase());
+      const fallback = this.selectQuestionsFromBank(bank, allRoots, difficulty, target - allSelected.length);
+      allSelected = [...allSelected, ...fallback];
+    }
+
     return this.shuffle(allSelected).slice(0, target);
   }
 
