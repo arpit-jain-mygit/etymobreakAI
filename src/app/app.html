@@ -1013,9 +1013,43 @@
 
               <div class="flash-card-shell quiz-shell">
                 <div class="quiz-card">
-                  <div class="panel-head">
-                    <p class="section-label">Question</p>
-                    <span>{{ quizAnsweredCount() }}/{{ quizQuestionCount() }} answered</span>
+                  <div class="panel-head" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <p class="section-label">Question</p>
+                      <span>{{ quizAnsweredCount() }}/{{ quizQuestionCount() }} answered</span>
+                    </div>
+                    <div class="quiz-root-actions">
+                      @if (isQuizQuestionRootConfident(question)) {
+                        <span class="status-chip confident">Confident</span>
+                      } @else if (isQuizQuestionRootNeedsFocus(question)) {
+                        <span class="status-chip needs-focus">Needs Focus</span>
+                        <button
+                          type="button"
+                          class="tab-chip"
+                          [disabled]="confidentWordsSaving()"
+                          (click)="toggleConfidentForQuizQuestion(question)"
+                        >
+                          ✅ Mark Confident
+                        </button>
+                      } @else {
+                        <button
+                          type="button"
+                          class="tab-chip"
+                          [disabled]="confidentWordsSaving()"
+                          (click)="toggleConfidentForQuizQuestion(question)"
+                        >
+                          ✅ Mark Confident
+                        </button>
+                        <button
+                          type="button"
+                          class="tab-chip"
+                          [disabled]="needsFocusWordsSaving()"
+                          (click)="toggleNeedsFocusForQuizQuestion(question)"
+                        >
+                          🎯 Mark Needs Focus
+                        </button>
+                      }
+                    </div>
                   </div>
 
                   <h2>{{ question.sourceTitle }}</h2>
@@ -1041,39 +1075,6 @@
                     </div>
                   }
                   <p class="quiz-prompt">{{ question.prompt }}</p>
-
-                  <div class="quiz-root-actions" style="margin-bottom: 24px;">
-                    @if (isQuizQuestionRootConfident(question)) {
-                      <span class="status-chip confident">Confident</span>
-                    } @else if (isQuizQuestionRootNeedsFocus(question)) {
-                      <span class="status-chip needs-focus">Needs Focus</span>
-                      <button
-                        type="button"
-                        class="tab-chip"
-                        [disabled]="confidentWordsSaving()"
-                        (click)="toggleConfidentForQuizQuestion(question)"
-                      >
-                        ✅ Mark Confident
-                      </button>
-                    } @else {
-                      <button
-                        type="button"
-                        class="tab-chip"
-                        [disabled]="confidentWordsSaving()"
-                        (click)="toggleConfidentForQuizQuestion(question)"
-                      >
-                        ✅ Mark Confident
-                      </button>
-                      <button
-                        type="button"
-                        class="tab-chip"
-                        [disabled]="needsFocusWordsSaving()"
-                        (click)="toggleNeedsFocusForQuizQuestion(question)"
-                      >
-                        🎯 Mark Needs Focus
-                      </button>
-                    }
-                  </div>
 
                   <div class="quiz-options" role="list" aria-label="Quiz answers">
                     @for (option of question.options; track option; let optionIndex = $index) {
@@ -1117,21 +1118,82 @@
                   }
 
                   <div class="quiz-actions">
-                    @if (!question.submitted) {
-                      <button type="button" class="primary" (click)="skipCurrentQuizQuestion()">Skip Que</button>
-                      <button type="button" class="tab-chip quiz-save" (click)="saveCurrentQuizAnswerLocally()">
-                        Save me answer
-                      </button>
-                    }
                     <button
                       type="button"
                       class="primary quiz-submit"
                       [disabled]="quizHistorySubmitting()"
-                      (click)="submitQuizAttempt()"
+                      (click)="showQuizSubmitConfirmation()"
                     >
                       Submit Quiz
                     </button>
                   </div>
+
+                  @if (quizSubmitConfirmation()) {
+                    <div style="
+                      position: fixed;
+                      top: 0;
+                      left: 0;
+                      right: 0;
+                      bottom: 0;
+                      background: rgba(0, 0, 0, 0.5);
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      z-index: 1000;
+                    ">
+                      <div style="
+                        background: white;
+                        border-radius: 12px;
+                        padding: 32px;
+                        max-width: 400px;
+                        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                        text-align: center;
+                      ">
+                        <h3 style="margin: 0 0 12px 0; font-size: 1.3em; color: #2d3748;">
+                          Submit Quiz?
+                        </h3>
+                        <p style="margin: 0 0 24px 0; color: #718096; font-size: 0.95em;">
+                          You've answered {{ quizAnsweredCount() }} out of {{ quizQuestionCount() }} questions.
+                        </p>
+                        <p style="margin: 0 0 24px 0; color: #718096; font-size: 0.9em;">
+                          You can't change your answers after submitting.
+                        </p>
+                        <div style="display: flex; gap: 12px; justify-content: center;">
+                          <button
+                            type="button"
+                            style="
+                              padding: 10px 24px;
+                              border: 1px solid #cbd5e0;
+                              background: white;
+                              color: #2d3748;
+                              border-radius: 8px;
+                              cursor: pointer;
+                              font-weight: 500;
+                            "
+                            (click)="quizSubmitConfirmation.set(false)"
+                          >
+                            Keep Answering
+                          </button>
+                          <button
+                            type="button"
+                            style="
+                              padding: 10px 24px;
+                              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                              color: white;
+                              border: none;
+                              border-radius: 8px;
+                              cursor: pointer;
+                              font-weight: 500;
+                            "
+                            [disabled]="quizHistorySubmitting()"
+                            (click)="submitQuizAttempt(); quizSubmitConfirmation.set(false);"
+                          >
+                            Submit Quiz
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  }
                 </div>
               </div>
             </div>

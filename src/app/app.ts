@@ -324,6 +324,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly quizTimeRemaining = signal(25 * 60);
   protected readonly quizPreparing = signal(false);
   protected readonly quizNotice = signal('');
+  protected readonly quizSubmitConfirmation = signal(false);
   protected readonly quizDraftPromptOpen = signal(false);
   protected readonly quizDraftPromptMessage = signal('');
   protected readonly googleIdentity = signal<GoogleIdentity | null>(null);
@@ -1645,6 +1646,10 @@ export class App implements OnInit, AfterViewInit {
         this.nextQuizQuestion();
       }
     }, 2000);
+  }
+
+  protected showQuizSubmitConfirmation(): void {
+    this.quizSubmitConfirmation.set(true);
   }
 
   protected async submitQuizAttempt(): Promise<void> {
