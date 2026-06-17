@@ -1520,7 +1520,6 @@ export class App implements OnInit, AfterViewInit {
     this.quizQuestions.set(deck);
     this.quizFlowStage.set('taking');
     this.quizPreparing.set(false);
-    this.persistQuizDraft(false);
     this.startQuizTimer();
   }
 
@@ -1577,7 +1576,6 @@ export class App implements OnInit, AfterViewInit {
         skipped: true,
       };
       this.quizQuestions.set(updated);
-      this.persistQuizDraft(false);
     }
     this.quizIndex.set(Math.min(total - 1, this.quizIndex() + 1));
   }
@@ -1601,7 +1599,6 @@ export class App implements OnInit, AfterViewInit {
       skipped: false,
     };
     this.quizQuestions.set(updated);
-    this.persistQuizDraft(false);
     this.quizNotice.set('');
 
     // Auto-advance after 2 seconds to let kids see the feedback
