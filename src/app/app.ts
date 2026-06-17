@@ -3252,6 +3252,8 @@ export class App implements OnInit, AfterViewInit {
       return [];
     }
 
+    const target = Math.max(1, Math.floor(targetCount || 0));
+
     console.log('[Quiz] selectQuestionsFromBank:', {
       requestedRoots: rootNames.length,
       targetQuestions: target,
@@ -3259,7 +3261,6 @@ export class App implements OnInit, AfterViewInit {
     });
 
     const patterns = (bank as any).metadata?.patterns as string[] | undefined;
-    const target = Math.max(1, Math.floor(targetCount || 0));
 
     let selected: QuizBankQuestion[] = [];
     const usedRoots = new Set<string>();
