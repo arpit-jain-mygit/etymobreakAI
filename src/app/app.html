@@ -164,87 +164,113 @@
 
       <div class="tab-row" role="tablist" aria-label="App tabs">
           <div class="tab-row-buttons">
-            <button
-              type="button"
-              class="tab-chip"
-              [class.active]="activeTab() === 'all_words'"
-              (click)="setActiveTab('all_words')"
-            >
-              <span class="tab-icon">📚</span>
-              <span>All Words list</span>
-              <span class="tab-badge" aria-live="polite">{{ rootInventoryCount() }}</span>
-            </button>
-            <button
-              type="button"
-              class="tab-chip"
-              [class.active]="activeTab() === 'confident_words'"
-              (click)="setActiveTab('confident_words')"
-              title="My Confident Words"
-            >
-              <span class="tab-icon">💪</span>
-              <span>My Confident Words</span>
-              <span class="tab-badge" [class.tab-count-loading]="confidentWordsLoading()" aria-live="polite">
-                @if (confidentWordsLoading()) {
-                  <span class="mini-spinner" aria-hidden="true"></span>
-                } @else {
-                  {{ confidentWordsDisplayCount() }}
-                }
-              </span>
-            </button>
-            <button
-              type="button"
-              class="tab-chip"
-              [class.active]="activeTab() === 'needs_focus_words'"
-              (click)="setActiveTab('needs_focus_words')"
-              title="Words need more Focus"
-            >
-              <span class="tab-icon">🎯</span>
-              <span>Words need more Focus</span>
-              <span class="tab-badge" [class.tab-count-loading]="needsFocusWordsLoading()" aria-live="polite">
-                @if (needsFocusWordsLoading()) {
-                  <span class="mini-spinner" aria-hidden="true"></span>
-                } @else {
-                  {{ needsFocusWordsDisplayCount() }}
-                }
-              </span>
-            </button>
-            <button
-              type="button"
-              class="tab-chip"
-              [class.active]="activeTab() === 'quiz'"
-              (click)="setActiveTab('quiz')"
-            >
-              <span class="tab-icon">🧠</span>
-              <span>Quiz</span>
-            </button>
-            <button
-              type="button"
-              class="tab-chip"
-              [class.active]="activeTab() === 'history'"
-              (click)="setActiveTab('history')"
-            >
-              <span class="tab-icon">⚔️</span>
-              <span>History</span>
-              <span class="tab-badge">{{ quizHistoryCount() }}</span>
-            </button>
-          </div>
-
-          <div class="tabs-action-bar">
-            @if (activeTab() !== 'all_words') {
+            <div class="tab-item-group">
               <button
                 type="button"
-                class="download-action-button"
-                (click)="downloadSavedWordsAsCSV()"
-                title="Download as CSV"
+                class="tab-chip"
+                [class.active]="activeTab() === 'all_words'"
+                (click)="setActiveTab('all_words')"
               >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                <span>Download</span>
+                <span class="tab-icon">📚</span>
+                <span>All Words list</span>
+                <span class="tab-badge" aria-live="polite">{{ rootInventoryCount() }}</span>
               </button>
-            }
+            </div>
+
+            <div class="tab-item-group">
+              <button
+                type="button"
+                class="tab-chip"
+                [class.active]="activeTab() === 'confident_words'"
+                (click)="setActiveTab('confident_words')"
+                title="My Confident Words"
+              >
+                <span class="tab-icon">💪</span>
+                <span>My Confident Words</span>
+                <span class="tab-badge" [class.tab-count-loading]="confidentWordsLoading()" aria-live="polite">
+                  @if (confidentWordsLoading()) {
+                    <span class="mini-spinner" aria-hidden="true"></span>
+                  } @else {
+                    {{ confidentWordsDisplayCount() }}
+                  }
+                </span>
+              </button>
+              @if (activeTab() === 'confident_words') {
+                <button
+                  type="button"
+                  class="tab-download-button"
+                  (click)="downloadSavedWordsAsCSV()"
+                  title="Download as CSV"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Download</span>
+                </button>
+              }
+            </div>
+
+            <div class="tab-item-group">
+              <button
+                type="button"
+                class="tab-chip"
+                [class.active]="activeTab() === 'needs_focus_words'"
+                (click)="setActiveTab('needs_focus_words')"
+                title="Words need more Focus"
+              >
+                <span class="tab-icon">🎯</span>
+                <span>Words need more Focus</span>
+                <span class="tab-badge" [class.tab-count-loading]="needsFocusWordsLoading()" aria-live="polite">
+                  @if (needsFocusWordsLoading()) {
+                    <span class="mini-spinner" aria-hidden="true"></span>
+                  } @else {
+                    {{ needsFocusWordsDisplayCount() }}
+                  }
+                </span>
+              </button>
+              @if (activeTab() === 'needs_focus_words') {
+                <button
+                  type="button"
+                  class="tab-download-button"
+                  (click)="downloadSavedWordsAsCSV()"
+                  title="Download as CSV"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Download</span>
+                </button>
+              }
+            </div>
+
+            <div class="tab-item-group">
+              <button
+                type="button"
+                class="tab-chip"
+                [class.active]="activeTab() === 'quiz'"
+                (click)="setActiveTab('quiz')"
+              >
+                <span class="tab-icon">🧠</span>
+                <span>Quiz</span>
+              </button>
+            </div>
+
+            <div class="tab-item-group">
+              <button
+                type="button"
+                class="tab-chip"
+                [class.active]="activeTab() === 'history'"
+                (click)="setActiveTab('history')"
+              >
+                <span class="tab-icon">⚔️</span>
+                <span>History</span>
+                <span class="tab-badge">{{ quizHistoryCount() }}</span>
+              </button>
+            </div>
           </div>
 
           <!-- Top Right Search Bar -->
