@@ -3481,38 +3481,6 @@ export class App implements OnInit, AfterViewInit {
     return `${this.quizDraftPrefix}:${identity}`;
   }
 
-  private persistQuizDraft(showFeedback: boolean): boolean {
-    const profile = this.profile();
-    const questions = this.quizQuestions();
-    if (!profile || !questions.length || this.quizFlowStage() !== 'taking') {
-      return false;
-    }
-
-    const draft: QuizDraftState = {
-      quizType: this.quizType(),
-      quizDifficulty: this.quizDifficulty(),
-      quizQuestionTarget: this.quizQuestionTarget(),
-      quizIndex: this.quizIndex(),
-      quizTimeRemaining: this.quizTimeRemaining(),
-      quizFlowStage: this.quizFlowStage(),
-      questions,
-      savedAt: new Date().toISOString(),
-    };
-
-    try {
-      localStorage.setItem(this.quizDraftStorageKey(profile), JSON.stringify(draft));
-      if (showFeedback) {
-        this.quizNotice.set('Answer saved locally on this device.');
-      }
-      return true;
-    } catch {
-      if (showFeedback) {
-        this.quizNotice.set('Your answer could not be saved locally right now.');
-      }
-      return false;
-    }
-  }
-
   private clearQuizDraftLocally(): void {
     const profile = this.profile();
     if (!profile) {
