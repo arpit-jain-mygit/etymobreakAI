@@ -172,7 +172,7 @@
             >
               <span class="tab-icon">📚</span>
               <span>All Words list</span>
-              <span class="tab-count">{{ rootInventoryCount() }}</span>
+              <span class="tab-badge" aria-live="polite">{{ rootInventoryCount() }}</span>
             </button>
             <button
               type="button"
@@ -183,7 +183,7 @@
             >
               <span class="tab-icon">💪</span>
               <span>My Confident Words</span>
-              <span class="tab-count" [class.tab-count-loading]="confidentWordsLoading()" aria-live="polite">
+              <span class="tab-badge" [class.tab-count-loading]="confidentWordsLoading()" aria-live="polite">
                 @if (confidentWordsLoading()) {
                   <span class="mini-spinner" aria-hidden="true"></span>
                 } @else {
@@ -200,7 +200,7 @@
             >
               <span class="tab-icon">🎯</span>
               <span>Words need more Focus</span>
-              <span class="tab-count" [class.tab-count-loading]="needsFocusWordsLoading()" aria-live="polite">
+              <span class="tab-badge" [class.tab-count-loading]="needsFocusWordsLoading()" aria-live="polite">
                 @if (needsFocusWordsLoading()) {
                   <span class="mini-spinner" aria-hidden="true"></span>
                 } @else {
@@ -216,6 +216,7 @@
             >
               <span class="tab-icon">🧠</span>
               <span>Quiz</span>
+              <span class="tab-badge">-</span>
             </button>
             <button
               type="button"
@@ -225,6 +226,7 @@
             >
               <span class="tab-icon">⚔️</span>
               <span>History</span>
+              <span class="tab-badge">{{ quizHistoryCount() }}</span>
             </button>
           </div>
 
