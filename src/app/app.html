@@ -782,7 +782,19 @@
           <div class="quiz-meta">
             <span>{{ experimentSlidePosition() }} / {{ experimentSlideCount() }}</span>
             @if (activeTab() !== 'all_words') {
-              <button type="button" class="tab-chip" (click)="downloadSavedWordsAsCSV()">Download CSV</button>
+              <button
+                type="button"
+                class="icon-button"
+                (click)="downloadSavedWordsAsCSV()"
+                title="Download as CSV"
+                style="background: none; border: none; padding: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2;">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </button>
             }
           </div>
         </div>
