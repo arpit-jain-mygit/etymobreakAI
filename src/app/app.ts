@@ -338,6 +338,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly profileMenuView = signal<'profile' | 'history'>('profile');
   protected readonly googleClientId = signal('');
   protected readonly googleButtonRendered = signal(false);
+  private googleInitialized = false;
   protected readonly inventoryEntries = signal<unknown[]>([]);
   protected readonly quizHistory = signal<QuizHistoryEntry[]>([]);
   protected readonly quizAnswerFeedback = signal<{ type: 'correct' | 'wrong' | null; questionId?: string }>({ type: null });
@@ -1044,6 +1045,7 @@ export class App implements OnInit, AfterViewInit {
     this.authMessage.set('Signed out.');
     this.authError.set('');
     this.googleButtonRendered.set(false);
+    this.googleInitialized = false;
     this.quizHistory.set([]);
     this.quizHistoryError.set('');
     this.quizHistorySaved.set(false);
@@ -2084,10 +2086,13 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
-    google.accounts.id.initialize({
-      client_id: this.googleClientId(),
-      callback: (response: { credential?: string }) => this.handleGoogleCredential(response),
-    });
+    if (!this.googleInitialized) {
+      google.accounts.id.initialize({
+        client_id: this.googleClientId(),
+        callback: (response: { credential?: string }) => this.handleGoogleCredential(response),
+      });
+      this.googleInitialized = true;
+    }
 
     google.accounts.id.renderButton(this.googleButtonHost.nativeElement, {
       theme: 'outline',
