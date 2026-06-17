@@ -2968,9 +2968,9 @@ export class App implements OnInit, AfterViewInit {
 
     const metadata = record.metadata ?? {};
     const sourceTitle = String(
-      metadata['root'] || metadata['exampleWord'] || metadata['word'] || metadata['part'] || record.questionType || record.id
+      metadata['word'] || metadata['exampleWord'] || metadata['part'] || record.questionType || record.id
     ).trim();
-    const sourceRoot = String(metadata['root'] || '').trim();
+    const sourceRoot = String(metadata['parentRoot'] || (record as any).parentRoot || metadata['root'] || '').trim();
     const sourceRootMeaning = String(metadata['rootMeaning'] || metadata['meaning'] || '').trim();
 
     return {
@@ -3253,10 +3253,14 @@ export class App implements OnInit, AfterViewInit {
     }
 
     const target = Math.max(1, Math.floor(targetCount || 0));
+    const maxQuestionsPerRoot = 1;
+    const maxTotalQuestions = rootNames.length * maxQuestionsPerRoot;
+    const actualTarget = Math.min(target, maxTotalQuestions);
 
     console.log('[Quiz] selectQuestionsFromBank:', {
       requestedRoots: rootNames.length,
-      targetQuestions: target,
+      requestedTarget: target,
+      actualTarget,
       matchingQuestions: filteredQuestions.length
     });
 
@@ -3266,9 +3270,6 @@ export class App implements OnInit, AfterViewInit {
     const usedRoots = new Set<string>();
 
     if (patterns && patterns.length > 0) {
-      const questionsPerPattern = Math.floor(target / patterns.length);
-      const remainder = target % patterns.length;
-
       const questionsByPattern: Record<string, QuizBankQuestion[]> = {};
       for (const pattern of patterns) {
         questionsByPattern[pattern] = filteredQuestions.filter((q) => {
@@ -3277,34 +3278,30 @@ export class App implements OnInit, AfterViewInit {
         });
       }
 
-      for (let i = 0; i < patterns.length; i++) {
+      for (let i = 0; i < patterns.length && selected.length < actualTarget; i++) {
         const pattern = patterns[i];
-        const count = questionsPerPattern + (i < remainder ? 1 : 0);
         const patternQuestions = questionsByPattern[pattern] || [];
 
-        const filtered = patternQuestions.filter((q) => {
-          const qRoot = (q.parentRoot || '').trim().toLowerCase();
-          return !usedRoots.has(qRoot);
-        });
+        const shuffled = this.shuffle(patternQuestions);
+        for (const question of shuffled) {
+          if (selected.length >= actualTarget) break;
 
-        const shuffled = this.shuffle(filtered);
-        for (const question of shuffled.slice(0, count)) {
           const qRoot = (question.parentRoot || '').trim().toLowerCase();
-          usedRoots.add(qRoot);
-          selected.push(question);
-          if (selected.length >= target) break;
+          if (!usedRoots.has(qRoot)) {
+            usedRoots.add(qRoot);
+            selected.push(question);
+          }
         }
-
-        if (selected.length >= target) break;
       }
     } else {
       const shuffled = this.shuffle(filteredQuestions);
       for (const question of shuffled) {
+        if (selected.length >= actualTarget) break;
+
         const qRoot = (question.parentRoot || '').trim().toLowerCase();
         if (!usedRoots.has(qRoot)) {
           usedRoots.add(qRoot);
           selected.push(question);
-          if (selected.length >= target) break;
         }
       }
     }
@@ -3312,12 +3309,13 @@ export class App implements OnInit, AfterViewInit {
     const result = this.shuffle(selected)
       .map((record, index) => this.normalizeQuizQuestion(record, index))
       .filter((question): question is QuizQuestion => question !== null)
-      .slice(0, target);
+      .slice(0, actualTarget);
 
     console.log('[Quiz] selectQuestionsFromBank result:', {
       selectedCount: selected.length,
       normalizedCount: result.length,
-      usedRootsCount: usedRoots.size
+      usedRootsCount: usedRoots.size,
+      actualTarget
     });
 
     return result;
