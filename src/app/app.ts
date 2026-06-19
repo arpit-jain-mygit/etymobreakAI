@@ -3114,6 +3114,42 @@ export class App implements OnInit, AfterViewInit {
     return 'meaning';
   }
 
+  private extractFeedbackFromQuizBank(question: QuizAttemptQuestion): OptionFeedback[] | undefined {
+    // Search quiz bank for a matching question by prompt
+    const quizBankFile = this.quizBankCache.get('mixed');
+    if (!quizBankFile?.questions) {
+      return undefined;
+    }
+
+    // Find question by matching prompt
+    const matchingQuestion = quizBankFile.questions.find(
+      (q) => String(q.question || '').trim() === String(question.prompt || '').trim()
+    );
+
+    if (!matchingQuestion || !Array.isArray(matchingQuestion.options)) {
+      return undefined;
+    }
+
+    // Build optionFeedbacks array matching the displayed options order
+    return question.options.map((displayedOption, displayIndex) => {
+      // Find the option in the quiz bank that matches this displayed option
+      const bankOption = matchingQuestion.options.find(
+        (opt: any) => String(opt.text || '').trim() === String(displayedOption || '').trim()
+      );
+
+      const isCorrect = displayIndex === question.correctIndex;
+      const feedback = (bankOption as any)?.feedback || {};
+      const message =
+        (isCorrect ? feedback.whyCorrect : feedback.whyWrong) || feedback.message || 'No explanation provided.';
+
+      return {
+        optionText: displayedOption,
+        isCorrect,
+        message,
+      };
+    });
+  }
+
   private async buildQuizDeck(
     type: QuizBankType,
     difficulty: number,
@@ -3780,13 +3816,17 @@ export class App implements OnInit, AfterViewInit {
         const timeLimitMinutes = Number(entry.timeLimitMinutes || 0);
         const timeSpentSeconds = Number(entry.timeSpentSeconds || 0);
         const questions = Array.isArray((entry as { questions?: unknown }).questions)
-          ? (((entry as { questions?: QuizAttemptQuestion[] }).questions ?? []).map((question) => ({
-              ...question,
-              options: Array.isArray(question?.options) ? question.options : [],
-              optionFeedbacks: Array.isArray((question as any)?.optionFeedbacks)
-                ? (question as any).optionFeedbacks
-                : undefined,
-            })) as QuizAttemptQuestion[])
+          ? (((entry as { questions?: QuizAttemptQuestion[] }).questions ?? []).map((question) => {
+              const q = {
+                ...question,
+                options: Array.isArray(question?.options) ? question.options : [],
+              } as QuizAttemptQuestion;
+              // Extract feedback from quiz bank if not present in database
+              if (!q.optionFeedbacks || q.optionFeedbacks.length === 0) {
+                q.optionFeedbacks = this.extractFeedbackFromQuizBank(q);
+              }
+              return q;
+            }) as QuizAttemptQuestion[])
           : [];
 
         if (!time || !playerName || !playerEmail) {
