@@ -3783,6 +3783,9 @@ export class App implements OnInit, AfterViewInit {
           ? (((entry as { questions?: QuizAttemptQuestion[] }).questions ?? []).map((question) => ({
               ...question,
               options: Array.isArray(question?.options) ? question.options : [],
+              optionFeedbacks: Array.isArray((question as any)?.optionFeedbacks)
+                ? (question as any).optionFeedbacks
+                : undefined,
             })) as QuizAttemptQuestion[])
           : [];
 
