@@ -522,20 +522,30 @@
 
                           @if (question.optionFeedbacks && question.optionFeedbacks.length > 0 && question.isCorrect === false) {
                             <div class="option-feedback-container">
-                              <h4 class="feedback-title">Why Each Option Matters</h4>
-                              <div class="option-feedbacks">
-                                @for (feedback of question.optionFeedbacks; track feedback.optionText; let idx = $index) {
-                                  <div class="option-feedback" [class.correct]="feedback.isCorrect" [class.wrong]="!feedback.isCorrect">
-                                    <div class="feedback-header">
-                                      <span class="option-label">{{ ['A', 'B', 'C', 'D'][idx] }}: {{ feedback.optionText }}</span>
-                                      <span class="feedback-badge" [class.correct]="feedback.isCorrect" [class.wrong]="!feedback.isCorrect">
-                                        {{ feedback.isCorrect ? '✓ Correct' : '✗ Wrong' }}
-                                      </span>
+                              <button
+                                type="button"
+                                class="feedback-accordion-header"
+                                (click)="toggleFeedbackAccordion(question.id)"
+                                [attr.aria-expanded]="isFeedbackExpanded(question.id)"
+                              >
+                                <span class="accordion-icon">{{ isFeedbackExpanded(question.id) ? '▼' : '▶' }}</span>
+                                <h4 class="feedback-title">Why Each Option Matters</h4>
+                              </button>
+                              @if (isFeedbackExpanded(question.id)) {
+                                <div class="option-feedbacks">
+                                  @for (feedback of question.optionFeedbacks; track feedback.optionText; let idx = $index) {
+                                    <div class="option-feedback" [class.correct]="feedback.isCorrect" [class.wrong]="!feedback.isCorrect">
+                                      <div class="feedback-header">
+                                        <span class="option-label">{{ ['A', 'B', 'C', 'D'][idx] }}: {{ feedback.optionText }}</span>
+                                        <span class="feedback-badge" [class.correct]="feedback.isCorrect" [class.wrong]="!feedback.isCorrect">
+                                          {{ feedback.isCorrect ? '✓ Correct' : '✗ Wrong' }}
+                                        </span>
+                                      </div>
+                                      <p class="feedback-message">{{ feedback.message }}</p>
                                     </div>
-                                    <p class="feedback-message">{{ feedback.message }}</p>
-                                  </div>
-                                }
-                              </div>
+                                  }
+                                </div>
+                              }
                             </div>
                           }
 
@@ -1488,20 +1498,30 @@
 
                 @if (question.optionFeedbacks && question.optionFeedbacks.length > 0 && question.isCorrect === false) {
                   <div class="option-feedback-container">
-                    <h4 class="feedback-title">Why Each Option Matters</h4>
-                    <div class="option-feedbacks">
-                      @for (feedback of question.optionFeedbacks; track feedback.optionText; let idx = $index) {
-                        <div class="option-feedback" [class.correct]="feedback.isCorrect" [class.wrong]="!feedback.isCorrect">
-                          <div class="feedback-header">
-                            <span class="option-label">{{ ['A', 'B', 'C', 'D'][idx] }}: {{ feedback.optionText }}</span>
-                            <span class="feedback-badge" [class.correct]="feedback.isCorrect" [class.wrong]="!feedback.isCorrect">
-                              {{ feedback.isCorrect ? '✓ Correct' : '✗ Wrong' }}
-                            </span>
+                    <button
+                      type="button"
+                      class="feedback-accordion-header"
+                      (click)="toggleFeedbackAccordion(question.id)"
+                      [attr.aria-expanded]="isFeedbackExpanded(question.id)"
+                    >
+                      <span class="accordion-icon">{{ isFeedbackExpanded(question.id) ? '▼' : '▶' }}</span>
+                      <h4 class="feedback-title">Why Each Option Matters</h4>
+                    </button>
+                    @if (isFeedbackExpanded(question.id)) {
+                      <div class="option-feedbacks">
+                        @for (feedback of question.optionFeedbacks; track feedback.optionText; let idx = $index) {
+                          <div class="option-feedback" [class.correct]="feedback.isCorrect" [class.wrong]="!feedback.isCorrect">
+                            <div class="feedback-header">
+                              <span class="option-label">{{ ['A', 'B', 'C', 'D'][idx] }}: {{ feedback.optionText }}</span>
+                              <span class="feedback-badge" [class.correct]="feedback.isCorrect" [class.wrong]="!feedback.isCorrect">
+                                {{ feedback.isCorrect ? '✓ Correct' : '✗ Wrong' }}
+                              </span>
+                            </div>
+                            <p class="feedback-message">{{ feedback.message }}</p>
                           </div>
-                          <p class="feedback-message">{{ feedback.message }}</p>
-                        </div>
-                      }
-                    </div>
+                        }
+                      </div>
+                    }
                   </div>
                 }
               </article>

@@ -340,6 +340,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly quizSubmitConfirmation = signal(false);
   protected readonly quizDraftPromptOpen = signal(false);
   protected readonly quizDraftPromptMessage = signal('');
+  protected readonly expandedFeedbackQuestions = signal<Set<string>>(new Set());
   protected readonly googleIdentity = signal<GoogleIdentity | null>(null);
   protected readonly profile = signal<StoredProfile | null>(null);
   protected readonly profileFirstName = signal('');
@@ -1875,6 +1876,20 @@ export class App implements OnInit, AfterViewInit {
     this.pendingQuizDraft = null;
     this.quizDraftPromptOpen.set(false);
     this.quizDraftPromptMessage.set('');
+  }
+
+  protected toggleFeedbackAccordion(questionId: string): void {
+    const expanded = new Set(this.expandedFeedbackQuestions());
+    if (expanded.has(questionId)) {
+      expanded.delete(questionId);
+    } else {
+      expanded.add(questionId);
+    }
+    this.expandedFeedbackQuestions.set(expanded);
+  }
+
+  protected isFeedbackExpanded(questionId: string): boolean {
+    return this.expandedFeedbackQuestions().has(questionId);
   }
 
   protected formatHistoryTime(value: string): string {
