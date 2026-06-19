@@ -3059,11 +3059,20 @@ export class App implements OnInit, AfterViewInit {
     }
 
     // Build option feedback array
-    const optionFeedbacks: OptionFeedback[] = shuffledOptions.map((option) => ({
-      optionText: option.text,
-      isCorrect: option.id === answerKey,
-      message: option.feedback?.message || option.feedback?.whyWrong || 'No explanation provided.',
-    }));
+    const optionFeedbacks: OptionFeedback[] = shuffledOptions.map((option) => {
+      const isCorrect = option.id === answerKey;
+      const feedback = option.feedback || {};
+      // For correct answers, prefer whyCorrect; for wrong answers, prefer whyWrong; fallback to message
+      const message =
+        (isCorrect ? feedback.whyCorrect : feedback.whyWrong) ||
+        feedback.message ||
+        'No explanation provided.';
+      return {
+        optionText: option.text,
+        isCorrect,
+        message,
+      };
+    });
 
     const metadata = record.metadata ?? {};
     const sourceTitle = String(
