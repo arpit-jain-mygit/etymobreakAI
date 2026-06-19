@@ -1190,6 +1190,21 @@ h1 {
 .history-question-card {
   display: grid;
   gap: 10px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 2px solid #d0d8e0;
+
+  &.correct {
+    border-color: #4caf50;
+  }
+
+  &.wrong {
+    border-color: #f44336;
+  }
+
+  &.skipped {
+    border-color: #ff9800;
+  }
 }
 
 .history-question-card .quiz-summary-options {

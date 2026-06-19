@@ -942,6 +942,25 @@ export class App implements OnInit, AfterViewInit {
       content += '\n';
       content += `Your answer - ${question.selectedText || 'Not answered'}\n`;
       content += `Correct answer - ${question.correctText || 'N/A'}\n`;
+      content += `Result - ${question.isCorrect ? 'Correct' : question.skipped ? 'Skipped' : 'Wrong'}\n`;
+      content += '\n';
+
+      // Add feedback if answer is wrong
+      if (!question.isCorrect && question.optionFeedbacks && question.optionFeedbacks.length > 0) {
+        content += 'WHY EACH OPTION MATTERS\n';
+        content += '---\n';
+        const optionLabels = ['A', 'B', 'C', 'D'];
+        question.optionFeedbacks.forEach((feedback, idx) => {
+          const label = optionLabels[idx] || idx;
+          const status = feedback.isCorrect ? 'CORRECT' : 'WRONG';
+          content += `Option ${label}: ${feedback.optionText}\n`;
+          content += `Status: ${status}\n`;
+          content += `Explanation: ${feedback.message}\n`;
+          content += '\n';
+        });
+      }
+
+      content += '---\n';
       content += '\n';
     });
 
