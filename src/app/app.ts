@@ -164,6 +164,7 @@ interface QuizAttemptQuestion {
   skipped: boolean;
   submitted: boolean;
   isCorrect: boolean | null;
+  optionFeedbacks?: OptionFeedback[];
 }
 
 type QuizBankType =
@@ -196,11 +197,23 @@ interface QuizQuestion {
   sourceRoot?: string;
   sourceRootMeaning?: string;
   explanation: string;
+  optionFeedbacks?: OptionFeedback[];
 }
 
 interface QuizBankOption {
   id: string;
   text: string;
+  feedback?: {
+    correct?: boolean;
+    message?: string;
+    whyWrong?: string;
+  };
+}
+
+interface OptionFeedback {
+  optionText: string;
+  isCorrect: boolean;
+  message: string;
 }
 
 interface QuizBankQuestion {
@@ -3021,26 +3034,36 @@ export class App implements OnInit, AfterViewInit {
   }
 
   private normalizeQuizQuestion(record: QuizBankQuestion, index: number): QuizQuestion | null {
-    const options = Array.isArray(record.options)
-      ? this.shuffle(
-          record.options
-            .map((option) => ({
-              id: String(option?.id || '').trim(),
-              text: String(option?.text || '').trim(),
-            }))
-            .filter((option) => option.id && option.text)
-        )
+    // Map options with their feedback before shuffling
+    const optionsWithFeedback = Array.isArray(record.options)
+      ? record.options
+          .map((option) => ({
+            id: String(option?.id || '').trim(),
+            text: String(option?.text || '').trim(),
+            feedback: (option as any)?.feedback,
+          }))
+          .filter((option) => option.id && option.text)
       : [];
 
-    if (options.length < 4) {
+    if (optionsWithFeedback.length < 4) {
       return null;
     }
 
+    // Shuffle and preserve feedback mapping
+    const shuffledOptions = this.shuffle(optionsWithFeedback);
+
     const answerKey = String(record.answer || '').trim();
-    const correctIndex = options.findIndex((option) => option.id === answerKey);
+    const correctIndex = shuffledOptions.findIndex((option) => option.id === answerKey);
     if (correctIndex < 0) {
       return null;
     }
+
+    // Build option feedback array
+    const optionFeedbacks: OptionFeedback[] = shuffledOptions.map((option) => ({
+      optionText: option.text,
+      isCorrect: option.id === answerKey,
+      message: option.feedback?.message || option.feedback?.whyWrong || 'No explanation provided.',
+    }));
 
     const metadata = record.metadata ?? {};
     const sourceTitle = String(
@@ -3053,7 +3076,7 @@ export class App implements OnInit, AfterViewInit {
       id: `${record.id}-${index}`,
       type: this.mapQuizQuestionType(record.questionType),
       prompt: String(record.question || '').trim(),
-      options: options.map((option) => option.text),
+      options: shuffledOptions.map((option) => option.text),
       correctIndex,
       selectedIndex: null,
       skipped: false,
@@ -3063,6 +3086,7 @@ export class App implements OnInit, AfterViewInit {
       sourceRoot,
       sourceRootMeaning,
       explanation: String(record.answerText || '').trim() || 'Review the highlighted answer.',
+      optionFeedbacks,
     };
   }
 
