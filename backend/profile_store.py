@@ -792,11 +792,16 @@ def insert_quiz_history(payload: dict[str, Any]) -> dict[str, Any]:
         "playerEmail": email,
         "country": country,
         "quizScope": quiz_scope,
+        "quizType": quiz_type,
+        "difficulty": int(payload.get("difficulty", 0) or 0),
+        "questionCount": int(payload.get("questionCount", 0) or 0),
+        "timeLimitMinutes": int(payload.get("timeLimitMinutes", 25) or 25),
         "correct": int(payload.get("correctCount", 0) or 0),
         "wrong": int(payload.get("wrongCount", 0) or 0),
         "marks": int(payload.get("marks", 0) or 0),
         "percentage": int(payload.get("percentage", 0) or 0),
         "total": int(payload.get("totalPossible", 0) or 0),
+        "timeSpentSeconds": int(payload.get("timeSpentSeconds", 0) or 0),
     }
 
 
