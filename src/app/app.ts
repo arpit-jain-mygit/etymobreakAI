@@ -1782,6 +1782,7 @@ export class App implements OnInit, AfterViewInit {
       rootMeaning: question.sourceRootMeaning || '',
       explanation: question.explanation,
       options: question.options,
+      optionFeedbacks: question.optionFeedbacks,
       selectedIndex: question.selectedIndex,
       selectedText: question.selectedIndex === null ? '' : question.options[question.selectedIndex] ?? '',
       correctIndex: question.correctIndex,
