@@ -2529,7 +2529,11 @@ export class App implements OnInit, AfterViewInit {
     const normalizedLetter = letter.trim().toLowerCase();
     const entries = this.canonicalSavedWordStates().filter((item) => item.state === source);
 
-    return entries
+    if (letter === '' && source === 'confident') {
+      console.log('🔍 [CONFIDENT COUNT] canonicalSavedWordStates entries:', entries.length);
+    }
+
+    const filtered = entries
       .filter((item) => {
         if (!item.identity) {
           return false;
@@ -2540,6 +2544,12 @@ export class App implements OnInit, AfterViewInit {
       .map((item) => item.entry.analysis)
       .filter((analysis) => !this.isEmptyAnalysis(analysis))
       .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+
+    if (letter === '' && source === 'confident') {
+      console.log('🔍 [CONFIDENT COUNT] After filtering:', filtered.length);
+    }
+
+    return filtered;
   }
 
   private collectAutocompleteTerms(entry: RootInventoryEntry): string[] {
