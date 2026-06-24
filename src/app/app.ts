@@ -1555,8 +1555,8 @@ export class App implements OnInit, AfterViewInit {
       this.syncSavedWordBuckets();
 
       console.log('✅ [REMOVE CONFIDENT] Removed from confident list');
-    } catch {
-      console.error('❌ [REMOVE CONFIDENT] Exception:', error);
+    } catch (err) {
+      console.error('❌ [REMOVE CONFIDENT] Exception:', err);
       return;
     }
   }
@@ -1603,8 +1603,8 @@ export class App implements OnInit, AfterViewInit {
       this.syncSavedWordBuckets();
 
       console.log('✅ [REMOVE NEEDS FOCUS] Removed from needs focus list');
-    } catch {
-      console.error('❌ [REMOVE NEEDS FOCUS] Exception:', error);
+    } catch (err) {
+      console.error('❌ [REMOVE NEEDS FOCUS] Exception:', err);
       return;
     }
   }
