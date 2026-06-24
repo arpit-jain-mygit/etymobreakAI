@@ -4092,7 +4092,8 @@ export class App implements OnInit, AfterViewInit {
 
         this.confidentWords.set(entries);
         this.saveSavedWordsCache('confident', entries);
-        this.syncSavedWordBuckets();
+        // Don't call syncSavedWordBuckets() here - fresh API data is the source of truth
+        // syncSavedWordBuckets() should only be called when manually toggling words
         this.confidentWordsLoadedIdentity = identity;
 
         console.log('✅ [CONFIDENT WORDS] Loaded successfully. Current count:', entries.length);
@@ -4227,7 +4228,8 @@ export class App implements OnInit, AfterViewInit {
 
         this.needsFocusWords.set(entries);
         this.saveSavedWordsCache('needs_focus', entries);
-        this.syncSavedWordBuckets();
+        // Don't call syncSavedWordBuckets() here - fresh API data is the source of truth
+        // syncSavedWordBuckets() should only be called when manually toggling words
         this.needsFocusWordsLoadedIdentity = identity;
 
         console.log('✅ [NEEDS FOCUS WORDS] Loaded successfully. Current count:', entries.length);
