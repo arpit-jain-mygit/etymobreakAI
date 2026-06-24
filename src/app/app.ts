@@ -634,10 +634,26 @@ export class App implements OnInit, AfterViewInit {
   });
   protected readonly quizHistoryCount = computed(() => this.quizHistory().length);
   // Count directly from signals, NOT from canonicalSavedWordStates which deduplicates and combines both lists
-  protected readonly confidentWordsCount = computed(() => this.confidentWords().length);
-  protected readonly needsFocusWordsCount = computed(() => this.needsFocusWords().length);
-  protected readonly confidentWordsDisplayCount = computed(() => this.confidentWordsCount());
-  protected readonly needsFocusWordsDisplayCount = computed(() => this.needsFocusWordsCount());
+  protected readonly confidentWordsCount = computed(() => {
+    const count = this.confidentWords().length;
+    console.log('📊 [CONFIDENT WORDS COUNT] signal.length =', count, 'array:', this.confidentWords());
+    return count;
+  });
+  protected readonly needsFocusWordsCount = computed(() => {
+    const count = this.needsFocusWords().length;
+    console.log('📊 [NEEDS FOCUS WORDS COUNT] signal.length =', count);
+    return count;
+  });
+  protected readonly confidentWordsDisplayCount = computed(() => {
+    const count = this.confidentWordsCount();
+    console.log('🎯 [CONFIDENT DISPLAY COUNT] =', count);
+    return count;
+  });
+  protected readonly needsFocusWordsDisplayCount = computed(() => {
+    const count = this.needsFocusWordsCount();
+    console.log('🎯 [NEEDS FOCUS DISPLAY COUNT] =', count);
+    return count;
+  });
   protected readonly selectedQuizHistory = computed(() =>
     this.quizHistory().find((item) => item.id === this.selectedQuizHistoryId()) ?? null
   );
