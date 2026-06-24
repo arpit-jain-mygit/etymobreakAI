@@ -1414,6 +1414,8 @@ export class App implements OnInit, AfterViewInit {
         this.confidentWordNotice.set(`${analysis.title || analysis.query} was removed from Confident words.`);
       }
 
+      // Force refresh from Postgres on next loadConfidentWordsFromServer call
+      this.confidentWordsLoadedIdentity = '';
       this.syncSavedWordBuckets();
     } catch (error) {
       this.confidentWordsError.set(error instanceof Error ? error.message : 'Your confident word could not be saved.');
@@ -1488,6 +1490,8 @@ export class App implements OnInit, AfterViewInit {
         this.needsFocusWordNotice.set(`${analysis.title || analysis.query} was removed from Needs Focus words.`);
       }
 
+      // Force refresh from Postgres on next loadNeedsFocusWordsFromServer call
+      this.needsFocusWordsLoadedIdentity = '';
       this.syncSavedWordBuckets();
     } catch (error) {
       this.needsFocusWordsError.set(error instanceof Error ? error.message : 'Your needs-focus word could not be saved.');
@@ -1529,6 +1533,7 @@ export class App implements OnInit, AfterViewInit {
       const next = this.confidentWords().filter((item) => this.savedWordIdentity(item) !== this.savedWordIdentity(analysis));
       this.confidentWords.set(next);
       this.saveSavedWordsCache('confident', next);
+      this.confidentWordsLoadedIdentity = '';
       this.syncSavedWordBuckets();
     } catch {
       return;
@@ -1568,6 +1573,7 @@ export class App implements OnInit, AfterViewInit {
       const next = this.needsFocusWords().filter((item) => this.savedWordIdentity(item) !== this.savedWordIdentity(analysis));
       this.needsFocusWords.set(next);
       this.saveSavedWordsCache('needs_focus', next);
+      this.needsFocusWordsLoadedIdentity = '';
       this.syncSavedWordBuckets();
     } catch {
       return;
