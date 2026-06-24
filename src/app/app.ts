@@ -1369,6 +1369,8 @@ export class App implements OnInit, AfterViewInit {
     this.confidentWordNotice.set('');
 
     try {
+      console.log('📤 [TOGGLE CONFIDENT] Sending to API:', { query, confident, email: profile.google.email });
+
       const response = await fetch(`${getApiBaseUrl()}/confident-words`, {
         method: 'POST',
         headers: {
@@ -1382,6 +1384,8 @@ export class App implements OnInit, AfterViewInit {
           confident,
         }),
       });
+
+      console.log('📥 [TOGGLE CONFIDENT] API Response Status:', response.status);
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as {
@@ -1397,6 +1401,8 @@ export class App implements OnInit, AfterViewInit {
         | ConfidentWordEntry
         | { removed?: boolean }
         | null;
+
+      console.log('📥 [TOGGLE CONFIDENT] API Response Data:', saved);
 
       if (saved && !(saved as { removed?: boolean }).removed) {
         const entry = saved as ConfidentWordEntry;
@@ -1445,6 +1451,8 @@ export class App implements OnInit, AfterViewInit {
     this.needsFocusWordNotice.set('');
 
     try {
+      console.log('📤 [TOGGLE NEEDS FOCUS] Sending to API:', { query, needsFocus, email: profile.google.email });
+
       const response = await fetch(`${getApiBaseUrl()}/needs-focus-words`, {
         method: 'POST',
         headers: {
@@ -1458,6 +1466,8 @@ export class App implements OnInit, AfterViewInit {
           needsFocus,
         }),
       });
+
+      console.log('📥 [TOGGLE NEEDS FOCUS] API Response Status:', response.status);
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as {
@@ -1473,6 +1483,8 @@ export class App implements OnInit, AfterViewInit {
         | NeedsFocusWordEntry
         | { removed?: boolean }
         | null;
+
+      console.log('📥 [TOGGLE NEEDS FOCUS] API Response Data:', saved);
 
       if (saved && !(saved as { removed?: boolean }).removed) {
         const entry = saved as NeedsFocusWordEntry;
@@ -4037,27 +4049,43 @@ export class App implements OnInit, AfterViewInit {
           params.set('email', profile.google.email);
         }
 
+        const apiUrl = `${getApiBaseUrl()}/confident-words?${params.toString()}`;
+        console.log('🔵 [CONFIDENT WORDS] Fetching from API:', apiUrl);
+        console.log('📧 Profile:', { sub: profile.google.sub, email: profile.google.email });
+
         // Always fetch fresh data from Postgres, never use stale localStorage cache
-        const response = await fetch(`${getApiBaseUrl()}/confident-words?${params.toString()}`, {
+        const response = await fetch(apiUrl, {
           cache: 'no-store'  // Prevent browser caching
         });
+
+        console.log('🔵 [CONFIDENT WORDS] API Response Status:', response.status);
+
         if (!response.ok) {
           // Only fallback to cache if API fails
+          console.error('❌ [CONFIDENT WORDS] API failed, falling back to cache');
           this.loadSavedWordsCache('confident');
           this.confidentWordsError.set('Confident words could not be refreshed right now.');
           return;
         }
 
         const payload = (await response.json().catch(() => null)) as { items?: unknown[] } | null;
+        console.log('🔵 [CONFIDENT WORDS] API Response Payload:', payload);
+        console.log('🔵 [CONFIDENT WORDS] Number of items from API:', payload?.items?.length ?? 0);
+
         const entries = (payload?.items ?? [])
           .map((item) => this.rawSavedWordEntry(item))
           .filter((item): item is ConfidentWordEntry => item !== null)
           .sort((a, b) => b.time.localeCompare(a.time));
 
+        console.log('🟢 [CONFIDENT WORDS] Processed entries count:', entries.length);
+        console.log('🟢 [CONFIDENT WORDS] Setting signal with entries:', entries.map(e => ({ query: e.query, time: e.time })));
+
         this.confidentWords.set(entries);
         this.saveSavedWordsCache('confident', entries);
         this.syncSavedWordBuckets();
         this.confidentWordsLoadedIdentity = identity;
+
+        console.log('✅ [CONFIDENT WORDS] Loaded successfully. Current count:', entries.length);
       } catch {
         // Only fallback to cache if API fails
         this.loadSavedWordsCache('confident');
@@ -4156,27 +4184,43 @@ export class App implements OnInit, AfterViewInit {
           params.set('email', profile.google.email);
         }
 
+        const apiUrl = `${getApiBaseUrl()}/needs-focus-words?${params.toString()}`;
+        console.log('🔵 [NEEDS FOCUS WORDS] Fetching from API:', apiUrl);
+        console.log('📧 Profile:', { sub: profile.google.sub, email: profile.google.email });
+
         // Always fetch fresh data from Postgres, never use stale localStorage cache
-        const response = await fetch(`${getApiBaseUrl()}/needs-focus-words?${params.toString()}`, {
+        const response = await fetch(apiUrl, {
           cache: 'no-store'  // Prevent browser caching
         });
+
+        console.log('🔵 [NEEDS FOCUS WORDS] API Response Status:', response.status);
+
         if (!response.ok) {
           // Only fallback to cache if API fails
+          console.error('❌ [NEEDS FOCUS WORDS] API failed, falling back to cache');
           this.loadSavedWordsCache('needs_focus');
           this.needsFocusWordsError.set('Needs Focus words could not be refreshed right now.');
           return;
         }
 
         const payload = (await response.json().catch(() => null)) as { items?: unknown[] } | null;
+        console.log('🔵 [NEEDS FOCUS WORDS] API Response Payload:', payload);
+        console.log('🔵 [NEEDS FOCUS WORDS] Number of items from API:', payload?.items?.length ?? 0);
+
         const entries = (payload?.items ?? [])
           .map((item) => this.rawSavedWordEntry(item))
           .filter((item): item is NeedsFocusWordEntry => item !== null)
           .sort((a, b) => b.time.localeCompare(a.time));
 
+        console.log('🟢 [NEEDS FOCUS WORDS] Processed entries count:', entries.length);
+        console.log('🟢 [NEEDS FOCUS WORDS] Setting signal with entries:', entries.map(e => ({ query: e.query, time: e.time })));
+
         this.needsFocusWords.set(entries);
         this.saveSavedWordsCache('needs_focus', entries);
         this.syncSavedWordBuckets();
         this.needsFocusWordsLoadedIdentity = identity;
+
+        console.log('✅ [NEEDS FOCUS WORDS] Loaded successfully. Current count:', entries.length);
       } catch {
         // Only fallback to cache if API fails
         this.loadSavedWordsCache('needs_focus');
