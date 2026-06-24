@@ -4020,8 +4020,6 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
-    this.loadSavedWordsCache('confident');
-
     if (this.confidentWordsLoadPromise) {
       await this.confidentWordsLoadPromise;
       return;
@@ -4039,8 +4037,13 @@ export class App implements OnInit, AfterViewInit {
           params.set('email', profile.google.email);
         }
 
-        const response = await fetch(`${getApiBaseUrl()}/confident-words?${params.toString()}`);
+        // Always fetch fresh data from Postgres, never use stale localStorage cache
+        const response = await fetch(`${getApiBaseUrl()}/confident-words?${params.toString()}`, {
+          cache: 'no-store'  // Prevent browser caching
+        });
         if (!response.ok) {
+          // Only fallback to cache if API fails
+          this.loadSavedWordsCache('confident');
           this.confidentWordsError.set('Confident words could not be refreshed right now.');
           return;
         }
@@ -4056,6 +4059,8 @@ export class App implements OnInit, AfterViewInit {
         this.syncSavedWordBuckets();
         this.confidentWordsLoadedIdentity = identity;
       } catch {
+        // Only fallback to cache if API fails
+        this.loadSavedWordsCache('confident');
         this.confidentWordsError.set('Confident words could not be loaded.');
       } finally {
         this.confidentWordsLoading.set(false);
@@ -4134,8 +4139,6 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
 
-    this.loadSavedWordsCache('needs_focus');
-
     if (this.needsFocusWordsLoadPromise) {
       await this.needsFocusWordsLoadPromise;
       return;
@@ -4153,8 +4156,13 @@ export class App implements OnInit, AfterViewInit {
           params.set('email', profile.google.email);
         }
 
-        const response = await fetch(`${getApiBaseUrl()}/needs-focus-words?${params.toString()}`);
+        // Always fetch fresh data from Postgres, never use stale localStorage cache
+        const response = await fetch(`${getApiBaseUrl()}/needs-focus-words?${params.toString()}`, {
+          cache: 'no-store'  // Prevent browser caching
+        });
         if (!response.ok) {
+          // Only fallback to cache if API fails
+          this.loadSavedWordsCache('needs_focus');
           this.needsFocusWordsError.set('Needs Focus words could not be refreshed right now.');
           return;
         }
@@ -4170,6 +4178,8 @@ export class App implements OnInit, AfterViewInit {
         this.syncSavedWordBuckets();
         this.needsFocusWordsLoadedIdentity = identity;
       } catch {
+        // Only fallback to cache if API fails
+        this.loadSavedWordsCache('needs_focus');
         this.needsFocusWordsError.set('Needs Focus words could not be loaded.');
       } finally {
         this.needsFocusWordsLoading.set(false);
