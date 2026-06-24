@@ -1439,7 +1439,7 @@ export class App implements OnInit, AfterViewInit {
 
       // Force refresh from Postgres on next loadConfidentWordsFromServer call
       this.confidentWordsLoadedIdentity = '';
-      this.syncSavedWordBuckets();
+      // Don't call syncSavedWordBuckets() - signals already updated, backend handles exclusivity
     } catch (error) {
       this.confidentWordsError.set(error instanceof Error ? error.message : 'Your confident word could not be saved.');
     } finally {
@@ -1521,7 +1521,7 @@ export class App implements OnInit, AfterViewInit {
 
       // Force refresh from Postgres on next loadNeedsFocusWordsFromServer call
       this.needsFocusWordsLoadedIdentity = '';
-      this.syncSavedWordBuckets();
+      // Don't call syncSavedWordBuckets() - signals already updated, backend handles exclusivity
     } catch (error) {
       this.needsFocusWordsError.set(error instanceof Error ? error.message : 'Your needs-focus word could not be saved.');
     } finally {
@@ -1568,7 +1568,7 @@ export class App implements OnInit, AfterViewInit {
       this.confidentWords.set(next);
       this.saveSavedWordsCache('confident', next);
       this.confidentWordsLoadedIdentity = '';
-      this.syncSavedWordBuckets();
+      // Don't call syncSavedWordBuckets() - backend already deleted from confident and other list
 
       console.log('✅ [REMOVE CONFIDENT] Removed from confident list');
     } catch (err) {
@@ -1616,7 +1616,7 @@ export class App implements OnInit, AfterViewInit {
       this.needsFocusWords.set(next);
       this.saveSavedWordsCache('needs_focus', next);
       this.needsFocusWordsLoadedIdentity = '';
-      this.syncSavedWordBuckets();
+      // Don't call syncSavedWordBuckets() - backend already deleted from needs_focus and other list
 
       console.log('✅ [REMOVE NEEDS FOCUS] Removed from needs focus list');
     } catch (err) {
