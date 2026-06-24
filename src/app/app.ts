@@ -1525,6 +1525,8 @@ export class App implements OnInit, AfterViewInit {
     }
 
     try {
+      console.log('📤 [REMOVE CONFIDENT] Sending to API:', { query, confident: false, email: profile.google.email });
+
       const response = await fetch(`${getApiBaseUrl()}/confident-words`, {
         method: 'POST',
         headers: {
@@ -1539,7 +1541,10 @@ export class App implements OnInit, AfterViewInit {
         }),
       });
 
+      console.log('📥 [REMOVE CONFIDENT] API Response Status:', response.status);
+
       if (!response.ok) {
+        console.error('❌ [REMOVE CONFIDENT] API failed');
         return;
       }
 
@@ -1548,7 +1553,10 @@ export class App implements OnInit, AfterViewInit {
       this.saveSavedWordsCache('confident', next);
       this.confidentWordsLoadedIdentity = '';
       this.syncSavedWordBuckets();
+
+      console.log('✅ [REMOVE CONFIDENT] Removed from confident list');
     } catch {
+      console.error('❌ [REMOVE CONFIDENT] Exception:', error);
       return;
     }
   }
@@ -1565,6 +1573,8 @@ export class App implements OnInit, AfterViewInit {
     }
 
     try {
+      console.log('📤 [REMOVE NEEDS FOCUS] Sending to API:', { query, needsFocus: false, email: profile.google.email });
+
       const response = await fetch(`${getApiBaseUrl()}/needs-focus-words`, {
         method: 'POST',
         headers: {
@@ -1579,7 +1589,10 @@ export class App implements OnInit, AfterViewInit {
         }),
       });
 
+      console.log('📥 [REMOVE NEEDS FOCUS] API Response Status:', response.status);
+
       if (!response.ok) {
+        console.error('❌ [REMOVE NEEDS FOCUS] API failed');
         return;
       }
 
@@ -1588,7 +1601,10 @@ export class App implements OnInit, AfterViewInit {
       this.saveSavedWordsCache('needs_focus', next);
       this.needsFocusWordsLoadedIdentity = '';
       this.syncSavedWordBuckets();
+
+      console.log('✅ [REMOVE NEEDS FOCUS] Removed from needs focus list');
     } catch {
+      console.error('❌ [REMOVE NEEDS FOCUS] Exception:', error);
       return;
     }
   }
