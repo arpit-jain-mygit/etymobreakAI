@@ -1035,6 +1035,18 @@ def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat()
 
     if not bool(payload.get("confident", True)):
+        # Remove from confident words
+        try:
+            with _connect() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "DELETE FROM confident_words WHERE google_sub = %s AND query = %s AND mode = %s",
+                        (google_sub, query, mode),
+                    )
+                conn.commit()
+        except Exception as exc:
+            raise ProfileStoreError(f"Could not remove confident word: {exc}") from exc
+
         return {
             "id": confident_id,
             "query": query,
@@ -1054,6 +1066,20 @@ def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
         "country": country,
         "analysis": analysis,
     }
+
+    # Add to confident AND remove from needs_focus (make exclusive)
+    try:
+        with _connect() as conn:
+            with conn.cursor() as cursor:
+                # Remove from needs_focus to keep lists exclusive
+                cursor.execute(
+                    "DELETE FROM needs_focus_words WHERE google_sub = %s AND query = %s AND mode = %s",
+                    (google_sub, query, mode),
+                )
+            conn.commit()
+    except Exception as exc:
+        raise ProfileStoreError(f"Could not remove from needs_focus: {exc}") from exc
+
     _cache_confident_word_to_db({
         "id": confident_id,
         "profileId": profile_id,
@@ -1091,6 +1117,18 @@ def upsert_needs_focus_word(payload: dict[str, Any]) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat()
 
     if not bool(payload.get("needsFocus", True)):
+        # Remove from needs_focus words
+        try:
+            with _connect() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "DELETE FROM needs_focus_words WHERE google_sub = %s AND query = %s AND mode = %s",
+                        (google_sub, query, mode),
+                    )
+                conn.commit()
+        except Exception as exc:
+            raise ProfileStoreError(f"Could not remove needs-focus word: {exc}") from exc
+
         return {
             "id": focus_id,
             "query": query,
@@ -1109,6 +1147,20 @@ def upsert_needs_focus_word(payload: dict[str, Any]) -> dict[str, Any]:
         "country": country,
         "analysis": analysis,
     }
+
+    # Add to needs_focus AND remove from confident (make exclusive)
+    try:
+        with _connect() as conn:
+            with conn.cursor() as cursor:
+                # Remove from confident to keep lists exclusive
+                cursor.execute(
+                    "DELETE FROM confident_words WHERE google_sub = %s AND query = %s AND mode = %s",
+                    (google_sub, query, mode),
+                )
+            conn.commit()
+    except Exception as exc:
+        raise ProfileStoreError(f"Could not remove from confident: {exc}") from exc
+
     _cache_needs_focus_word_to_db({
         "id": focus_id,
         "profileId": profile_id,
