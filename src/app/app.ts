@@ -3474,7 +3474,22 @@ export class App implements OnInit, AfterViewInit {
     console.log('🎯 [QUIZ BUILD] Extracted roots count:', extractedRoots.length, 'analyses count:', confidentAnalyses.length);
     console.log('🎯 [QUIZ BUILD] Missing roots:', confidentAnalyses.length - extractedRoots.length);
 
-    const confidentRootNames = Array.from(new Set(extractedRoots));
+    const confidentRootNamesSet = new Set(extractedRoots);
+    const confidentRootNames = Array.from(confidentRootNamesSet);
+
+    console.log('🎯 [QUIZ BUILD] Unique roots (Set deduplicated):', confidentRootNames.length);
+    console.log('🎯 [QUIZ BUILD] Duplicate roots:', extractedRoots.length - confidentRootNames.length);
+
+    if (extractedRoots.length !== confidentRootNames.length) {
+      const rootCounts = new Map<string, number>();
+      extractedRoots.forEach(root => {
+        rootCounts.set(root, (rootCounts.get(root) || 0) + 1);
+      });
+      const duplicates = Array.from(rootCounts.entries())
+        .filter(([_, count]) => count > 1)
+        .slice(0, 10);
+      console.log('🎯 [QUIZ BUILD] Sample duplicate roots:', duplicates);
+    }
     const focusRootSet = new Set(focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean));
     confidentRootNames.forEach((r) => focusRootSet.delete(r));
     const focusRootNames = Array.from(focusRootSet);
