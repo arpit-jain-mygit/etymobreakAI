@@ -2560,10 +2560,17 @@ export class App implements OnInit, AfterViewInit {
 
   private getSavedWordAnalyses(letter = '', source: 'confident' | 'needs_focus'): AnalysisResult[] {
     const normalizedLetter = letter.trim().toLowerCase();
-    const entries = this.canonicalSavedWordStates().filter((item) => item.state === source);
+    // Use signals directly instead of canonicalSavedWordStates which merges and deduplicates
+    const sourceData = source === 'confident' ? this.confidentWords() : this.needsFocusWords();
+
+    const entries = sourceData.map((item) => ({
+      state: source,
+      identity: this.savedWordIdentity(item),
+      entry: item,
+    }));
 
     if (letter === '' && source === 'confident') {
-      console.log('🔍 [CONFIDENT COUNT] canonicalSavedWordStates entries:', entries.length);
+      console.log('🔍 [CONFIDENT COUNT] from signal:', entries.length);
     }
 
     const filtered = entries
