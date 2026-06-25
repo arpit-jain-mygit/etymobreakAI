@@ -633,15 +633,31 @@ export class App implements OnInit, AfterViewInit {
     return [profile?.firstName, profile?.lastName].map((part) => String(part || '').trim()).filter(Boolean).join(' ');
   });
   protected readonly quizHistoryCount = computed(() => this.quizHistory().length);
-  // Count directly from signals, NOT from canonicalSavedWordStates which deduplicates and combines both lists
+  // Count unique roots only (same root saved in different modes counts as 1)
   protected readonly confidentWordsCount = computed(() => {
-    const count = this.confidentWords().length;
-    console.log('📊 [CONFIDENT WORDS COUNT] signal.length =', count, 'array:', this.confidentWords());
+    const uniqueRoots = new Set(
+      this.confidentWords()
+        .map(item => {
+          const root = (item.rootFamily?.root || item.query || '').trim().toLowerCase();
+          return root || null;
+        })
+        .filter(Boolean)
+    );
+    const count = uniqueRoots.size;
+    console.log('📊 [CONFIDENT WORDS COUNT] unique roots =', count);
     return count;
   });
   protected readonly needsFocusWordsCount = computed(() => {
-    const count = this.needsFocusWords().length;
-    console.log('📊 [NEEDS FOCUS WORDS COUNT] signal.length =', count);
+    const uniqueRoots = new Set(
+      this.needsFocusWords()
+        .map(item => {
+          const root = (item.rootFamily?.root || item.query || '').trim().toLowerCase();
+          return root || null;
+        })
+        .filter(Boolean)
+    );
+    const count = uniqueRoots.size;
+    console.log('📊 [NEEDS FOCUS WORDS COUNT] unique roots =', count);
     return count;
   });
   protected readonly confidentWordsDisplayCount = computed(() => {
