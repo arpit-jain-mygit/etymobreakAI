@@ -3471,31 +3471,37 @@ export class App implements OnInit, AfterViewInit {
     };
 
     const rootMap = new Map<string, AnalysisResult[]>();
-    confidentAnalyses.forEach((analysis) => {
+    const emptyRoots: AnalysisResult[] = [];
+
+    confidentAnalyses.forEach((analysis, idx) => {
       const roots = extractRootsFromAnalysis(analysis);
-      roots.forEach(root => {
-        if (!rootMap.has(root)) {
-          rootMap.set(root, []);
-        }
-        rootMap.get(root)!.push(analysis);
-      });
+      if (roots.length === 0) {
+        emptyRoots.push(analysis);
+        console.log(`⚠️ [ROOT EXTRACTION] Entry ${idx} has no root: query="${analysis.query}" title="${analysis.title}"`);
+      } else {
+        roots.forEach(root => {
+          if (!rootMap.has(root)) {
+            rootMap.set(root, []);
+          }
+          rootMap.get(root)!.push(analysis);
+        });
+      }
     });
 
     const extractedRoots = Array.from(rootMap.keys());
     console.log('🎯 [QUIZ BUILD] Extracted roots count:', extractedRoots.length, 'analyses count:', confidentAnalyses.length);
-    console.log('🎯 [QUIZ BUILD] Missing roots:', confidentAnalyses.length - extractedRoots.length);
+    console.log('🎯 [QUIZ BUILD] Entries with empty roots:', emptyRoots.length);
 
     // Log which analyses are mapping to the same root
     const duplicateRoots = Array.from(rootMap.entries())
       .filter(([_, analyses]) => analyses.length > 1)
-      .slice(0, 5);
+      .sort((a, b) => b[1].length - a[1].length);
 
-    if (duplicateRoots.length > 0) {
-      console.log('🎯 [QUIZ BUILD] Duplicate root mappings (sample):');
-      duplicateRoots.forEach(([root, analyses]) => {
-        console.log(`  Root "${root}" has ${analyses.length} entries:`, analyses.map(a => a.query));
-      });
-    }
+    console.log('🎯 [QUIZ BUILD] Total duplicate root groups:', duplicateRoots.length);
+    console.log('🎯 [QUIZ BUILD] Duplicate root mappings:');
+    duplicateRoots.slice(0, 10).forEach(([root, analyses]) => {
+      console.log(`  Root "${root}" has ${analyses.length} entries:`, analyses.map(a => a.query));
+    });
 
     const confidentRootNames = extractedRoots;
     const focusRootSet = new Set(focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean));
