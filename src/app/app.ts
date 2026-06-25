@@ -3444,7 +3444,29 @@ export class App implements OnInit, AfterViewInit {
       console.warn(`  ⚠️ Confident has ${confidentExtracted.length - confidentRootNames.length} duplicate roots`);
     }
     if (focusExtracted.length !== focusRootNames.length) {
-      console.warn(`  ⚠️ Focus has ${focusExtracted.length - focusRootNames.length} duplicate roots`);
+      const focusDups = focusExtracted.length - focusRootNames.length;
+      console.warn(`  ⚠️ Focus has ${focusDups} duplicate roots`);
+
+      // Log which focus roots are duplicated
+      const focusRootCount = new Map<string, string[]>();
+      focusAnalyses.forEach((analysis) => {
+        const roots = extractRootsFromAnalysis(analysis);
+        roots.forEach(root => {
+          if (!focusRootCount.has(root)) {
+            focusRootCount.set(root, []);
+          }
+          focusRootCount.get(root)!.push(analysis.query);
+        });
+      });
+
+      const focusDuplicateRoots = Array.from(focusRootCount.entries())
+        .filter(([_, queries]) => queries.length > 1)
+        .sort((a, b) => b[1].length - a[1].length);
+
+      console.log('  Focus duplicate roots:');
+      focusDuplicateRoots.forEach(([root, queries]) => {
+        console.log(`    Root "${root}": ${queries.join(', ')}`);
+      });
     }
 
 
