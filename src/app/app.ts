@@ -638,7 +638,8 @@ export class App implements OnInit, AfterViewInit {
     const uniqueRoots = new Set(
       this.confidentWords()
         .map(item => {
-          const root = (item.rootFamily?.root || item.query || '').trim().toLowerCase();
+          const analysis = item.analysis;
+          const root = (analysis?.rootFamily?.root || item.query || '').trim().toLowerCase();
           return root || null;
         })
         .filter(Boolean)
@@ -651,7 +652,8 @@ export class App implements OnInit, AfterViewInit {
     const uniqueRoots = new Set(
       this.needsFocusWords()
         .map(item => {
-          const root = (item.rootFamily?.root || item.query || '').trim().toLowerCase();
+          const analysis = item.analysis;
+          const root = (analysis?.rootFamily?.root || item.query || '').trim().toLowerCase();
           return root || null;
         })
         .filter(Boolean)
