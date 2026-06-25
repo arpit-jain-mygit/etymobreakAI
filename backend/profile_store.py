@@ -1026,6 +1026,8 @@ def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
         raise ProfileStoreError("Profile details are required.")
 
     query = str(payload.get("query", "")).strip() or str(_confident_analysis_payload(payload).get("query", "")).strip()
+    # Normalize query to lowercase to prevent case-insensitive duplicates
+    query = query.lower() if query else query
     mode = str(payload.get("mode", "")).strip() or str(_confident_analysis_payload(payload).get("mode", "")).strip() or "word"
     if not query:
         raise ProfileStoreError("A query is required to save a confident word.")
@@ -1055,6 +1057,10 @@ def upsert_confident_word(payload: dict[str, Any]) -> dict[str, Any]:
         }
 
     analysis = _confident_analysis_payload(payload)
+    # Normalize query in analysis object too
+    if isinstance(analysis, dict) and "query" in analysis:
+        analysis["query"] = analysis["query"].lower() if analysis.get("query") else analysis["query"]
+
     response = {
         "id": confident_id,
         "time": now,
@@ -1108,6 +1114,8 @@ def upsert_needs_focus_word(payload: dict[str, Any]) -> dict[str, Any]:
 
     analysis = _confident_analysis_payload(payload)
     query = str(payload.get("query", "")).strip() or str(analysis.get("query", "")).strip()
+    # Normalize query to lowercase to prevent case-insensitive duplicates
+    query = query.lower() if query else query
     mode = str(payload.get("mode", "")).strip() or str(analysis.get("mode", "")).strip() or "word"
     if not query:
         raise ProfileStoreError("A query is required to save a needs-focus word.")
@@ -1135,6 +1143,10 @@ def upsert_needs_focus_word(payload: dict[str, Any]) -> dict[str, Any]:
             "mode": mode,
             "removed": True,
         }
+
+    # Normalize query in analysis object too
+    if isinstance(analysis, dict) and "query" in analysis:
+        analysis["query"] = analysis["query"].lower() if analysis.get("query") else analysis["query"]
 
     response = {
         "id": focus_id,
