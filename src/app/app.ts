@@ -3426,48 +3426,82 @@ export class App implements OnInit, AfterViewInit {
       return root ? [root] : [];
     };
 
-    // Log root extraction for both confident and focus
-    const confidentExtracted = confidentAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean);
-    const focusExtracted = focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean);
+    // Comprehensive logging for root extraction debugging
+    console.log('═══ [ROOT EXTRACTION DEBUG] ═══');
 
-    const confidentRootNames = Array.from(new Set(confidentExtracted));
-    const focusRootSet = new Set(focusExtracted);
+    // Build maps for both confident and focus
+    const confidentRootMap = new Map<string, AnalysisResult[]>();
+    const focusRootMap = new Map<string, AnalysisResult[]>();
+
+    confidentAnalyses.forEach((analysis) => {
+      const roots = extractRootsFromAnalysis(analysis);
+      roots.forEach(root => {
+        if (!confidentRootMap.has(root)) {
+          confidentRootMap.set(root, []);
+        }
+        confidentRootMap.get(root)!.push(analysis);
+      });
+    });
+
+    focusAnalyses.forEach((analysis) => {
+      const roots = extractRootsFromAnalysis(analysis);
+      roots.forEach(root => {
+        if (!focusRootMap.has(root)) {
+          focusRootMap.set(root, []);
+        }
+        focusRootMap.get(root)!.push(analysis);
+      });
+    });
+
+    // Log confident analysis
+    console.log('📊 [CONFIDENT WORDS]');
+    console.log('  Entries from API: ' + confidentAnalyses.length);
+    console.log('  Unique roots extracted: ' + confidentRootMap.size);
+    const confidentDups = Array.from(confidentRootMap.entries()).filter(([_, analyses]) => analyses.length > 1);
+    if (confidentDups.length > 0) {
+      console.log('  ⚠️ Duplicate root groups: ' + confidentDups.length);
+      confidentDups.slice(0, 5).forEach(([root, analyses]) => {
+        console.log(`    "${root}" (${analyses.length}): ${analyses.map(a => a.query).join(' | ')}`);
+      });
+    }
+
+    // Log focus analysis
+    console.log('📊 [FOCUS WORDS]');
+    console.log('  Entries from API: ' + focusAnalyses.length);
+    console.log('  Unique roots extracted: ' + focusRootMap.size);
+    console.log('  All roots: ' + Array.from(focusRootMap.keys()).sort().join(', '));
+
+    const focusDups = Array.from(focusRootMap.entries()).filter(([_, analyses]) => analyses.length > 1);
+    console.log('  Duplicate root groups: ' + focusDups.length);
+    if (focusDups.length > 0) {
+      focusDups.forEach(([root, analyses]) => {
+        console.log(`    "${root}" appears ${analyses.length}x in: ${analyses.map(a => a.query).join(' | ')}`);
+      });
+    } else {
+      console.log('  ✅ No duplicates found in extraction');
+    }
+
+    // Check for case sensitivity issues
+    if (focusDups.length === 0 && focusAnalyses.length !== focusRootMap.size) {
+      console.log('  ⚠️ WARNING: Entries ≠ Roots but no duplicates in map!');
+      console.log('    This suggests extraction logic issue or empty roots');
+      focusAnalyses.forEach((analysis, idx) => {
+        const roots = extractRootsFromAnalysis(analysis);
+        if (roots.length === 0) {
+          console.log(`    Entry ${idx}: "${analysis.query}" has NO root extracted!`);
+        }
+      });
+    }
+
+    // Use maps for further processing
+    const confidentRootNames = Array.from(confidentRootMap.keys());
+    const focusRootSet = new Set(focusRootMap.keys());
     confidentRootNames.forEach((r) => focusRootSet.delete(r));
     const focusRootNames = Array.from(focusRootSet);
 
-    console.log('🎯 [WORD COUNT AUDIT]');
-    console.log('  Confident: entries=' + confidentAnalyses.length + ', extracted=' + confidentExtracted.length + ', unique=' + confidentRootNames.length);
-    console.log('  Focus: entries=' + focusAnalyses.length + ', extracted=' + focusExtracted.length + ', unique=' + focusRootNames.length);
-
-    // Check for duplicates
-    if (confidentExtracted.length !== confidentRootNames.length) {
-      console.warn(`  ⚠️ Confident has ${confidentExtracted.length - confidentRootNames.length} duplicate roots`);
-    }
-    if (focusExtracted.length !== focusRootNames.length) {
-      const focusDups = focusExtracted.length - focusRootNames.length;
-      console.warn(`  ⚠️ Focus has ${focusDups} duplicate roots`);
-
-      // Log which focus roots are duplicated
-      const focusRootCount = new Map<string, string[]>();
-      focusAnalyses.forEach((analysis) => {
-        const roots = extractRootsFromAnalysis(analysis);
-        roots.forEach(root => {
-          if (!focusRootCount.has(root)) {
-            focusRootCount.set(root, []);
-          }
-          focusRootCount.get(root)!.push(analysis.query);
-        });
-      });
-
-      const focusDuplicateRoots = Array.from(focusRootCount.entries())
-        .filter(([_, queries]) => queries.length > 1)
-        .sort((a, b) => b[1].length - a[1].length);
-
-      console.log('  Focus duplicate roots:');
-      focusDuplicateRoots.forEach(([root, queries]) => {
-        console.log(`    Root "${root}": ${queries.join(', ')}`);
-      });
-    }
+    console.log('═══ [FINAL COUNTS] ═══');
+    console.log('  Confident: ' + confidentAnalyses.length + ' entries → ' + confidentRootNames.length + ' roots');
+    console.log('  Focus: ' + focusAnalyses.length + ' entries → ' + focusRootNames.length + ' roots');
 
 
     const allRootEntries = this.getRootInventoryEntries();
