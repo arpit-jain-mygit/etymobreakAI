@@ -633,45 +633,15 @@ export class App implements OnInit, AfterViewInit {
     return [profile?.firstName, profile?.lastName].map((part) => String(part || '').trim()).filter(Boolean).join(' ');
   });
   protected readonly quizHistoryCount = computed(() => this.quizHistory().length);
-  // Count unique roots only (same root saved in different modes counts as 1)
+  // Count by unique roots (case-insensitive, normalized by backend)
   protected readonly confidentWordsCount = computed(() => {
-    const uniqueRoots = new Set(
-      this.confidentWords()
-        .map(item => {
-          const analysis = item.analysis;
-          const root = (analysis?.rootFamily?.root || item.query || '').trim().toLowerCase();
-          return root || null;
-        })
-        .filter(Boolean)
-    );
-    const count = uniqueRoots.size;
-    console.log('📊 [CONFIDENT WORDS COUNT] unique roots =', count);
-    return count;
+    return this.confidentWords().length;
   });
   protected readonly needsFocusWordsCount = computed(() => {
-    const uniqueRoots = new Set(
-      this.needsFocusWords()
-        .map(item => {
-          const analysis = item.analysis;
-          const root = (analysis?.rootFamily?.root || item.query || '').trim().toLowerCase();
-          return root || null;
-        })
-        .filter(Boolean)
-    );
-    const count = uniqueRoots.size;
-    console.log('📊 [NEEDS FOCUS WORDS COUNT] unique roots =', count);
-    return count;
+    return this.needsFocusWords().length;
   });
-  protected readonly confidentWordsDisplayCount = computed(() => {
-    const count = this.confidentWordsCount();
-    console.log('🎯 [CONFIDENT DISPLAY COUNT] =', count);
-    return count;
-  });
-  protected readonly needsFocusWordsDisplayCount = computed(() => {
-    const count = this.needsFocusWordsCount();
-    console.log('🎯 [NEEDS FOCUS DISPLAY COUNT] =', count);
-    return count;
-  });
+  protected readonly confidentWordsDisplayCount = computed(() => this.confidentWordsCount());
+  protected readonly needsFocusWordsDisplayCount = computed(() => this.needsFocusWordsCount());
   protected readonly selectedQuizHistory = computed(() =>
     this.quizHistory().find((item) => item.id === this.selectedQuizHistoryId()) ?? null
   );
@@ -2591,27 +2561,17 @@ export class App implements OnInit, AfterViewInit {
       console.log('🔍 [CONFIDENT COUNT] from signal:', entries.length);
     }
 
-    const afterIdentityFilter = entries.filter((item) => {
-      if (!item.identity) {
-        return false;
-      }
-      return !normalizedLetter || item.identity.startsWith(normalizedLetter);
-    });
+    const filtered = entries
+      .filter((item) => {
+        if (!item.identity) {
+          return false;
+        }
 
-    const analyses = afterIdentityFilter.map((item) => item.entry.analysis);
-    const beforeEmptyFilter = analyses.length;
-
-    const filtered = analyses
+        return !normalizedLetter || item.identity.startsWith(normalizedLetter);
+      })
+      .map((item) => item.entry.analysis)
       .filter((analysis) => !this.isEmptyAnalysis(analysis))
       .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
-
-    if (letter === '' && source === 'confident') {
-      console.log('🔍 [CONFIDENT COUNT] from signal:', entries.length);
-      console.log('🔍 [CONFIDENT COUNT] After identity filter:', afterIdentityFilter.length);
-      console.log('🔍 [CONFIDENT COUNT] Before empty filter:', beforeEmptyFilter);
-      console.log('🔍 [CONFIDENT COUNT] After empty filter:', filtered.length);
-      console.log('🔍 [CONFIDENT COUNT] Filtered out (empty analyses):', beforeEmptyFilter - filtered.length);
-    }
 
     return filtered;
   }
@@ -3444,10 +3404,6 @@ export class App implements OnInit, AfterViewInit {
     const confidentAnalyses = this.getSavedWordAnalyses('', 'confident');
     const focusAnalyses = this.getSavedWordAnalyses('', 'needs_focus');
 
-    console.log('🎯 [QUIZ BUILD] confidentAnalyses count:', confidentAnalyses.length);
-    console.log('🎯 [QUIZ BUILD] focusAnalyses count:', focusAnalyses.length);
-    console.log('🎯 [QUIZ BUILD] confidentWords signal:', this.confidentWords().length);
-    console.log('🎯 [QUIZ BUILD] needsFocusWords signal:', this.needsFocusWords().length);
 
     const extractRootsFromAnalysis = (analysis: AnalysisResult): string[] => {
       let root = (analysis.rootFamily?.root || '').trim().toLowerCase();
@@ -3470,46 +3426,13 @@ export class App implements OnInit, AfterViewInit {
       return root ? [root] : [];
     };
 
-    const rootMap = new Map<string, AnalysisResult[]>();
-    const emptyRoots: AnalysisResult[] = [];
-
-    confidentAnalyses.forEach((analysis, idx) => {
-      const roots = extractRootsFromAnalysis(analysis);
-      if (roots.length === 0) {
-        emptyRoots.push(analysis);
-        console.log(`⚠️ [ROOT EXTRACTION] Entry ${idx} has no root: query="${analysis.query}" title="${analysis.title}"`);
-      } else {
-        roots.forEach(root => {
-          if (!rootMap.has(root)) {
-            rootMap.set(root, []);
-          }
-          rootMap.get(root)!.push(analysis);
-        });
-      }
-    });
-
-    const extractedRoots = Array.from(rootMap.keys());
-    console.log('🎯 [QUIZ BUILD] Extracted roots count:', extractedRoots.length, 'analyses count:', confidentAnalyses.length);
-    console.log('🎯 [QUIZ BUILD] Entries with empty roots:', emptyRoots.length);
-
-    // Log which analyses are mapping to the same root
-    const duplicateRoots = Array.from(rootMap.entries())
-      .filter(([_, analyses]) => analyses.length > 1)
-      .sort((a, b) => b[1].length - a[1].length);
-
-    console.log('🎯 [QUIZ BUILD] Total duplicate root groups:', duplicateRoots.length);
-    console.log('🎯 [QUIZ BUILD] Duplicate root mappings:');
-    duplicateRoots.slice(0, 10).forEach(([root, analyses]) => {
-      console.log(`  Root "${root}" has ${analyses.length} entries:`, analyses.map(a => a.query));
-    });
-
-    const confidentRootNames = extractedRoots;
+    const confidentRootNames = Array.from(
+      new Set(confidentAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean))
+    );
     const focusRootSet = new Set(focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean));
     confidentRootNames.forEach((r) => focusRootSet.delete(r));
     const focusRootNames = Array.from(focusRootSet);
 
-    console.log('🎯 [QUIZ BUILD] confidentRootNames count:', confidentRootNames.length);
-    console.log('🎯 [QUIZ BUILD] focusRootNames count:', focusRootNames.length);
 
     const allRootEntries = this.getRootInventoryEntries();
     const savedRootKeys = new Set([...confidentRootNames, ...focusRootNames]);
