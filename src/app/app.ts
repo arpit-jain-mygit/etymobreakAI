@@ -3420,6 +3420,11 @@ export class App implements OnInit, AfterViewInit {
     const confidentAnalyses = this.getSavedWordAnalyses('', 'confident');
     const focusAnalyses = this.getSavedWordAnalyses('', 'needs_focus');
 
+    console.log('🎯 [QUIZ BUILD] confidentAnalyses count:', confidentAnalyses.length);
+    console.log('🎯 [QUIZ BUILD] focusAnalyses count:', focusAnalyses.length);
+    console.log('🎯 [QUIZ BUILD] confidentWords signal:', this.confidentWords().length);
+    console.log('🎯 [QUIZ BUILD] needsFocusWords signal:', this.needsFocusWords().length);
+
     const extractRootsFromAnalysis = (analysis: AnalysisResult): string[] => {
       let root = (analysis.rootFamily?.root || '').trim().toLowerCase();
 
@@ -3442,6 +3447,9 @@ export class App implements OnInit, AfterViewInit {
     const focusRootSet = new Set(focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean));
     confidentRootNames.forEach((r) => focusRootSet.delete(r));
     const focusRootNames = Array.from(focusRootSet);
+
+    console.log('🎯 [QUIZ BUILD] confidentRootNames count:', confidentRootNames.length);
+    console.log('🎯 [QUIZ BUILD] focusRootNames count:', focusRootNames.length);
 
     const allRootEntries = this.getRootInventoryEntries();
     const savedRootKeys = new Set([...confidentRootNames, ...focusRootNames]);
