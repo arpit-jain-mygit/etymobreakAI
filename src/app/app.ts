@@ -2591,20 +2591,26 @@ export class App implements OnInit, AfterViewInit {
       console.log('🔍 [CONFIDENT COUNT] from signal:', entries.length);
     }
 
-    const filtered = entries
-      .filter((item) => {
-        if (!item.identity) {
-          return false;
-        }
+    const afterIdentityFilter = entries.filter((item) => {
+      if (!item.identity) {
+        return false;
+      }
+      return !normalizedLetter || item.identity.startsWith(normalizedLetter);
+    });
 
-        return !normalizedLetter || item.identity.startsWith(normalizedLetter);
-      })
-      .map((item) => item.entry.analysis)
+    const analyses = afterIdentityFilter.map((item) => item.entry.analysis);
+    const beforeEmptyFilter = analyses.length;
+
+    const filtered = analyses
       .filter((analysis) => !this.isEmptyAnalysis(analysis))
       .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
 
     if (letter === '' && source === 'confident') {
-      console.log('🔍 [CONFIDENT COUNT] After filtering:', filtered.length);
+      console.log('🔍 [CONFIDENT COUNT] from signal:', entries.length);
+      console.log('🔍 [CONFIDENT COUNT] After identity filter:', afterIdentityFilter.length);
+      console.log('🔍 [CONFIDENT COUNT] Before empty filter:', beforeEmptyFilter);
+      console.log('🔍 [CONFIDENT COUNT] After empty filter:', filtered.length);
+      console.log('🔍 [CONFIDENT COUNT] Filtered out (empty analyses):', beforeEmptyFilter - filtered.length);
     }
 
     return filtered;
