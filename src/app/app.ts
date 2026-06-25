@@ -3487,8 +3487,11 @@ export class App implements OnInit, AfterViewInit {
       });
       const duplicates = Array.from(rootCounts.entries())
         .filter(([_, count]) => count > 1)
-        .slice(0, 10);
-      console.log('🎯 [QUIZ BUILD] Sample duplicate roots:', duplicates);
+        .sort((a, b) => b[1] - a[1]);
+      console.log('🎯 [QUIZ BUILD] ALL duplicate roots:', duplicates);
+      duplicates.slice(0, 5).forEach(([root, count]) => {
+        console.log(`  - "${root}" appears ${count} times`);
+      });
     }
     const focusRootSet = new Set(focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean));
     confidentRootNames.forEach((r) => focusRootSet.delete(r));
