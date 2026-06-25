@@ -3426,12 +3426,26 @@ export class App implements OnInit, AfterViewInit {
       return root ? [root] : [];
     };
 
-    const confidentRootNames = Array.from(
-      new Set(confidentAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean))
-    );
-    const focusRootSet = new Set(focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean));
+    // Log root extraction for both confident and focus
+    const confidentExtracted = confidentAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean);
+    const focusExtracted = focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean);
+
+    const confidentRootNames = Array.from(new Set(confidentExtracted));
+    const focusRootSet = new Set(focusExtracted);
     confidentRootNames.forEach((r) => focusRootSet.delete(r));
     const focusRootNames = Array.from(focusRootSet);
+
+    console.log('🎯 [WORD COUNT AUDIT]');
+    console.log('  Confident: entries=' + confidentAnalyses.length + ', extracted=' + confidentExtracted.length + ', unique=' + confidentRootNames.length);
+    console.log('  Focus: entries=' + focusAnalyses.length + ', extracted=' + focusExtracted.length + ', unique=' + focusRootNames.length);
+
+    // Check for duplicates
+    if (confidentExtracted.length !== confidentRootNames.length) {
+      console.warn(`  ⚠️ Confident has ${confidentExtracted.length - confidentRootNames.length} duplicate roots`);
+    }
+    if (focusExtracted.length !== focusRootNames.length) {
+      console.warn(`  ⚠️ Focus has ${focusExtracted.length - focusRootNames.length} duplicate roots`);
+    }
 
 
     const allRootEntries = this.getRootInventoryEntries();
