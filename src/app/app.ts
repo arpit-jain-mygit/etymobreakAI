@@ -3470,29 +3470,34 @@ export class App implements OnInit, AfterViewInit {
       return root ? [root] : [];
     };
 
-    const extractedRoots = confidentAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean);
+    const rootMap = new Map<string, AnalysisResult[]>();
+    confidentAnalyses.forEach((analysis) => {
+      const roots = extractRootsFromAnalysis(analysis);
+      roots.forEach(root => {
+        if (!rootMap.has(root)) {
+          rootMap.set(root, []);
+        }
+        rootMap.get(root)!.push(analysis);
+      });
+    });
+
+    const extractedRoots = Array.from(rootMap.keys());
     console.log('🎯 [QUIZ BUILD] Extracted roots count:', extractedRoots.length, 'analyses count:', confidentAnalyses.length);
     console.log('🎯 [QUIZ BUILD] Missing roots:', confidentAnalyses.length - extractedRoots.length);
 
-    const confidentRootNamesSet = new Set(extractedRoots);
-    const confidentRootNames = Array.from(confidentRootNamesSet);
+    // Log which analyses are mapping to the same root
+    const duplicateRoots = Array.from(rootMap.entries())
+      .filter(([_, analyses]) => analyses.length > 1)
+      .slice(0, 5);
 
-    console.log('🎯 [QUIZ BUILD] Unique roots (Set deduplicated):', confidentRootNames.length);
-    console.log('🎯 [QUIZ BUILD] Duplicate roots:', extractedRoots.length - confidentRootNames.length);
-
-    if (extractedRoots.length !== confidentRootNames.length) {
-      const rootCounts = new Map<string, number>();
-      extractedRoots.forEach(root => {
-        rootCounts.set(root, (rootCounts.get(root) || 0) + 1);
-      });
-      const duplicates = Array.from(rootCounts.entries())
-        .filter(([_, count]) => count > 1)
-        .sort((a, b) => b[1] - a[1]);
-      console.log('🎯 [QUIZ BUILD] ALL duplicate roots:', duplicates);
-      duplicates.slice(0, 5).forEach(([root, count]) => {
-        console.log(`  - "${root}" appears ${count} times`);
+    if (duplicateRoots.length > 0) {
+      console.log('🎯 [QUIZ BUILD] Duplicate root mappings (sample):');
+      duplicateRoots.forEach(([root, analyses]) => {
+        console.log(`  Root "${root}" has ${analyses.length} entries:`, analyses.map(a => a.query));
       });
     }
+
+    const confidentRootNames = extractedRoots;
     const focusRootSet = new Set(focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean));
     confidentRootNames.forEach((r) => focusRootSet.delete(r));
     const focusRootNames = Array.from(focusRootSet);
