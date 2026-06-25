@@ -3454,12 +3454,19 @@ export class App implements OnInit, AfterViewInit {
       }
 
       root = (analysis.title || '').trim().toLowerCase();
+
+      if (!root) {
+        console.warn('⚠️ [ROOT EXTRACTION] Missing root for analysis:', analysis);
+      }
+
       return root ? [root] : [];
     };
 
-    const confidentRootNames = Array.from(
-      new Set(confidentAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean))
-    );
+    const extractedRoots = confidentAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean);
+    console.log('🎯 [QUIZ BUILD] Extracted roots count:', extractedRoots.length, 'analyses count:', confidentAnalyses.length);
+    console.log('🎯 [QUIZ BUILD] Missing roots:', confidentAnalyses.length - extractedRoots.length);
+
+    const confidentRootNames = Array.from(new Set(extractedRoots));
     const focusRootSet = new Set(focusAnalyses.flatMap(extractRootsFromAnalysis).filter(Boolean));
     confidentRootNames.forEach((r) => focusRootSet.delete(r));
     const focusRootNames = Array.from(focusRootSet);
