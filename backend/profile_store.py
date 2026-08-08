@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from datetime import datetime, timezone
 from typing import Any
 from urllib import error, parse, request
+
+logger = logging.getLogger(__name__)
 
 try:
     import psycopg
@@ -114,12 +117,17 @@ def _connect():
     if psycopg is None:
         raise ProfileStoreError("psycopg is not installed.")
     try:
-        return psycopg.connect(url)
+        logger.info("Attempting to connect to Postgres...")
+        conn = psycopg.connect(url)
+        logger.info("Successfully connected to Postgres")
+        return conn
     except Exception as exc:  # pragma: no cover - network/runtime dependent
+        logger.error(f"Failed to connect to Postgres: {exc}")
         raise ProfileStoreError(f"Could not connect to Postgres: {exc}") from exc
 
 
 def ensure_schema() -> None:
+    logger.info("Ensuring Postgres schema exists...")
     with _connect() as conn:
         with conn.cursor() as cursor:
             cursor.execute(PROFILE_TABLE_SQL)
@@ -127,6 +135,7 @@ def ensure_schema() -> None:
             cursor.execute(NEEDS_FOCUS_WORDS_TABLE_SQL)
             cursor.execute(QUIZ_HISTORY_TABLE_SQL)
         conn.commit()
+    logger.info("Postgres schema is ready")
 
 
 def _normalize_google(data: dict[str, Any]) -> dict[str, str]:
